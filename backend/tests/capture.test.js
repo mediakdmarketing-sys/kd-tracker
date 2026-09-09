@@ -33,7 +33,7 @@ describe('screenshot upload', () => {
     const token = await login(await createEmployee());
     await as(token).post('/api/attendance/punch-in');
 
-    const res = await as(token).post('/api/screenshot/upload').send({ imageBase64: IMAGE });
+    const res = await as(token).post('/api/screenshots/upload').send({ imageBase64: IMAGE });
     expect(res.status).toBe(201);
 
     const row = await db()('screenshots').where({ id: res.body.id }).first();
@@ -44,7 +44,7 @@ describe('screenshot upload', () => {
 
   it('is refused when the capture time falls outside every shift', async () => {
     const token = await login(await createEmployee());
-    const res = await as(token).post('/api/screenshot/upload').send({ imageBase64: IMAGE });
+    const res = await as(token).post('/api/screenshots/upload').send({ imageBase64: IMAGE });
 
     expect(res.status).toBe(409);
     expect(await db()('screenshots').count({ c: '*' })).toEqual([{ c: 0 }]);
@@ -61,7 +61,7 @@ describe('screenshot upload', () => {
     await attendanceService.punchOut({ employee: toUser(employee), at: start + 3 * 3600_000 });
 
     const res = await as(token)
-      .post('/api/screenshot/upload')
+      .post('/api/screenshots/upload')
       .send({ imageBase64: IMAGE, capturedAt: new Date(start + 3600_000).toISOString() });
 
     expect(res.status).toBe(201);
@@ -82,7 +82,7 @@ describe('screenshot upload', () => {
     await attendanceService.punchOut({ employee: user, at: start + 4 * 3600_000 });
 
     const res = await as(token)
-      .post('/api/screenshot/upload')
+      .post('/api/screenshots/upload')
       .send({ imageBase64: IMAGE, capturedAt: new Date(start + 4500_000).toISOString() });
 
     expect(res.status).toBe(409);
@@ -94,7 +94,7 @@ describe('screenshot upload', () => {
     await as(token).post('/api/attendance/punch-in');
     await as(token).post('/api/attendance/break-start');
 
-    const res = await as(token).post('/api/screenshot/upload').send({ imageBase64: IMAGE });
+    const res = await as(token).post('/api/screenshots/upload').send({ imageBase64: IMAGE });
     expect(res.status).toBe(409);
     expect(res.body.error.message).toMatch(/break/i);
   });
@@ -104,7 +104,7 @@ describe('screenshot upload', () => {
     await as(token).post('/api/attendance/punch-in');
 
     const huge = Buffer.alloc(6 * 1024 * 1024, 1).toString('base64');
-    const res = await as(token).post('/api/screenshot/upload').send({ imageBase64: huge });
+    const res = await as(token).post('/api/screenshots/upload').send({ imageBase64: huge });
 
     expect(res.status).toBe(413);
     expect(await db()('screenshots').count({ c: '*' })).toEqual([{ c: 0 }]);
@@ -122,10 +122,10 @@ describe('replay protection (captureId)', () => {
     const captureId = uuid();
 
     const first = await as(token)
-      .post('/api/screenshot/upload')
+      .post('/api/screenshots/upload')
       .send({ imageBase64: IMAGE, captureId });
     const retry = await as(token)
-      .post('/api/screenshot/upload')
+      .post('/api/screenshots/upload')
       .send({ imageBase64: IMAGE, captureId });
 
     expect(first.status).toBe(201);
@@ -140,14 +140,14 @@ describe('replay protection (captureId)', () => {
     await as(token).post('/api/attendance/punch-in');
     const captureId = uuid();
     const first = await as(token)
-      .post('/api/screenshot/upload')
+      .post('/api/screenshots/upload')
       .send({ imageBase64: IMAGE, captureId });
 
     await as(token).post('/api/attendance/punch-out');
 
     // Without the replay check this would be a 409 and the agent would retry forever.
     const retry = await as(token)
-      .post('/api/screenshot/upload')
+      .post('/api/screenshots/upload')
       .send({ imageBase64: IMAGE, captureId });
 
     expect(retry.status).toBe(201);
@@ -214,7 +214,7 @@ describe('replay protection (captureId)', () => {
     await as(token).post('/api/attendance/punch-in');
 
     const res = await as(token)
-      .post('/api/screenshot/upload')
+      .post('/api/screenshots/upload')
       .send({ imageBase64: IMAGE, captureId: '../../etc/passwd' });
 
     expect(res.status).toBe(400);
@@ -232,7 +232,7 @@ describe('multi-display capture', () => {
     const results = [];
     for (let displayIndex = 0; displayIndex < 2; displayIndex += 1) {
       results.push(
-        await as(token).post('/api/screenshot/upload').send({
+        await as(token).post('/api/screenshots/upload').send({
           imageBase64: IMAGE,
           captureId: uuid(),
           captureGroupId,
@@ -285,7 +285,7 @@ describe('multi-display capture', () => {
     await as(token).post('/api/attendance/punch-in');
 
     const res = await as(token)
-      .post('/api/screenshot/upload')
+      .post('/api/screenshots/upload')
       .send({ imageBase64: IMAGE, captureId: uuid() });
 
     expect(res.body.captureGroupId).toBeTruthy();
@@ -318,7 +318,7 @@ describe('multi-display capture', () => {
     await as(token).post('/api/attendance/punch-in');
 
     const res = await as(token)
-      .post('/api/screenshot/upload')
+      .post('/api/screenshots/upload')
       .send({ imageBase64: IMAGE, captureId: uuid(), displayIndex: 3, displayCount: 2 });
 
     expect(res.status).toBe(400);
@@ -331,7 +331,7 @@ describe('timestamp sanity', () => {
     await as(token).post('/api/attendance/punch-in');
 
     const res = await as(token)
-      .post('/api/screenshot/upload')
+      .post('/api/screenshots/upload')
       .send({ imageBase64: IMAGE, capturedAt: new Date(Date.now() + 3600_000).toISOString() });
 
     expect(res.status).toBe(400);
@@ -344,7 +344,7 @@ describe('timestamp sanity', () => {
     await as(token).post('/api/attendance/punch-in');
 
     const res = await as(token)
-      .post('/api/screenshot/upload')
+      .post('/api/screenshots/upload')
       .send({ imageBase64: IMAGE, capturedAt: new Date(Date.now() - 30 * 86400000).toISOString() });
 
     expect(res.status).toBe(400);
@@ -357,7 +357,7 @@ describe('timestamp sanity', () => {
     await attendanceService.punchIn({ employee: toUser(employee), at: Date.now() - 6 * 3600_000 });
     const capturedAt = new Date(Date.now() - 3 * 3600_000).toISOString();
 
-    const res = await as(token).post('/api/screenshot/upload').send({ imageBase64: IMAGE, capturedAt });
+    const res = await as(token).post('/api/screenshots/upload').send({ imageBase64: IMAGE, capturedAt });
 
     expect(res.status).toBe(201);
     expect(res.body.capturedAt).toBe(capturedAt);
@@ -470,7 +470,7 @@ describe('admin media access', () => {
     const employee = await createEmployee();
     const userToken = await login(employee);
     await as(userToken).post('/api/attendance/punch-in');
-    const upload = await as(userToken).post('/api/screenshot/upload').send({ imageBase64: IMAGE });
+    const upload = await as(userToken).post('/api/screenshots/upload').send({ imageBase64: IMAGE });
 
     const adminToken = await login(await createEmployee({ role: 'admin' }));
     const view = await as(adminToken).get(`/api/screenshots/file/${upload.body.id}`);
@@ -485,7 +485,7 @@ describe('admin media access', () => {
     const owner = await createEmployee();
     const ownerToken = await login(owner);
     await as(ownerToken).post('/api/attendance/punch-in');
-    const upload = await as(ownerToken).post('/api/screenshot/upload').send({ imageBase64: IMAGE });
+    const upload = await as(ownerToken).post('/api/screenshots/upload').send({ imageBase64: IMAGE });
 
     const otherToken = await login(await createEmployee());
     const res = await as(otherToken).get(`/api/screenshots/file/${upload.body.id}`);

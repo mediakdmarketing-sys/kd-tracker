@@ -205,31 +205,40 @@ Certbot rewrites the config for 443 and installs a renewal timer.
 
 ## 6. First admin user
 
-The Supabase DB has schema but no seeded logins. Create one real admin
-(interactive node one-liner on the VM, using the backend's own hashing):
+The Supabase DB has schema but no seeded logins. Create one real admin with a short
+script (uses the backend's own bcrypt settings):
 
 ```bash
 cd /opt/kd-tracker/backend
-node -e "
+cat > seed-admin.js <<'EOF'
 require('dotenv').config();
-const bcrypt=require('bcryptjs');
-const {db,destroy}=require('./src/db');
-(async()=>{
+const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
+const { db, destroy } = require('./src/db');
+(async () => {
+  const now = Date.now();
   await db()('employees').insert({
-    email:'admin@example.com',
-    full_name:'Admin',
-    role:'admin',
-    password_hash:await bcrypt.hash('CHANGE_THIS_NOW',12),
-    consent_status:'not_required',
-    is_active:true
+    id: crypto.randomUUID(),
+    name: 'KD Admin',
+    email: 'admin@example.com',
+    password_hash: await bcrypt.hash('CHANGE_THIS_NOW', 12),
+    role: 'admin',
+    status: 'active',
+    timezone: 'Asia/Kolkata',
+    consent_monitoring: false,
+    consent_audio: false,
+    created_at: now,
+    updated_at: now,
   });
   await destroy();
-})();
-"
+  console.log('admin created');
+})().catch((e) => { console.error(e); process.exit(1); });
+EOF
+node seed-admin.js && rm seed-admin.js
 ```
 
-Adjust column names to match the `employees` migration if it rejects. Then log in at
-`https://app.example.com/login` and change the password.
+Then log in at `https://app.example.com/login` and change the password. An admin still
+has to accept the consent screen once before the dashboard opens.
 
 ---
 
