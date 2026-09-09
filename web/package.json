@@ -1,0 +1,16 @@
+{
+  "name": "kd-tracker-web",
+  "version": "0.6.0",
+  "private": true,
+  "description": "Admin + User portal for the employee monitoring system",
+  "scripts": {
+    "dev": "next dev -p 3000 --turbopack",
+    "build": "next build",
+    "start": "next start -p 3000"
+  },
+  "dependencies": {
+    "next": "^15.1.6",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}

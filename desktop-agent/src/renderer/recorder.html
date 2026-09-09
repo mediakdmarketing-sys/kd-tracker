@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>KD Tracker recorder</title>
+  </head>
+  <body>
+    <script>
+      // Hidden window. Records one short sample on request, then releases the microphone.
+      // The stream is stopped explicitly at the end of every sample — leaving it open would
+      // keep the OS microphone indicator lit and turn sampling into continuous recording.
+      window.recorder.onStart(async ({ durationSeconds }) => {
+        let stream = null;
+
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+          // --- Silence / mute detection (Sprint 7) ------------------------------------
+          // Tap the stream through a Web Audio AnalyserNode and collect the peak RMS
+          // level across the whole sample. A sample whose peak never rises above the
+          // threshold (roughly -50 dBFS) was almost certainly recorded with the mic
+          // muted or disconnected.
+          const audioCtx = new AudioContext();
+          const source = audioCtx.createMediaStreamSource(stream);
+          const analyser = audioCtx.createAnalyser();
+          analyser.fftSize = 2048;
+          source.connect(analyser);
+
+          const pcm = new Float32Array(analyser.fftSize);
+          let peakRms = 0;
+
+          // Sample the analyser every 200 ms for the duration of the recording.
+          const SILENCE_THRESHOLD = 0.002; // ~-54 dBFS
+          const pollInterval = setInterval(() => {
+            analyser.getFloatTimeDomainData(pcm);
+            let sum = 0;
+            for (let i = 0; i < pcm.length; i++) sum += pcm[i] * pcm[i];
+            const rms = Math.sqrt(sum / pcm.length);
+            if (rms > peakRms) peakRms = rms;
+          }, 200);
+          // ---------------------------------------------------------------------------
+
+          const chunks = [];
+          const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+            ? 'audio/webm;codecs=opus'
+            : 'audio/webm';
+          const rec = new MediaRecorder(stream, { mimeType: mime, audioBitsPerSecond: 32000 });
+
+          rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+
+          rec.onstop = async () => {
+            clearInterval(pollInterval);
+            audioCtx.close();
+            stream.getTracks().forEach((t) => t.stop());
+            const blob = new Blob(chunks, { type: mime });
+            const buffer = new Uint8Array(await blob.arrayBuffer());
+            window.recorder.done({
+              data: Array.from(buffer),
+              durationSeconds,
+              mimeType: mime,
+              // true  → entire sample was silence (mic muted / disconnected)
+              // false → at least one window had audible signal
+              micMuted: peakRms < SILENCE_THRESHOLD,
+            });
+          };
+
+          rec.start();
+          setTimeout(() => rec.state !== 'inactive' && rec.stop(), durationSeconds * 1000);
+        } catch (err) {
+          stream?.getTracks().forEach((t) => t.stop());
+          window.recorder.done({ error: String(err && err.message ? err.message : err) });
+        }
+      });
+    </script>
+  </body>
+</html>

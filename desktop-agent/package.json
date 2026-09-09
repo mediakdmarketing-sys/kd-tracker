@@ -1,0 +1,26 @@
+{
+  "name": "kd-tracker-agent",
+  "version": "0.7.0",
+  "private": true,
+  "description": "Desktop monitoring agent for Windows, macOS and Linux",
+  "main": "src/main/index.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "icon": "node build/generate-icon.js",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux"
+  },
+  "dependencies": {
+    "sql.js": "1.12.0"
+  },
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8",
+    "vitest": "^2.1.9"
+  }
+}

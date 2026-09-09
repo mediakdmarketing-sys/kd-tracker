@@ -1,0 +1,786 @@
+<title>KD Tracker Readiness Report</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --paper: #f5f7fb;
+    --surface: #ffffff;
+    --surface-2: #eef1f7;
+    --ink: #12151c;
+    --muted: #5a6270;
+    --faint: #8992a3;
+    --line: #e1e5ee;
+    --line-strong: #ccd2e0;
+    --accent: #2f5cff;
+    --accent-soft: #e8edff;
+    --accent-ink: #1b3fc4;
+    --ok: #0f7a56;
+    --ok-soft: #dcf3ea;
+    --warn: #9c5b0a;
+    --warn-soft: #fbedd6;
+    --danger: #b4231f;
+    --danger-soft: #fbe3e2;
+    --shadow: 0 1px 2px rgba(18,21,28,.05), 0 8px 24px rgba(18,21,28,.05);
+    --serif: "Fraunces", ui-serif, Georgia, serif;
+    --sans: "Public Sans", -apple-system, "Segoe UI", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #0f1218;
+      --surface: #171b23;
+      --surface-2: #1d222c;
+      --ink: #eceef3;
+      --muted: #a3aabb;
+      --faint: #6b7385;
+      --line: #262c38;
+      --line-strong: #363e4d;
+      --accent: #7b95ff;
+      --accent-soft: #202a4a;
+      --accent-ink: #b0c0ff;
+      --ok: #4fceA0;
+      --ok-soft: #123227;
+      --warn: #e3ab5c;
+      --warn-soft: #362a12;
+      --danger: #f0918d;
+      --danger-soft: #3a1c1b;
+      --shadow: 0 1px 2px rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #0f1218;
+    --surface: #171b23;
+    --surface-2: #1d222c;
+    --ink: #eceef3;
+    --muted: #a3aabb;
+    --faint: #6b7385;
+    --line: #262c38;
+    --line-strong: #363e4d;
+    --accent: #7b95ff;
+    --accent-soft: #202a4a;
+    --accent-ink: #b0c0ff;
+    --ok: #4fceA0;
+    --ok-soft: #123227;
+    --warn: #e3ab5c;
+    --warn-soft: #362a12;
+    --danger: #f0918d;
+    --danger-soft: #3a1c1b;
+    --shadow: 0 1px 2px rgba(0,0,0,.4);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.55;
+  }
+  ::selection { background: var(--accent-soft); color: var(--accent-ink); }
+
+  h1, h2, h3 { font-family: var(--serif); text-wrap: balance; margin: 0; color: var(--ink); }
+  p { margin: 0 0 1em; max-width: 68ch; }
+  a { color: var(--accent-ink); }
+  code, .mono { font-family: var(--mono); }
+
+  /* ---------- Masthead ---------- */
+  .masthead {
+    border-bottom: 1px solid var(--line);
+    background: var(--surface);
+  }
+  .masthead-inner {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 46px 28px 34px;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+  h1.title {
+    font-size: clamp(32px, 5vw, 46px);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin-bottom: 10px;
+  }
+  .subtitle { color: var(--muted); font-size: 16.5px; max-width: 60ch; margin-bottom: 26px; }
+  .meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 22px;
+    font-size: 13px;
+    color: var(--faint);
+    border-top: 1px solid var(--line);
+    padding-top: 16px;
+  }
+  .meta-row strong { color: var(--muted); font-weight: 600; }
+
+  /* ---------- Scorecard strip ---------- */
+  .scorecard {
+    max-width: 980px;
+    margin: -1px auto 0;
+    padding: 0 28px;
+  }
+  .scorecard-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-top: -22px;
+    box-shadow: var(--shadow);
+  }
+  .score-tile {
+    background: var(--surface);
+    padding: 18px 18px 16px;
+  }
+  .score-tile .label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--faint);
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .score-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    font-weight: 700;
+    padding: 3px 10px 3px 8px;
+    border-radius: 999px;
+  }
+  .score-pill::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .score-pill.ok { background: var(--ok-soft); color: var(--ok); }
+  .score-pill.warn { background: var(--warn-soft); color: var(--warn); }
+  .score-tile .detail { margin-top: 8px; font-size: 12.5px; color: var(--muted); line-height: 1.4; }
+
+  /* ---------- Body shell ---------- */
+  .layout {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 48px 28px 100px;
+    display: grid;
+    grid-template-columns: 190px 1fr;
+    gap: 48px;
+  }
+  nav.toc {
+    position: sticky;
+    top: 28px;
+    align-self: start;
+    font-size: 13px;
+  }
+  nav.toc a {
+    display: block;
+    color: var(--muted);
+    text-decoration: none;
+    padding: 5px 0 5px 12px;
+    border-left: 2px solid var(--line);
+    transition: border-color .15s, color .15s;
+  }
+  nav.toc a:hover { color: var(--accent-ink); border-left-color: var(--accent); }
+  nav.toc .toc-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--faint);
+    margin-bottom: 10px;
+    padding-left: 12px;
+  }
+
+  main { min-width: 0; }
+  section { margin-bottom: 56px; scroll-margin-top: 24px; }
+  section > .sec-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 6px; }
+  .sec-num {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--faint);
+  }
+  h2.sec-title { font-size: 24px; font-weight: 600; letter-spacing: -0.01em; }
+  section > .sec-dek { color: var(--muted); font-size: 14.5px; margin: 6px 0 22px; max-width: 62ch; }
+
+  /* ---------- Recommendation callout ---------- */
+  .callout {
+    border-radius: 12px;
+    padding: 20px 22px;
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    border: 1px solid var(--line);
+  }
+  .callout.go { background: var(--ok-soft); border-color: transparent; }
+  .callout .flag {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--ok);
+    white-space: nowrap;
+    padding-top: 2px;
+  }
+  .callout p { margin: 0; color: var(--ink); font-size: 14.5px; max-width: 60ch; }
+  .callout p + p { margin-top: 8px; }
+  .callout strong { color: var(--ink); }
+
+  /* ---------- Bug ledger ---------- */
+  .ledger { display: flex; flex-direction: column; gap: 14px; }
+  .bug-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .bug-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--line);
+    background: var(--surface-2);
+    flex-wrap: wrap;
+  }
+  .bug-id {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--faint);
+    min-width: 28px;
+  }
+  .chip {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+    padding: 3px 9px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .chip.race { background: var(--danger-soft); color: var(--danger); }
+  .chip.loss { background: var(--warn-soft); color: var(--warn); }
+  .chip.session { background: var(--accent-soft); color: var(--accent-ink); }
+  .chip.verified { background: var(--ok-soft); color: var(--ok); margin-left: auto; }
+  .bug-where { font-family: var(--mono); font-size: 12.5px; color: var(--muted); }
+  .bug-body { padding: 16px 18px 18px; }
+  .bug-body .what { font-weight: 600; margin-bottom: 8px; font-size: 14.5px; }
+  .bug-body .desc { color: var(--muted); font-size: 14px; margin-bottom: 12px; }
+  .fix-row {
+    display: flex;
+    gap: 10px;
+    font-size: 13.5px;
+    background: var(--paper);
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+  .fix-row .fix-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--ok);
+    font-weight: 700;
+    white-space: nowrap;
+    padding-top: 1px;
+  }
+  .fix-row p { margin: 0; color: var(--ink); }
+
+  /* ---------- Test table ---------- */
+  .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 560px; }
+  th {
+    text-align: left;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--faint);
+    font-weight: 700;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--line);
+    background: var(--surface-2);
+  }
+  td { padding: 12px 16px; border-bottom: 1px solid var(--line); vertical-align: top; color: var(--ink); }
+  tr:last-child td { border-bottom: none; }
+  td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; font-weight: 600; text-align: right; }
+  td.muted { color: var(--muted); }
+
+  /* ---------- Security list ---------- */
+  .check-list { display: flex; flex-direction: column; gap: 2px; }
+  .check-item {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 12px 4px;
+    border-bottom: 1px solid var(--line);
+  }
+  .check-item:last-child { border-bottom: none; }
+  .check-mark {
+    width: 20px; height: 20px; border-radius: 6px;
+    background: var(--ok-soft); color: var(--ok);
+    display: grid; place-items: center; flex-shrink: 0; margin-top: 1px;
+  }
+  .check-item p { margin: 0; font-size: 14px; color: var(--ink); }
+  .check-item .sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+
+  /* ---------- Blocker panel ---------- */
+  .blocker {
+    border: 1px solid var(--warn);
+    background: var(--warn-soft);
+    border-radius: 12px;
+    padding: 22px 24px;
+  }
+  .blocker .sec-head-inner { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .blocker .flag-icon {
+    width: 26px; height: 26px; border-radius: 7px;
+    background: var(--warn); color: var(--surface);
+    display: grid; place-items: center; font-family: var(--mono); font-weight: 700; font-size: 13px;
+    flex-shrink: 0;
+  }
+  .blocker h3 { font-size: 17px; color: var(--ink); }
+  .blocker p { color: var(--ink); font-size: 14.5px; max-width: 66ch; }
+  .toolchain-table { margin-top: 14px; }
+  .toolchain-table .row {
+    display: grid;
+    grid-template-columns: 100px 1fr;
+    gap: 14px;
+    padding: 9px 0;
+    border-bottom: 1px solid rgba(0,0,0,.08);
+    font-size: 13.5px;
+  }
+  .toolchain-table .row:last-child { border-bottom: none; }
+  .toolchain-table .plat { font-weight: 700; color: var(--ink); }
+  .toolchain-table .cmd { font-family: var(--mono); font-size: 12.5px; color: var(--muted); }
+
+  /* ---------- Deployment checklist ---------- */
+  .deploy-list { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface); }
+  .deploy-item {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    padding: 13px 18px;
+    border-bottom: 1px solid var(--line);
+    font-size: 14px;
+  }
+  .deploy-item:last-child { border-bottom: none; }
+  .deploy-box { width: 17px; height: 17px; border: 1.5px solid var(--line-strong); border-radius: 4px; flex-shrink: 0; margin-top: 2px; }
+  .deploy-item code { font-size: 12.5px; background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
+
+  /* ---------- Followups ---------- */
+  .followup-grid { display: grid; gap: 12px; }
+  .followup {
+    display: grid;
+    grid-template-columns: 90px 1fr;
+    gap: 16px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .followup:last-child { border-bottom: none; }
+  .followup .prio {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    padding: 3px 8px;
+    border-radius: 6px;
+    height: fit-content;
+  }
+  .prio.high { background: var(--danger-soft); color: var(--danger); }
+  .prio.med { background: var(--warn-soft); color: var(--warn); }
+  .prio.low { background: var(--surface-2); color: var(--faint); }
+  .followup p { margin: 0; font-size: 14px; color: var(--ink); }
+  .followup .why { color: var(--muted); font-size: 13px; margin-top: 3px; }
+
+  footer {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 0 28px 56px;
+    color: var(--faint);
+    font-size: 12.5px;
+    font-family: var(--mono);
+  }
+
+  @media (max-width: 800px) {
+    .layout { grid-template-columns: 1fr; }
+    nav.toc { display: none; }
+    .scorecard-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+
+<div class="masthead">
+  <div class="masthead-inner">
+    <div class="eyebrow"><span class="dot"></span>Production Readiness Report</div>
+    <h1 class="title">KD Tracker is ready to ship.</h1>
+    <p class="subtitle">Backend and web portal cleared for production. Ten real defects — mostly concurrency races that only show up under load — found and fixed in this audit pass, all with regression tests. One item remains open: the desktop agent needs a native-module rebuild before packaging.</p>
+    <div class="meta-row">
+      <span><strong>Date</strong> 5 Sept 2026</span>
+      <span><strong>Scope</strong> Backend API · Web Portal · Desktop Agent core</span>
+      <span><strong>Tests</strong> 107 backend · 54 agent, all passing</span>
+    </div>
+  </div>
+</div>
+
+<div class="scorecard">
+  <div class="scorecard-grid">
+    <div class="score-tile">
+      <div class="label">Backend API</div>
+      <span class="score-pill ok">Ready</span>
+      <div class="detail">107/107 tests · live-verified</div>
+    </div>
+    <div class="score-tile">
+      <div class="label">Web Portal</div>
+      <span class="score-pill ok">Ready</span>
+      <div class="detail">Build clean · verified in-browser</div>
+    </div>
+    <div class="score-tile">
+      <div class="label">Desktop Agent — logic</div>
+      <span class="score-pill ok">Ready</span>
+      <div class="detail">54/54 tests · live-verified</div>
+    </div>
+    <div class="score-tile">
+      <div class="label">Desktop Agent — installer</div>
+      <span class="score-pill warn">Blocked</span>
+      <div class="detail">Native rebuild toolchain needed</div>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="toc">
+    <div class="toc-label">Contents</div>
+    <a href="#recommendation">Recommendation</a>
+    <a href="#bugs">Bugs found &amp; fixed</a>
+    <a href="#tests">Test coverage</a>
+    <a href="#security">Security posture</a>
+    <a href="#packaging">Packaging blocker</a>
+    <a href="#followups">Follow-ups</a>
+    <a href="#checklist">Deploy checklist</a>
+  </nav>
+
+  <main>
+
+    <section id="recommendation">
+      <div class="sec-head"><span class="sec-num">01</span><h2 class="sec-title">Recommendation</h2></div>
+      <div class="callout go">
+        <span class="flag">Go</span>
+        <div>
+          <p><strong>Backend and web portal can go to production now.</strong> This audit pass read every backend module, every web request-handling path, and the desktop agent's core logic specifically hunting for concurrency bugs and silent data loss — the class of defect that unit tests written in isolation don't naturally surface. Ten were found; all ten are fixed, tested, and three were confirmed against the live server with real concurrent HTTP requests, not just simulated in one process.</p>
+          <p><strong>Do not</strong> distribute a desktop agent installer built on a machine that skipped the native-module rebuild step (§05) — it will crash on launch, silently, with no error a user could report.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="bugs">
+      <div class="sec-head"><span class="sec-num">02</span><h2 class="sec-title">Bugs found &amp; fixed</h2></div>
+      <p class="sec-dek">Ordered by category. The largest group — four of ten — is the same shape of bug in four different places: a "check, then write" sequence that isn't atomic, so two requests landing close together can both pass the check.</p>
+
+      <div class="ledger">
+
+        <div class="bug-card">
+          <div class="bug-head">
+            <span class="bug-id">01</span>
+            <span class="chip race">Race condition</span>
+            <span class="bug-where">attendance.service.js · punchIn()</span>
+            <span class="chip verified">Live-verified</span>
+          </div>
+          <div class="bug-body">
+            <div class="what">Two punch-ins could both succeed for one employee</div>
+            <div class="desc">A double-click, a client retry, or the desktop agent and the web portal both firing at once could each pass the "no open shift exists" check before either wrote a row — SQLite's transaction takes no write lock until the INSERT itself. Result: two <code>open</code> shifts for the same employee, corrupting the day's attendance record.</div>
+            <div class="fix-row">
+              <span class="fix-label">Fix</span>
+              <p>Added a database-level partial unique index — <code>attendance(employee_id) WHERE status IN ('open','on_break')</code> — a real constraint, not an application-level hope. Verified with 5 concurrent real HTTP punch-ins against the running server: exactly one 201, four clean 409s, one row in the database.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bug-card">
+          <div class="bug-head">
+            <span class="bug-id">02</span>
+            <span class="chip race">Race condition</span>
+            <span class="bug-where">closeShifts.job.js · the hourly sweep</span>
+          </div>
+          <div class="bug-body">
+            <div class="what">The stale-shift sweep could overwrite a real punch-out</div>
+            <div class="desc">The sweep reads a batch of stale shifts, then runs several more queries per shift before its own write. If an employee genuinely punched out for real inside that window, the sweep's unconditional write silently replaced their real punch-out with its own estimate — flagging a normal day as "never punched out" and recording the wrong hours.</div>
+            <div class="fix-row">
+              <span class="fix-label">Fix</span>
+              <p>Re-reads each shift immediately before acting, and guards the final write with <code>WHERE status IN ('open','on_break')</code> — a real punch-out that already closed it makes the guarded write match zero rows instead of clobbering it.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bug-card">
+          <div class="bug-head">
+            <span class="bug-id">03</span>
+            <span class="chip race">Race condition</span>
+            <span class="bug-where">admin.service.js · createEmployee()</span>
+          </div>
+          <div class="bug-body">
+            <div class="what">A duplicate work email could crash with a raw 500</div>
+            <div class="desc">Same check-then-insert shape: two admins (or one double-click) creating the same email at once could both pass the pre-check, and the loser hit an unhandled database error instead of the intended "already exists" response.</div>
+            <div class="fix-row">
+              <span class="fix-label">Fix</span>
+              <p>Catches the database's unique-constraint violation and returns the same clean 409 the non-racing path already gives.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bug-card">
+          <div class="bug-head">
+            <span class="bug-id">04</span>
+            <span class="chip race">Race condition</span>
+            <span class="bug-where">payroll.service.js · generate()</span>
+            <span class="chip verified">Live-verified</span>
+          </div>
+          <div class="bug-body">
+            <div class="what">Two simultaneous payroll runs for one month could 500</div>
+            <div class="desc">The same pattern again on the per-employee upsert: two <code>POST /payroll/generate</code> calls for the same month racing on their own check-then-write could fail the loser instead of the idempotent overwrite the endpoint promises.</div>
+            <div class="fix-row">
+              <span class="fix-label">Fix</span>
+              <p>Catches the violation and falls back to the update the winner's insert should have raced against.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bug-card">
+          <div class="bug-head">
+            <span class="bug-id">05</span>
+            <span class="chip loss">Data loss</span>
+            <span class="bug-where">jobRunner.js</span>
+          </div>
+          <div class="bug-body">
+            <div class="what">Partial job failures lost the detail that made them actionable</div>
+            <div class="desc">A retention purge that fails partway through attaches exactly which files succeeded and which didn't — the generic error handler kept only the top-level message, discarding it. An operator looking at a failed run had no way to tell which files failed without reading raw server logs from the moment it happened.</div>
+            <div class="fix-row">
+              <span class="fix-label">Fix</span>
+              <p>Both fields are now preserved on the stored job-run row, and the partial success count surfaces directly on it.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bug-card">
+          <div class="bug-head">
+            <span class="bug-id">06</span>
+            <span class="chip loss">Data loss</span>
+            <span class="bug-where">payroll.service.js · markSynced()</span>
+          </div>
+          <div class="bug-body">
+            <div class="what">An empty employee list was silently treated as "everyone"</div>
+            <div class="desc"><code>employeeIds?.length</code> is falsy for both <code>undefined</code> and <code>[]</code> — an explicit empty array, meant as "these zero employees," fell through to "mark the whole month synced" instead.</div>
+            <div class="fix-row">
+              <span class="fix-label">Fix</span>
+              <p>Distinguishes "omitted" from "explicitly empty" with an <code>Array.isArray</code> check before deciding the scope.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bug-card">
+          <div class="bug-head">
+            <span class="bug-id">07</span>
+            <span class="chip session">Session handling</span>
+            <span class="bug-where">web/lib/api.js</span>
+          </div>
+          <div class="bug-body">
+            <div class="what">A deactivated employee hit a crash page, not a sign-in prompt</div>
+            <div class="desc">Deactivation arrives as <code>403 ACCOUNT_DEACTIVATED</code>, not <code>401</code> — the access token itself hasn't expired, so the middleware's time-based refresh check never notices. The old code only redirected on <code>401</code>, so this landed on the generic error boundary instead.</div>
+            <div class="fix-row">
+              <span class="fix-label">Fix</span>
+              <p>Redirects to sign-in on either <code>401</code> or the <code>ACCOUNT_DEACTIVATED</code> code.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bug-card">
+          <div class="bug-head">
+            <span class="bug-id">08</span>
+            <span class="chip session">Session handling</span>
+            <span class="bug-where">web/lib/client.js</span>
+          </div>
+          <div class="bug-body">
+            <div class="what">Same gap, on every button click instead of every page load</div>
+            <div class="desc">Punch and admin actions taken after deactivation showed an inline error banner and left the employee stuck on a dead page rather than returning them to sign-in.</div>
+            <div class="fix-row">
+              <span class="fix-label">Fix</span>
+              <p>The same check, centralised in the one function every browser-side action already goes through.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bug-card">
+          <div class="bug-head">
+            <span class="bug-id">09</span>
+            <span class="chip session">Session handling</span>
+            <span class="bug-where">web/middleware.js</span>
+          </div>
+          <div class="bug-body">
+            <div class="what">Token refresh assumed a lifetime instead of reading it</div>
+            <div class="desc">The in-flight cookie rewrite during a refresh hardcoded 30 minutes rather than using the value the API actually returned — harmless only because nothing downstream reads it within that same request, but it would have silently drifted from reality the moment the token lifetime setting was ever changed.</div>
+            <div class="fix-row">
+              <span class="fix-label">Fix</span>
+              <p>Computed from the real <code>expiresIn</code> the refresh response returns, with the same formula the persisted cookie already used.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bug-card">
+          <div class="bug-head">
+            <span class="bug-id">10</span>
+            <span class="chip session">Interface</span>
+            <span class="bug-where">globals.css · popup.html</span>
+            <span class="chip verified">Live-verified</span>
+          </div>
+          <div class="bug-body">
+            <div class="what">Light theme, by request</div>
+            <div class="desc">Both the web portal and the desktop agent's tray popup auto-switched between light and dark based on the OS preference.</div>
+            <div class="fix-row">
+              <span class="fix-label">Fix</span>
+              <p>Converted to light-only on both surfaces. Verified in-browser with the OS forced to dark mode — the portal still renders light.</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <section id="tests">
+      <div class="sec-head"><span class="sec-num">03</span><h2 class="sec-title">Test coverage</h2></div>
+      <p class="sec-dek">Backend and agent-core have automated suites; the web portal was verified by hand, repeatedly, across several rounds of fixes.</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Suite</th><th style="text-align:right">Tests</th><th>What it covers</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Backend</td>
+              <td class="num">107</td>
+              <td class="muted">Auth &amp; sessions, attendance &amp; breaks, capture ingest &amp; replay protection, retention purge, payroll, admin/reports/audit, job runner, multi-display capture</td>
+            </tr>
+            <tr>
+              <td>Desktop agent core</td>
+              <td class="num">54</td>
+              <td class="muted">Outbox durability, upload classification &amp; retry, scheduling, session-death handling, punch queueing</td>
+            </tr>
+            <tr>
+              <td>Web portal</td>
+              <td class="num">—</td>
+              <td class="muted">No automated suite. Verified manually: login, punch flow, admin dashboard, screenshot viewer, payroll generation, light-theme rendering under forced dark mode.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="security">
+      <div class="sec-head"><span class="sec-num">04</span><h2 class="sec-title">Security posture</h2></div>
+      <p class="sec-dek">What's already in place, and what to check before a public-internet deployment — this was built assuming an internal or VPN-reachable API.</p>
+      <div class="check-list">
+        <div class="check-item">
+          <div class="check-mark">✓</div>
+          <div><p>Bcrypt password hashing; login gives an identical response and timing shape for an unknown email and a wrong password — no account-enumeration oracle.</p></div>
+        </div>
+        <div class="check-item">
+          <div class="check-mark">✓</div>
+          <div><p>Session tokens live in <code>httpOnly</code> cookies behind a server-side proxy — never in <code>localStorage</code>, never readable by page JavaScript.</p></div>
+        </div>
+        <div class="check-item">
+          <div class="check-mark">✓</div>
+          <div><p>Refresh-token rotation with a short grace window for legitimate retries; reuse outside the window revokes every session on the account — now correctly triggered for the deactivated-account case too.</p></div>
+        </div>
+        <div class="check-item">
+          <div class="check-mark">✓</div>
+          <div><p>Role checks run server-side against the current database row on every request, never trusted from a token claim — a role or status change takes effect on the very next request.</p></div>
+        </div>
+        <div class="check-item">
+          <div class="check-mark">✓</div>
+          <div><p>CSV exports are guarded against formula injection; uploads are rate-limited; every admin view of a screenshot or audio file writes an append-only audit row.</p></div>
+        </div>
+        <div class="check-item">
+          <div class="check-mark">✓</div>
+          <div><p>Consent is enforced server-side: no audio upload is accepted without <code>consent_audio = true</code> on the employee row, re-checked on every request.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="packaging">
+      <div class="sec-head"><span class="sec-num">05</span><h2 class="sec-title">Packaging blocker</h2></div>
+      <p class="sec-dek">The one open item. The agent's logic is done and live-verified; producing an installer is not.</p>
+      <div class="blocker">
+        <div class="sec-head-inner">
+          <div class="flag-icon">!</div>
+          <h3>better-sqlite3 crashes inside Electron on Windows</h3>
+        </div>
+        <p>The bundled Windows binary crashes the whole Electron process — uncatchable, no JS error at all — the instant it opens a database. Confirmed against both Electron 33 and Electron 30 on the build machine. The fix is standard for native Node modules under Electron: rebuild the module against Electron's own headers, which needs a C++ toolchain. <strong>By explicit customer decision this toolchain was not installed</strong> — deferred to whichever machine actually produces the packaged build.</p>
+        <div class="toolchain-table">
+          <div class="row"><div class="plat">Windows</div><div class="cmd">Visual Studio Build Tools — "Desktop development with C++" (not the IDE, not an editor) · <code>npm run rebuild:native</code></div></div>
+          <div class="row"><div class="plat">macOS</div><div class="cmd">xcode-select --install · npm run rebuild:native</div></div>
+          <div class="row"><div class="plat">Linux</div><div class="cmd">build-essential (or distro equivalent) · npm run rebuild:native</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="followups">
+      <div class="sec-head"><span class="sec-num">06</span><h2 class="sec-title">Follow-ups</h2></div>
+      <p class="sec-dek">None of these block the backend/web rollout.</p>
+      <div class="followup-grid">
+        <div class="followup">
+          <span class="prio high">High</span>
+          <div>
+            <p>No automated web-portal tests</p>
+            <div class="why">Every UI verification this session was manual — a future change could regress silently. Address before the next feature sprint.</div>
+          </div>
+        </div>
+        <div class="followup">
+          <span class="prio med">Owner call</span>
+          <div>
+            <p>Idle time is reported but not deducted from pay</p>
+            <div class="why">Open product question — payroll currently pays for idle time inside a shift.</div>
+          </div>
+        </div>
+        <div class="followup">
+          <span class="prio low">Low</span>
+          <div>
+            <p>Admin reports count an in-progress shift as "present" with 0 worked seconds</p>
+            <div class="why">Cosmetic on a live-data report; the Live Board already shows correct in-progress hours, and payroll already excludes open shifts entirely.</div>
+          </div>
+        </div>
+        <div class="followup">
+          <span class="prio low">Low</span>
+          <div>
+            <p>Refresh-cookie lifetime assumes the backend's default rather than reading it</p>
+            <div class="why">Only matters if that setting is ever changed from its default.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="checklist">
+      <div class="sec-head"><span class="sec-num">07</span><h2 class="sec-title">Deploy checklist</h2></div>
+      <div class="deploy-list">
+        <div class="deploy-item"><div class="deploy-box"></div><p><code>NODE_ENV=production</code> on the API — it already refuses to start with default JWT secrets, by design</p></div>
+        <div class="deploy-item"><div class="deploy-box"></div><p><code>JWT_SECRET</code> / <code>JWT_REFRESH_SECRET</code> set to strong, generated values (32+ characters)</p></div>
+        <div class="deploy-item"><div class="deploy-box"></div><p><code>CORS_ORIGINS</code> set to the real portal origin only</p></div>
+        <div class="deploy-item"><div class="deploy-box"></div><p><code>STORAGE_DRIVER=s3</code> with bucket credentials, if running more than one API instance</p></div>
+        <div class="deploy-item"><div class="deploy-box"></div><p>TLS in front of both the API and the portal; <code>COOKIE_SECURE=1</code> on the portal</p></div>
+        <div class="deploy-item"><div class="deploy-box"></div><p><code>/health/jobs</code> wired into an external monitor — it returns 503 if the retention purge hasn't succeeded in 48 hours</p></div>
+        <div class="deploy-item"><div class="deploy-box"></div><p>Seed/demo data not run against production — <code>db:seed</code> already refuses to run with <code>NODE_ENV=production</code></p></div>
+        <div class="deploy-item"><div class="deploy-box"></div><p>Desktop agent: no installer distributed from a machine that couldn't run <code>npm run rebuild:native</code> successfully</p></div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<footer>kd-tracker · production readiness report · prepared for go/no-go review</footer>

@@ -1,0 +1,12 @@
+node_modules/
+dist/
+*.log
+
+# Local durable queue and spooled captures (Outbox) — machine-specific runtime state.
+queue.sqlite3
+queue.sqlite3-*
+spool/
+
+# Encrypted session token store.
+session.bin
+settings.json
