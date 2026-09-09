@@ -11,8 +11,9 @@ data/
 *.sqlite3-wal
 *.sqlite3-shm
 
-# Local file storage driver (screenshots / audio)
-storage/
+# Local file storage driver output (screenshots / audio) — NOT src/storage/ code
+/backend/storage/
+/storage/
 uploads/
 
 # Build output

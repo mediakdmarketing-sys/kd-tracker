@@ -5,7 +5,6 @@ import InstallPrompt from '@/components/InstallPrompt';
 export const metadata = {
   title: 'KD Tracker',
   description: 'Attendance and work monitoring portal',
-  manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
@@ -29,6 +28,9 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+      </head>
       <body>
         {children}
         {/* Register the service worker after the page loads — no impact on first render. */}
