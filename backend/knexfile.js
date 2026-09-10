@@ -41,6 +41,11 @@ const sqlite = {
   seeds,
 };
 
+// On Vercel (or any serverless runtime) each function instance handles one request at a
+// time and may be frozen between invocations, so a large pool just exhausts the Supabase
+// pooler's client slots. One connection per warm instance, released quickly when idle.
+const serverless = !!process.env.VERCEL || process.env.SERVERLESS === '1';
+
 const postgres = {
   client: 'pg',
   connection: {
@@ -48,7 +53,9 @@ const postgres = {
     ssl: { rejectUnauthorized: false },
     family: 4,
   },
-  pool: { min: 2, max: 10 },
+  pool: serverless
+    ? { min: 0, max: 1, idleTimeoutMillis: 10000, acquireTimeoutMillis: 15000 }
+    : { min: 2, max: 10 },
   migrations,
   seeds,
 };

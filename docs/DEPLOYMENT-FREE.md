@@ -2,150 +2,135 @@
 
 | Component | Service | Card | Notes |
 |---|---|---|---|
-| Web portal (`web/`) | **Vercel** | no | Native Next.js, no sleep |
-| Backend API (`backend/`) | **Render** free web service | no | Sleeps after 15 min idle — kept awake by a pinger |
-| Keep-awake pinger | **cron-job.org** | no | Hits the Render URL every 10 min |
+| Web portal (`web/`) | **Vercel** project #1 | no | Native Next.js |
+| Backend API (`backend/`) | **Vercel** project #2 | no | Express captured as one Function — no wrapper |
+| Scheduled jobs | **GitHub Actions** (`.github/workflows/scheduled-jobs.yml`) | no | Runs the real job code against Supabase + B2 |
 | PostgreSQL | **Supabase** free | no | Already set up (pooler URL) |
-| Screenshots / audio | **Backblaze B2** 10 GB free | no | S3-compatible — `s3.js` already supports it |
+| Screenshots / audio | **Backblaze B2** 10 GB free | no | S3-compatible; verified working |
 
-**Constraints to accept:** Render cold-start ~30–50 s if the pinger misses or right
-after a deploy; B2 free egress is 1 GB/day (uploads are free, admin *viewing* lots of
-media in one day can hit it); 10 GB storage means short retention. Tune the backend:
+**Why two Vercel projects:** one repo, two "Root Directory" settings. The web project
+serves the portal; the backend project points at `backend/` and Vercel auto-detects the
+Express app exported from `backend/index.js`
+([guide](https://vercel.com/kb/guide/ship-a-express-app-on-vercel)).
 
-```
-RETENTION_DAYS=7
-SCREENSHOT_MIN_INTERVAL_SEC=600
-SCREENSHOT_MAX_INTERVAL_SEC=1200
-AUDIO_SAMPLE_GAP_SEC=900
-```
+**Constraints to accept:**
+- Serverless cold start ~1–2 s after idle.
+- `express-rate-limit` uses an in-memory store — on serverless it is per-instance, so the
+  login/upload limits are weaker than on a single long-lived host. Auth (bcrypt rounds 12
+  + short-lived JWTs) still holds. Move to a Postgres-backed limiter later if abuse shows.
+- B2 free egress is 1 GB/day (uploads free); an admin bulk-viewing media can hit it.
+- 10 GB storage → keep `RETENTION_DAYS` low (7) and capture intervals wide.
+- GitHub Actions cron is "best effort" — a run can be delayed several minutes, and
+  scheduled workflows pause after 60 days with no repo commits.
+- Vercel Hobby is nominally non-commercial; fine to start, upgrade to Pro or a VPS when
+  the team depends on it.
 
 ---
 
 ## Order of operations
 
-### 1. Backblaze B2  (5 min, no card)
+### 1. Backblaze B2 — done
 
-1. [backblaze.com/sign-up/cloud-storage](https://www.backblaze.com/sign-up/cloud-storage) —
-   email + password, verify email. No card.
-2. **B2 Cloud Storage → Buckets → Create a Bucket**
-   - Name: `kd-tracker-captures` (globally unique — add a suffix if taken)
-   - Files in Bucket are: **Private**
-3. Note the bucket's **Endpoint** on its row, e.g. `s3.us-west-004.backblazeb2.com`.
-   The region is the middle part: `us-west-004`.
-4. **Account → Application Keys → Add a New Application Key**
-   - Name: `kd-tracker`
-   - Allow access to: **just `kd-tracker-captures`**
-   - Type: **Read and Write**
-   - Copy **keyID** and **applicationKey** (shown once).
+Bucket `kd-tracker-captures`, region `us-east-005`, endpoint
+`s3.us-east-005.backblazeb2.com`, an app key with Read & Write on that bucket.
+Verified with a real put/get/delete through the app's own storage driver.
 
-**Hand over:** keyID, applicationKey, endpoint, region.
+### 2. Code is on GitHub
 
-### 2. Code is already on GitHub
+`github.com/mediakdmarketing-sys/kd-tracker`, branch `main`. The serverless entry
+(`backend/index.js`), the `VERCEL` guards in `src/server.js`, the serverless DB pool in
+`knexfile.js`, and the Actions workflow are all committed.
 
-`github.com/mediakdmarketing-sys/kd-tracker`, branch `main`. Render and Vercel read
-straight from it.
+### 3. Vercel — backend  (no card)
 
-### 3. Render — backend  (10 min, no card)
-
-1. [render.com](https://render.com) → **Sign in with GitHub**. No card on the free plan.
-2. **New → Web Service** → connect the `kd-tracker` repo.
-3. Settings:
-   - Name: `kd-tracker-api`
-   - Root Directory: `backend`
-   - Runtime: Node
-   - Build Command: `npm ci`
-   - Start Command: `npm start`
-   - Instance Type: **Free**
-4. **Environment** → add:
+1. [vercel.com](https://vercel.com) → **Continue with GitHub**.
+2. **Add New → Project** → import `kd-tracker`.
+3. **Root Directory: `backend`**  → **Edit** → pick the `backend` folder.
+4. Framework Preset: **Other** (auto). Leave build/output blank.
+5. **Environment Variables:**
    ```
-   NODE_ENV=production
    NODE_OPTIONS=--dns-result-order=ipv4first
    DB_CLIENT=pg
-   DATABASE_URL=postgresql://postgres.<ref>:<pw>@aws-0-<region>.pooler.supabase.com:5432/postgres
+   DATABASE_URL=postgresql://postgres.umzkxcmojfkgfmsbagms:<pw>@aws-0-ap-southeast-2.pooler.supabase.com:5432/postgres
    JWT_SECRET=<64 hex chars>
    JWT_REFRESH_SECRET=<different 64 hex chars>
    BCRYPT_ROUNDS=12
-   ENABLE_SCHEDULER=true
    RETENTION_DAYS=7
    SCREENSHOT_MIN_INTERVAL_SEC=600
    SCREENSHOT_MAX_INTERVAL_SEC=1200
+   AUDIO_SAMPLE_GAP_SEC=900
    STORAGE_DRIVER=s3
    S3_BUCKET=kd-tracker-captures
-   S3_REGION=us-west-004
-   S3_ENDPOINT=https://s3.us-west-004.backblazeb2.com
+   S3_REGION=us-east-005
+   S3_ENDPOINT=https://s3.us-east-005.backblazeb2.com
    S3_ACCESS_KEY=<B2 keyID>
    S3_SECRET_KEY=<B2 applicationKey>
-   CORS_ORIGINS=https://<your-vercel-domain>.vercel.app
+   CORS_ORIGINS=https://PLACEHOLDER.vercel.app
    ```
-   Generate each secret: `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"`
-5. Deploy. When live, note the URL: `https://kd-tracker-api.onrender.com`.
-6. Migrations are already applied on Supabase — nothing to run. (If ever needed:
-   Render **Shell** tab → `npm run db:migrate`.)
+   Do **not** set `NODE_ENV=production` (it would force extra secret-strength checks that
+   the job runner does not need) — Vercel serves it fine on the default.
+6. Deploy → note the URL, e.g. `https://kd-tracker-api.vercel.app`.
+7. Check `https://kd-tracker-api.vercel.app/health` → `{"status":"ok","database":"pg"}`.
 
-### 4. Vercel — web  (5 min, no card)
+Migrations are already applied on Supabase. Nothing to run.
 
-1. [vercel.com](https://vercel.com) → **Continue with GitHub**. No card.
-2. **Add New → Project** → import `kd-tracker`.
-3. Settings:
-   - Root Directory: `web`
-   - Framework Preset: Next.js (auto)
+### 4. Vercel — web  (no card)
+
+1. **Add New → Project** → import the same repo again.
+2. **Root Directory: `web`**.
+3. Framework Preset: **Next.js** (auto).
 4. **Environment Variables:**
    ```
-   API_BASE_URL=https://kd-tracker-api.onrender.com
+   API_BASE_URL=https://kd-tracker-api.vercel.app
    COOKIE_SECURE=1
    ```
 5. Deploy → note the domain, e.g. `https://kd-tracker.vercel.app`.
-6. Go back to Render and set `CORS_ORIGINS` to that exact domain; redeploy the backend.
+6. Back in the **backend** project → Settings → Environment Variables → set
+   `CORS_ORIGINS=https://kd-tracker.vercel.app` (exact, no trailing slash) → redeploy.
 
-### 5. cron-job.org — keep Render awake  (2 min, no card)
+### 5. GitHub Actions — scheduled jobs
 
-1. [cron-job.org](https://cron-job.org) → sign up.
-2. **Create cronjob**
-   - URL: `https://kd-tracker-api.onrender.com/health`
-   - Schedule: every 10 minutes
-3. Save + enable.
+Repo → **Settings → Secrets and variables → Actions**:
+
+*Secrets:*
+```
+DATABASE_URL   = <same Supabase pooler URL as above>
+S3_ENDPOINT    = https://s3.us-east-005.backblazeb2.com
+S3_ACCESS_KEY  = <B2 keyID>
+S3_SECRET_KEY  = <B2 applicationKey>
+```
+*Variables (optional — defaults shown):*
+```
+S3_BUCKET=kd-tracker-captures   S3_REGION=us-east-005   RETENTION_DAYS=7
+```
+
+The workflow (`.github/workflows/scheduled-jobs.yml`) then runs purge daily,
+close-shifts hourly, payroll monthly. Test it now: **Actions → Scheduled jobs → Run
+workflow → `close-shifts`**.
 
 ### 6. First admin user
 
-Render **Shell** tab (or run locally with the production `DATABASE_URL`):
+Run locally against the production DB (or from any machine with Node):
 
 ```bash
 cd backend
-cat > seed-admin.js <<'EOF'
-require('dotenv').config();
-const crypto = require('crypto');
-const bcrypt = require('bcryptjs');
-const { db, destroy } = require('./src/db');
-(async () => {
-  const now = Date.now();
-  await db()('employees').insert({
-    id: crypto.randomUUID(),
-    name: 'KD Admin',
-    email: 'admin@kdmarketing.in',
-    password_hash: await bcrypt.hash('CHANGE_THIS_NOW', 12),
-    role: 'admin', status: 'active', timezone: 'Asia/Kolkata',
-    consent_monitoring: false, consent_audio: false,
-    created_at: now, updated_at: now,
-  });
-  await destroy(); console.log('done');
-})().catch(e => { console.error(e); process.exit(1); });
-EOF
-node seed-admin.js && rm seed-admin.js
+# .env already has the Supabase DATABASE_URL
+node -e "require('dotenv').config();const c=require('crypto'),b=require('bcryptjs'),{db,destroy}=require('./src/db');(async()=>{const n=Date.now();await db()('employees').insert({id:c.randomUUID(),name:'KD Admin',email:'admin@kdmarketing.in',password_hash:await b.hash('CHANGE_THIS_NOW',12),role:'admin',status:'active',timezone:'Asia/Kolkata',consent_monitoring:false,consent_audio:false,created_at:n,updated_at:n});await destroy();console.log('done')})()"
 ```
 
-Log in at the Vercel domain, change the password, accept the consent screen.
+(An admin already exists from earlier testing: `admin@kdmarketing.in` / `ChangeMe#2026`
+— change the password after first login.)
 
 ### 7. Desktop agent
 
-Point its API base URL at `https://kd-tracker-api.onrender.com`, rebuild, distribute
-via GitHub Releases.
+Point its API base URL at `https://kd-tracker-api.vercel.app`, rebuild, distribute via
+GitHub Releases.
 
 ---
 
 ## When to move off free
 
-- Render cold-starts annoy the team, or one always-on service isn't enough → a
-  $4–6/mo VPS (Hetzner) or Oracle Always Free ($1 refundable hold), per
-  [DEPLOYMENT.md](DEPLOYMENT.md).
-- B2 storage nears 10 GB or egress caps bite → same move, with local-disk storage on
-  the VM.
+Serverless cold starts or the rate-limit weakness start to matter → a $4–6/mo VPS
+(Hetzner) or Oracle Always Free ($1 refundable hold), per [DEPLOYMENT.md](DEPLOYMENT.md).
+That setup runs the in-process scheduler again (disable the Actions workflow) and can use
+local-disk storage.

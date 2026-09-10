@@ -8,12 +8,16 @@ const logger = require('./utils/logger');
 
 async function main() {
   // Refuse to serve on an unmigrated database rather than failing one request at a time.
-  const [, pending] = await db().migrate.list();
-  if (pending.length) {
-    logger.error('Database has pending migrations. Run: npm run db:migrate', {
-      pending: pending.map((p) => p.file || p),
-    });
-    process.exit(1);
+  // Skipped on Vercel: the platform captures the Express app from index.js instead, and
+  // migrations there are applied out of band (locally, or by CI) — see index.js.
+  if (!process.env.VERCEL) {
+    const [, pending] = await db().migrate.list();
+    if (pending.length) {
+      logger.error('Database has pending migrations. Run: npm run db:migrate', {
+        pending: pending.map((p) => p.file || p),
+      });
+      process.exit(1);
+    }
   }
 
   const app = createApp();
@@ -26,7 +30,9 @@ async function main() {
     });
   });
 
-  scheduler.start();
+  // The in-process scheduler is for long-lived hosts. On Vercel the process is frozen
+  // between requests, so cron runs as GitHub Actions workflows instead.
+  if (!process.env.VERCEL) scheduler.start();
 
   const shutdown = async (signal) => {
     logger.info(`Received ${signal}, shutting down`);
