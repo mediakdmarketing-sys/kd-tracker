@@ -128,7 +128,15 @@ async function start() {
 
   timers.push(setInterval(() => agent.tick().catch(onTickError), 1000));
   timers.push(setInterval(() => sampleActivity(), ACTIVITY_WINDOW_SECONDS * 1000));
-  timers.push(setInterval(() => agent.syncStatus().catch(onTickError), STATUS_SYNC_MS));
+  // Guarded on signedIn: syncStatus() hits an authenticated endpoint with no other check of
+  // its own, so an unguarded interval spams the UI's error banner with "Missing bearer token"
+  // every minute for as long as the agent sits signed out — drowning out real errors and
+  // making a fresh sign-in attempt look broken when it isn't.
+  timers.push(
+    setInterval(() => {
+      if (agent.state.signedIn) agent.syncStatus().catch(onTickError);
+    }, STATUS_SYNC_MS)
+  );
 
   // Waking from sleep means the clock jumped and the network probably changed: re-check
   // rather than carry on with stale state.

@@ -7,7 +7,7 @@ const { authenticate } = require('../../middleware/auth');
 const { requireAdmin, requireSelfOrAdmin } = require('../../middleware/rbac');
 const { validate, q } = require('../../middleware/validate');
 const { uploadLimiter } = require('../../middleware/rateLimit');
-const { asyncHandler, pagination, paged } = require('../../utils/http');
+const { asyncHandler, pagination, paged, sendWithRange } = require('../../utils/http');
 const audit = require('../../services/audit');
 
 const listQuerySchema = z.object({
@@ -69,9 +69,7 @@ screenshots.get(
       targetId: row.id,
       details: { capturedAt: new Date(Number(row.captured_at)).toISOString() },
     });
-    res.setHeader('Content-Type', contentType);
-    res.setHeader('Cache-Control', 'private, no-store');
-    res.send(buffer);
+    sendWithRange(req, res, buffer, contentType);
   })
 );
 
@@ -141,9 +139,7 @@ audio.get(
       targetId: row.id,
       details: { recordedAt: new Date(Number(row.recorded_at)).toISOString() },
     });
-    res.setHeader('Content-Type', contentType);
-    res.setHeader('Cache-Control', 'private, no-store');
-    res.send(buffer);
+    sendWithRange(req, res, buffer, contentType);
   })
 );
 

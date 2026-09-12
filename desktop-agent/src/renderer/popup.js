@@ -26,8 +26,36 @@ function render() {
     return;
   }
 
+  // Background state broadcasts (queue-drain ticks, status polls) arrive every few seconds
+  // regardless of what the employee is doing in this window. Re-rendering the sign-in form
+  // from scratch on one of those wiped out whatever the employee had already typed — save
+  // and restore the in-progress email/password (and cursor position) across the rebuild so a
+  // routine background update never looks like data loss.
+  const wasSignInView = !state.signedIn && document.getElementById('email');
+  const draft = wasSignInView
+    ? {
+        email: document.getElementById('email').value,
+        password: document.getElementById('password').value,
+        focusId: document.activeElement?.id,
+        selectionStart: document.activeElement?.selectionStart,
+        selectionEnd: document.activeElement?.selectionEnd,
+      }
+    : null;
+
   app.innerHTML = state.signedIn ? signedInView() : signInView();
   wire();
+
+  if (draft && !state.signedIn) {
+    document.getElementById('email').value = draft.email;
+    document.getElementById('password').value = draft.password;
+    const toFocus = draft.focusId && document.getElementById(draft.focusId);
+    if (toFocus) {
+      toFocus.focus();
+      if (draft.selectionStart != null) {
+        toFocus.setSelectionRange(draft.selectionStart, draft.selectionEnd);
+      }
+    }
+  }
 }
 
 function signInView() {

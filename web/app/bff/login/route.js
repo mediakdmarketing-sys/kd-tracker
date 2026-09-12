@@ -31,7 +31,6 @@ export async function POST(request) {
     accessToken:  payload.accessToken,
     refreshToken: payload.refreshToken,
     expiresIn:    payload.expiresIn,
-    employeeId:   payload.employee?.id,
   });
 
   // Only the profile crosses back to the browser.

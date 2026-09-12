@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { sessionCookieNames, apiUrl } from './session';
+import { ACCESS_COOKIE, apiUrl } from './session';
 
 /**
  * Server-side API call for React Server Components.
@@ -10,7 +10,6 @@ import { sessionCookieNames, apiUrl } from './session';
  */
 export async function api(path, { method = 'GET', body, cache = 'no-store' } = {}) {
   const jar = await cookies();
-  const { access: ACCESS_COOKIE } = sessionCookieNames(jar);
   const token = jar.get(ACCESS_COOKIE)?.value;
 
   let res;

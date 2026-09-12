@@ -2,7 +2,7 @@ import { Suspense, cache } from 'react';
 import Link from 'next/link';
 import { api, requireUser } from '@/lib/api';
 import RangeFilter from '@/components/RangeFilter';
-import ScreenshotGrid from '@/components/ScreenshotGrid';
+import CaptureSection from '@/components/CaptureSection';
 import EmployeeActions from './EmployeeActions';
 import LeaderActions from './LeaderActions';
 import { duration, time, dateLabel, todayIn, workedSecondsOf, isOpenShift } from '@/lib/format';
@@ -173,7 +173,16 @@ export default async function EmployeeDetailPage({ params, searchParams }) {
           </div>
         )}
 
-        <ScreenshotGrid items={screenshots.data} timezone={employee.timezone} date={date} />
+        <CaptureSection
+          screenshots={screenshots.data}
+          audio={audio.data}
+          timezone={employee.timezone}
+          date={date}
+          buildAudioUrl={(sample) => `/bff${sample.fileUrl}`}
+          consentAudio={employee.consent.audio}
+          showConsentColumn
+          subjectLabel="employee"
+        />
 
         {/* Leader management — assign/remove this employee as dept leader */}
         <LeaderActions
@@ -181,78 +190,6 @@ export default async function EmployeeDetailPage({ params, searchParams }) {
           departments={allDepts}
           currentLeaderDepts={currentLeaderDepts}
         />
-
-        <div className="card">
-          <div className="card-head">
-            <h2>Audio samples</h2>
-            <span className="faint">
-              {employee.consent.audio ? 'Audio consent given' : 'Audio consent not given'}
-            </span>
-          </div>
-
-          {audio.data.length === 0 ? (
-            <div className="empty">
-              {employee.consent.audio
-                ? 'No audio samples recorded on this date.'
-                : 'This employee has not consented to audio sampling.'}
-            </div>
-          ) : (
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Recorded</th>
-                    <th>Length</th>
-                    <th>Consent</th>
-                    <th>Mic</th>
-                    <th>File</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {audio.data.map((sample) => (
-                    <tr key={sample.id}>
-                      <td className="num">{time(sample.recordedAt, employee.timezone)}</td>
-                      <td className="num">{duration(sample.durationSeconds)}</td>
-                      <td>
-                        {sample.consentVerified ? (
-                          <span className="pill pill-working">Verified at capture</span>
-                        ) : (
-                          <span className="pill pill-flag">Missing</span>
-                        )}
-                      </td>
-                      <td>
-                        {sample.micMuted === true ? (
-                          <span
-                            className="pill pill-flag"
-                            title="No audio signal — mic was likely muted or disconnected"
-                          >
-                            Muted
-                          </span>
-                        ) : sample.micMuted === false ? (
-                          <span className="pill pill-working">Live</span>
-                        ) : (
-                          <span className="faint">—</span>
-                        )}
-                      </td>
-                      <td>
-                        {sample.fileDeleted ? (
-                          <span className="faint">Deleted after 31 days</span>
-                        ) : (
-                          <audio
-                            controls
-                            preload="none"
-                            src={`/bff${sample.fileUrl}`}
-                            style={{ height: 32 }}
-                          />
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
       </div>
     </>
   );

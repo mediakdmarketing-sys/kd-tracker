@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import {
-  sessionCookieNames,
+  ACCESS_COOKIE,
+  REFRESH_COOKIE,
+  EXPIRY_COOKIE,
   writeSession,
   clearSession,
   parseDuration,
-  UID_COOKIE,
   apiUrl,
 } from '@/lib/session';
 
@@ -17,9 +18,8 @@ const PUBLIC_PATHS = ['/login', '/bff/login'];
  * rotated refresh token. Middleware can, and it runs before both page renders and BFF calls —
  * so one implementation covers the whole portal.
  *
- * Per-user isolation: reads kd_uid to find the scoped cookie names for the active user.
- * Falls back to legacy names (kd_at / kd_rt / kd_exp) for sessions created before this
- * change so a rolling deploy does not log everyone out.
+ * One session per browser (see lib/session.js) — this is the only place that reads or writes
+ * the session cookies, by their fixed names.
  */
 export async function middleware(request) {
   const { pathname } = request.nextUrl;
@@ -28,12 +28,11 @@ export async function middleware(request) {
     return NextResponse.next();
   }
 
-  const names = sessionCookieNames(request.cookies);
-  const refreshToken = request.cookies.get(names.refresh)?.value;
+  const refreshToken = request.cookies.get(REFRESH_COOKIE)?.value;
   if (!refreshToken) return redirectToLogin(request);
 
-  const accessToken  = request.cookies.get(names.access)?.value;
-  const expiresAt    = Number(request.cookies.get(names.expiry)?.value || 0);
+  const accessToken  = request.cookies.get(ACCESS_COOKIE)?.value;
+  const expiresAt    = Number(request.cookies.get(EXPIRY_COOKIE)?.value || 0);
   // Refresh a minute early so a request never starts with a token that expires mid-flight.
   const needsRefresh = !accessToken || Date.now() > expiresAt - 60_000;
 
@@ -59,27 +58,23 @@ export async function middleware(request) {
   }
 
   // Patch the in-flight request's cookie header so this same request sees the new token.
-  const uid = names.uid ?? refreshed.employee?.id ?? null;
-  const newAccessCookie  = uid ? `kd_at_${uid}`  : 'kd_at';
-  const newRefreshCookie = uid ? `kd_rt_${uid}`  : 'kd_rt';
-  const newExpiryCookie  = uid ? `kd_exp_${uid}` : 'kd_exp';
   const newExpiry = Date.now() + parseDuration(refreshed.expiresIn, 30 * 60 * 1000);
 
   const headers = new Headers(request.headers);
-  const cookieParts = [
-    `${newAccessCookie}=${refreshed.accessToken}`,
-    `${newRefreshCookie}=${refreshed.refreshToken}`,
-    `${newExpiryCookie}=${newExpiry}`,
-  ];
-  if (uid) cookieParts.push(`${UID_COOKIE}=${uid}`);
-  headers.set('cookie', cookieParts.join('; '));
+  headers.set(
+    'cookie',
+    [
+      `${ACCESS_COOKIE}=${refreshed.accessToken}`,
+      `${REFRESH_COOKIE}=${refreshed.refreshToken}`,
+      `${EXPIRY_COOKIE}=${newExpiry}`,
+    ].join('; ')
+  );
 
   const response = NextResponse.next({ request: { headers } });
   writeSession(response.cookies, {
     accessToken:  refreshed.accessToken,
     refreshToken: refreshed.refreshToken,
     expiresIn:    refreshed.expiresIn,
-    employeeId:   uid,
   });
   return response;
 }
@@ -92,5 +87,7 @@ function redirectToLogin(request) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|ico)$).*)'],
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|manifest.json|sw.js|offline.html|icons/|.*\\.(?:svg|png|jpg|ico)$).*)',
+  ],
 };

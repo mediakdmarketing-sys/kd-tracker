@@ -3,25 +3,19 @@
 // Tokens live in httpOnly cookies, never in localStorage. This portal shows screenshots and
 // audio of employees at work; a stored-token XSS would hand that to an attacker permanently.
 //
-// Per-user isolation: cookie names are scoped with the employee id so two users logged in
-// from the same browser (e.g. HR checking employee view, or a shared kiosk) each get their
-// own independent session — logging one user out does not affect the other.
+// One session per browser. An earlier version of this file scoped cookie names per employee id
+// (kd_at_<uid>, kd_rt_<uid>, ...) plus a shared kd_uid cookie naming which one was "active", to
+// let two employees be signed in from the same browser at once. That kd_uid cookie is not
+// scoped to a tab — it is one value shared by every tab on the origin — so signing in as a
+// second employee in one tab silently redirected every *other* tab's session to that second
+// employee too, with no indication anything had changed. A tab showing the admin dashboard
+// would start silently acting as whoever most recently signed in anywhere else in the browser,
+// including into lower-privileged accounts, which is what a "Requires role: admin" surfacing on
+// a page that had been working moments before turned out to mean.
 //
-// Cookie layout per user:
-//   kd_at_<uid>   — httpOnly access token
-//   kd_rt_<uid>   — httpOnly refresh token
-//   kd_exp_<uid>  — httpOnly expiry hint (ms epoch, for proactive refresh)
-//   kd_uid        — readable (not httpOnly) — the currently-active uid for this tab/profile.
-//                   Set on login, cleared on logout of the last session.
+// No real deployment needs concurrent multi-employee sessions in one browser — each employee
+// has their own machine — so the fix is to remove the shared pointer rather than deepen it.
 
-export const UID_COOKIE = 'kd_uid';
-
-export function accessCookie(uid)  { return `kd_at_${uid}`; }
-export function refreshCookie(uid) { return `kd_rt_${uid}`; }
-export function expiryCookie(uid)  { return `kd_exp_${uid}`; }
-
-// Legacy names kept so existing deployed sessions survive a rolling deploy.
-// Middleware falls back to these if no kd_uid cookie is found.
 export const ACCESS_COOKIE  = 'kd_at';
 export const REFRESH_COOKIE = 'kd_rt';
 export const EXPIRY_COOKIE  = 'kd_exp';
@@ -44,79 +38,26 @@ export function parseDuration(spec, fallbackMs) {
 }
 
 /**
- * Write a full session for the given employee id.
+ * Write the session for this browser.
  * @param {{ set: Function }} jar  a cookies() store or a NextResponse.cookies
- * @param {{ accessToken, refreshToken, expiresIn, employeeId }} session
+ * @param {{ accessToken, refreshToken, expiresIn }} session
  */
-export function writeSession(jar, { accessToken, refreshToken, expiresIn, employeeId }) {
-  const uid = employeeId;
+export function writeSession(jar, { accessToken, refreshToken, expiresIn }) {
   const accessMs  = parseDuration(expiresIn, 30 * 60 * 1000);
   const expiresAt = Date.now() + accessMs;
   const refreshMaxAge = 14 * 24 * 60 * 60;
 
-  if (uid) {
-    // Scoped cookies — one set per user.
-    jar.set(accessCookie(uid),  accessToken,     { ...baseOptions, maxAge: Math.floor(accessMs / 1000) });
-    jar.set(refreshCookie(uid), refreshToken,    { ...baseOptions, maxAge: refreshMaxAge });
-    jar.set(expiryCookie(uid),  String(expiresAt),{ ...baseOptions, maxAge: refreshMaxAge });
-    // kd_uid is readable (not httpOnly) so client-side code can tell which user is active;
-    // it does not carry any secret value.
-    jar.set(UID_COOKIE, uid, {
-      httpOnly: false,
-      sameSite: 'lax',
-      secure: SECURE,
-      path: '/',
-      maxAge: refreshMaxAge,
-    });
-  } else {
-    // Fallback: legacy unscoped cookies (backwards compatibility for old tokens that do not
-    // carry employee id in the payload).
-    jar.set(ACCESS_COOKIE,  accessToken,      { ...baseOptions, maxAge: Math.floor(accessMs / 1000) });
-    jar.set(REFRESH_COOKIE, refreshToken,     { ...baseOptions, maxAge: refreshMaxAge });
-    jar.set(EXPIRY_COOKIE,  String(expiresAt),{ ...baseOptions, maxAge: refreshMaxAge });
-  }
+  jar.set(ACCESS_COOKIE,  accessToken,      { ...baseOptions, maxAge: Math.floor(accessMs / 1000) });
+  jar.set(REFRESH_COOKIE, refreshToken,     { ...baseOptions, maxAge: refreshMaxAge });
+  jar.set(EXPIRY_COOKIE,  String(expiresAt),{ ...baseOptions, maxAge: refreshMaxAge });
 }
 
-/**
- * Resolve which cookie names to use for this request.
- * Reads kd_uid from the jar; falls back to legacy names when absent.
- */
-export function sessionCookieNames(jar) {
-  const uid = jar.get?.(UID_COOKIE)?.value ?? null;
-  if (uid) {
-    return {
-      uid,
-      access:  accessCookie(uid),
-      refresh: refreshCookie(uid),
-      expiry:  expiryCookie(uid),
-    };
-  }
-  return {
-    uid: null,
-    access:  ACCESS_COOKIE,
-    refresh: REFRESH_COOKIE,
-    expiry:  EXPIRY_COOKIE,
-  };
-}
-
-/**
- * Clear the session for the currently-active user.
- * Clears both scoped and legacy names so a mixed-state browser is fully cleaned up.
- */
+/** Clear the session for this browser. */
 export function clearSession(jar) {
-  const uid = jar.get?.(UID_COOKIE)?.value ?? null;
   const zero = { ...baseOptions, maxAge: 0 };
-
-  if (uid) {
-    jar.set(accessCookie(uid),  '', zero);
-    jar.set(refreshCookie(uid), '', zero);
-    jar.set(expiryCookie(uid),  '', zero);
-  }
-  // Always clear legacy names too.
   jar.set(ACCESS_COOKIE,  '', zero);
   jar.set(REFRESH_COOKIE, '', zero);
   jar.set(EXPIRY_COOKIE,  '', zero);
-  jar.set(UID_COOKIE, '', { ...zero, httpOnly: false });
 }
 
 export function apiUrl(path) {

@@ -2,7 +2,7 @@ import { Suspense, cache } from 'react';
 import Link from 'next/link';
 import { api, requireUser } from '@/lib/api';
 import RangeFilter from '@/components/RangeFilter';
-import ScreenshotGrid from '@/components/ScreenshotGrid';
+import CaptureSection from '@/components/CaptureSection';
 import { duration, time, dateLabel, todayIn, workedSecondsOf, isOpenShift } from '@/lib/format';
 
 export const metadata = { title: 'Member detail · KD Tracker' };
@@ -118,67 +118,16 @@ export default async function LeaderMemberDetailPage({ params, searchParams }) {
           </div>
         )}
 
-        {/* Screenshots — routed through leader-scoped BFF path */}
-        <ScreenshotGrid
-          items={screenshots.data}
+        <CaptureSection
+          screenshots={screenshots.data}
+          audio={audio.data}
           timezone={member.timezone}
           date={date}
-          buildFileUrl={(image) => `/bff/api/leader/members/${id}/screenshots/file/${image.id}`}
+          buildScreenshotUrl={(image) => `/bff/api/leader/members/${id}/screenshots/file/${image.id}`}
+          buildAudioUrl={(sample) => `/bff/api/leader/members/${id}/audio/file/${sample.id}`}
+          consentAudio={member.consent?.audio}
+          subjectLabel="member"
         />
-
-        {/* Audio recordings */}
-        <div className="card">
-          <div className="card-head">
-            <h2>Audio samples</h2>
-            <span className="faint">
-              {member.consent?.audio ? 'Audio consent given' : 'Audio consent not given'}
-            </span>
-          </div>
-          {audio.data.length === 0 ? (
-            <div className="empty">
-              {member.consent?.audio
-                ? 'No audio samples recorded on this date.'
-                : 'This member has not consented to audio sampling.'}
-            </div>
-          ) : (
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr><th>Recorded</th><th>Length</th><th>Mic</th><th>File</th></tr>
-                </thead>
-                <tbody>
-                  {audio.data.map((sample) => (
-                    <tr key={sample.id}>
-                      <td className="num">{time(sample.recordedAt, member.timezone)}</td>
-                      <td className="num">{duration(sample.durationSeconds)}</td>
-                      <td>
-                        {sample.micMuted === true ? (
-                          <span className="pill pill-flag" title="Mic was muted">Muted</span>
-                        ) : sample.micMuted === false ? (
-                          <span className="pill pill-working">Live</span>
-                        ) : (
-                          <span className="faint">—</span>
-                        )}
-                      </td>
-                      <td>
-                        {sample.fileDeleted ? (
-                          <span className="faint">Deleted after 31 days</span>
-                        ) : (
-                          <audio
-                            controls
-                            preload="none"
-                            src={`/bff/api/leader/members/${id}/audio/file/${sample.id}`}
-                            style={{ height: 32 }}
-                          />
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
       </div>
     </>
   );
