@@ -4,6 +4,7 @@ const config = require('./config');
 const { createApp } = require('./app');
 const { db, destroy } = require('./db');
 const scheduler = require('./jobs/scheduler');
+const settings = require('./services/settings');
 const logger = require('./utils/logger');
 
 async function main() {
@@ -19,6 +20,11 @@ async function main() {
       process.exit(1);
     }
   }
+
+  // So the very first request is served from real settings, not .env defaults for one
+  // request while the lazy cache in services/settings.js catches up (see its own comment —
+  // that lazy path exists for the Vercel entry point, which never runs this function at all).
+  await settings.init();
 
   const app = createApp();
   const server = app.listen(config.port, () => {

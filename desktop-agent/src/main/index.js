@@ -181,7 +181,7 @@ function trayState() {
 }
 
 function trayTooltip() {
-  if (!agent?.state.signedIn) return 'KD Tracker — not signed in';
+  if (!agent?.state.signedIn) return 'WorkBuddy — not signed in';
 
   const bits = [];
   bits.push(
@@ -201,7 +201,7 @@ function trayTooltip() {
   }
   if (!agent.state.online) bits.push('Offline');
 
-  return `KD Tracker — ${bits.join(' · ')}`;
+  return `WorkBuddy — ${bits.join(' · ')}`;
 }
 
 function buildTray() {
@@ -284,7 +284,11 @@ function showPopup() {
     fullscreenable: false,
     skipTaskbar: true,
     alwaysOnTop: true,
-    title: 'KD Tracker',
+    title: 'WorkBuddy',
+    // The tray icon itself stays procedural (see trayIcon.js — it draws the working/break/
+    // offline status dots, which the app's own logo can't show). This is the window's own
+    // identity: the title-bar icon and what Alt-Tab shows for it.
+    icon: path.join(__dirname, '..', '..', 'build', 'tray-logo.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,

@@ -16,7 +16,8 @@
     "build:linux": "electron-builder --linux"
   },
   "dependencies": {
-    "sql.js": "1.12.0"
+    "sql.js": "1.12.0",
+    "uiohook-napi": "^1.5.5"
   },
   "devDependencies": {
     "electron": "^33.4.11",

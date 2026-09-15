@@ -9,8 +9,11 @@
 //  'once'     — at most once per agent lifetime (process restart resets it); used for
 //               events that do not meaningfully recur (account deactivated)
 
+const path = require('path');
 const { Notification } = require('electron');
 const logger = require('../core/logger');
+
+const ICON_PATH = path.join(__dirname, '..', '..', 'build', 'tray-logo.png');
 
 const COOLDOWNS = {
   screen_monitoring_fail:  5 * 60_000,   // 5 min
@@ -39,7 +42,7 @@ function notify(key, title, body, mode = 'cooldown') {
   // mode === 'always' → no guard
 
   try {
-    new Notification({ title, body, silent: false }).show();
+    new Notification({ title, body, silent: false, icon: ICON_PATH }).show();
     logger.info('Notification shown', { key, title });
   } catch (err) {
     logger.warn('Failed to show notification', { key, message: err.message });
@@ -133,7 +136,7 @@ function notifyMicMuted() {
 function notifyOffline() {
   notify(
     'offline',
-    'KD Tracker is offline',
+    'WorkBuddy is offline',
     'No connection to the server. Punches and captures are queued and will upload automatically when the connection returns.',
     'cooldown'
   );
@@ -187,7 +190,7 @@ function notifySessionExpired() {
   notify(
     'session_expired',
     'Session ended',
-    'You have been signed out. Please open KD Tracker and sign in again.',
+    'You have been signed out. Please open WorkBuddy and sign in again.',
     'always'
   );
 }
@@ -196,7 +199,7 @@ function notifySessionExpired() {
 function notifyWokeFromSleep() {
   notify(
     'woke_from_sleep',
-    'KD Tracker resuming',
+    'WorkBuddy resuming',
     'Your device woke from sleep. Syncing attendance status…',
     'always'
   );

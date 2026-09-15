@@ -171,11 +171,12 @@ const BreakDonut = memo(function BreakDonut({ used, allowance, over }) {
 // so only the clock portion re-renders every second.
 // ---------------------------------------------------------------------------
 
-export default function ShiftPanel({ initial, timezone }) {
+export default function ShiftPanel({ initial, timezone, projects = [] }) {
   const router = useRouter();
   const [status, setStatus] = useState(initial);
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState(null);
+  const [projectBusy, setProjectBusy] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -204,6 +205,19 @@ export default function ShiftPanel({ initial, timezone }) {
       setBusy(null);
     }
   }, [refresh, router]);
+
+  const switchProject = useCallback(async (projectId) => {
+    setProjectBusy(true);
+    setError(null);
+    try {
+      await post('/api/attendance/project', { projectId: projectId || null });
+      await refresh();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setProjectBusy(false);
+    }
+  }, [refresh]);
 
   const out     = status.state === 'punched_out';
   const onBreak = status.state === 'on_break';
@@ -241,7 +255,7 @@ export default function ShiftPanel({ initial, timezone }) {
             {out ? (
               <button
                 type="button"
-                className="btn btn-primary btn-lg"
+                className="btn btn-info btn-lg"
                 onClick={() => act('punch-in', 'in')}
                 disabled={busy !== null || status.canPunchIn === false}
               >
@@ -261,7 +275,7 @@ export default function ShiftPanel({ initial, timezone }) {
                 ) : (
                   <button
                     type="button"
-                    className="btn btn-lg"
+                    className="btn btn-outline-info btn-lg"
                     onClick={() => act('break-start', 'break-start')}
                     disabled={busy !== null}
                   >
@@ -300,6 +314,28 @@ export default function ShiftPanel({ initial, timezone }) {
                 )}
               </span>
             </div>
+
+            {!onBreak && (
+              <div style={{ marginTop: 12 }}>
+                <label htmlFor="project-picker" style={{ marginBottom: 4 }}>
+                  Working on
+                </label>
+                <select
+                  id="project-picker"
+                  value={status.currentProject?.projectId || ''}
+                  onChange={(e) => switchProject(e.target.value)}
+                  disabled={projectBusy}
+                  style={{ maxWidth: 320 }}
+                >
+                  <option value="">Unassigned time</option>
+                  {projects.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}{p.client ? ` · ${p.client}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </>
         )}
 

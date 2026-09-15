@@ -5,7 +5,7 @@ import RangeFilter from '@/components/RangeFilter';
 import Pager from '@/components/Pager';
 import { time, dateLabel, daysAgoDate, todayIn } from '@/lib/format';
 
-export const metadata = { title: 'Audit log · KD Tracker' };
+export const metadata = { title: 'Audit log · WorkBuddy' };
 
 const ACTION_LABEL = {
   viewed_screenshot: 'Opened a screenshot',

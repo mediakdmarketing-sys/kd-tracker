@@ -6,32 +6,48 @@
      be, so light is the only mode. */
   color-scheme: light;
 
-  --bg: #f6f7f9;
+  /* A violet-tinted neutral scale, not a default grey — every other token (accent, status
+     colors) is chosen to sit well against this, not bolted on afterwards. */
+  --bg: #f5f4fc;
   --surface: #ffffff;
-  --surface-2: #f0f2f5;
-  --border: #e2e5ea;
-  --border-strong: #cdd2da;
-  --text: #16191d;
-  --text-muted: #5c6472;
-  --text-faint: #8b94a3;
+  --surface-2: #efedfa;
+  --surface-3: #e6e2f8;
+  --border: #e6e3f5;
+  --border-strong: #d7d2ef;
+  --text: #1a1b2e;
+  --text-muted: #625f78;
+  --text-faint: #928fa8;
+  /* A few components already referenced --muted before it existed as a token (an
+     inconsistency that predates this pass) — aliased rather than silently left broken. */
+  --muted: var(--text-muted);
 
-  --accent: #2f5cff;
-  --accent-soft: #e8edff;
-  --accent-text: #1b3fc4;
+  --accent: #6d5ef0;
+  --accent-2: #9333ea;
+  --accent-gradient: linear-gradient(120deg, #5b5fef, var(--accent-2));
+  --accent-soft: #eeecfd;
+  --accent-text: #5b3fd6;
 
-  --ok: #12805c;
-  --ok-soft: #dff3ea;
-  --warn: #a4610a;
-  --warn-soft: #fdf0da;
-  --danger: #b4231f;
-  --danger-soft: #fbe4e3;
-  --idle: #6b5bd2;
-  --idle-soft: #ece9fb;
+  --ok: #0fb88a;
+  --ok-soft: #e2f8f1;
+  --warn: #f59e0b;
+  --warn-soft: #fef3e0;
+  --danger: #a30d33;
+  --danger-soft: #fde6ec;
+  --idle: #8b5cf6;
+  --idle-soft: #f1ebfe;
+  --info: #2563eb;
+  --info-soft: #e2eafe;
 
-  --radius: 10px;
-  --radius-sm: 6px;
-  --shadow: 0 1px 2px rgba(16, 20, 28, 0.06), 0 4px 12px rgba(16, 20, 28, 0.04);
-  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --radius: 14px;
+  --radius-sm: 9px;
+  --shadow: 0 1px 2px rgba(26, 27, 46, 0.04), 0 10px 24px -12px rgba(93, 63, 211, 0.22);
+  --shadow-pop: 0 16px 36px -10px rgba(93, 63, 211, 0.32);
+
+  /* Two roles, not one: a characterful display face for headings/nav/big numbers, a
+     workhorse face for dense table data. Loaded via next/font/google in app/layout.js,
+     which exposes them as these two custom properties (see the font.variable class there). */
+  --font-display: var(--font-jakarta), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --mono: ui-monospace, SFMono-Regular, 'Cascadia Mono', Consolas, monospace;
 }
 
@@ -43,6 +59,11 @@ html,
 body {
   margin: 0;
   padding: 0;
+  /* The sidebar's own overflow-x is separately fixed below, but the page itself must never
+     scroll sideways either — a bordered pill or a wide row inside .main pushing body width
+     even a few pixels past the viewport showed up as a horizontal scrollbar under the whole
+     window, below everything this app renders. */
+  overflow-x: hidden;
 }
 
 body {
@@ -52,6 +73,7 @@ body {
   font-size: 14px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  width: 100%;
 }
 
 a {
@@ -65,114 +87,266 @@ a:hover {
 h1,
 h2,
 h3 {
+  font-family: var(--font-display);
   margin: 0;
   line-height: 1.25;
   letter-spacing: -0.01em;
+  text-wrap: balance;
 }
 h1 {
   font-size: 22px;
+  font-weight: 800;
 }
 h2 {
-  font-size: 16px;
+  font-size: 15px;
+  font-weight: 700;
 }
 h3 {
   font-size: 14px;
-}
-
-/* ---------- Shell ---------- */
-
-.shell {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-
-.topbar {
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  position: sticky;
-  top: 0;
-  z-index: 20;
-}
-
-.topbar-inner {
-  max-width: 1240px;
-  margin: 0 auto;
-  padding: 0 20px;
-  height: 56px;
-  display: flex;
-  align-items: center;
-  gap: 24px;
-}
-
-.brand {
-  font-weight: 650;
-  letter-spacing: -0.02em;
-  color: var(--text);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  white-space: nowrap;
-}
-.brand:hover {
-  text-decoration: none;
-}
-.brand-mark {
-  width: 22px;
-  height: 22px;
-  border-radius: 6px;
-  background: var(--accent);
-  display: grid;
-  place-items: center;
-  color: #fff;
-  font-size: 11px;
   font-weight: 700;
 }
 
-.nav {
+/* ---------- Shell: sidebar + main ---------- */
+
+.shell {
+  min-height: 100vh;
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
   display: flex;
-  gap: 2px;
-  flex: 1;
-  overflow-x: auto;
+  align-items: stretch;
 }
 
-.nav a {
-  padding: 6px 11px;
-  border-radius: var(--radius-sm);
-  color: var(--text-muted);
-  font-weight: 500;
-  white-space: nowrap;
-}
-.nav a:hover {
+.sidebar {
+  width: 232px;
+  flex: none;
   background: var(--surface-2);
-  color: var(--text);
-  text-decoration: none;
-}
-.nav a.active {
-  background: var(--accent-soft);
-  color: var(--accent-text);
+  border-right: 1px solid var(--border);
+  padding: 18px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  /* Setting only overflow-y implicitly computes overflow-x to auto too (CSS's "not both
+     visible" rule) — without this, one nav label a pixel wider than the sidebar was enough
+     to draw a horizontal scrollbar under the whole column. */
+  overflow-x: hidden;
+  transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1), padding 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.whoami {
+.brand-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 6px 4px 18px 8px;
+}
+.brand {
   display: flex;
   align-items: center;
   gap: 10px;
   white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+}
+.brand-word {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 19px;
+  letter-spacing: -0.03em;
+  background: var(--accent-gradient);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+.brand:hover {
+  text-decoration: none;
+}
+.brand span:not(.brand-mark) {
+  opacity: 1;
+  max-width: 140px;
+  overflow: hidden;
+  transition: opacity 0.15s ease, max-width 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.brand-mark {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  flex: none;
+  display: block;
+}
+
+/* Wraps the sidebar so the toggle can float on its right edge without being clipped by
+   the sidebar's own overflow-x: hidden (needed elsewhere to stop nav labels from causing
+   a horizontal scrollbar). The rail has no overflow rule of its own, so the button's
+   -13px right offset — half in, half out of the sidebar — stays fully visible. */
+.sidebar-rail {
+  position: relative;
+  flex: none;
+}
+
+.sidebar-toggle {
+  position: absolute;
+  top: 22px;
+  right: -13px;
+  z-index: 1;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(26, 27, 46, 0.05);
+}
+.sidebar-toggle:hover {
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+.sidebar.collapsed .brand-row {
+  justify-content: center;
+  gap: 8px;
+  padding: 6px 0 18px;
+}
+.sidebar.collapsed .brand-mark {
+  width: 34px;
+  height: 34px;
+}
+
+.nav-group-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  padding: 14px 10px 6px;
+  max-height: 40px;
+  opacity: 1;
+  overflow: hidden;
+  transition: opacity 0.15s ease, max-height 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    padding 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.nav-group-label:first-of-type {
+  padding-top: 4px;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.nav a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 13.5px;
+  white-space: nowrap;
+  position: relative;
+  transition: padding 0.2s cubic-bezier(0.4, 0, 0.2, 1), justify-content 0.2s;
+}
+.nav a svg {
+  flex: none;
+  opacity: 0.85;
+}
+.nav a span {
+  opacity: 1;
+  max-width: 160px;
+  overflow: hidden;
+  transition: opacity 0.15s ease, max-width 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.nav a:hover {
+  background: var(--surface-3);
+  color: var(--text);
+  text-decoration: none;
+}
+.nav a.active {
+  background: var(--surface);
+  color: var(--accent-text);
+  box-shadow: var(--shadow);
+}
+.nav a.active::before {
+  content: '';
+  position: absolute;
+  left: -12px;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--accent-gradient);
+  transition: left 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar-foot {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.sidebar-foot .btn {
+  width: 100%;
+  padding: 6px 10px;
+  font-size: 12px;
+  transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1), height 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    padding 0.2s cubic-bezier(0.4, 0, 0.2, 1), border-radius 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.sidebar-foot .avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--accent-gradient);
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+  flex: none;
+}
+.whoami {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+  opacity: 1;
+  max-width: 160px;
+  overflow: hidden;
+  transition: opacity 0.15s ease, max-width 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    flex 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .whoami .name {
-  font-weight: 550;
+  font-weight: 700;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .whoami .role {
   color: var(--text-faint);
-  font-size: 12px;
+  font-size: 11.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .main {
-  max-width: 1240px;
-  width: 100%;
-  margin: 0 auto;
-  padding: 24px 20px 64px;
   flex: 1;
+  min-width: 0;
+  padding: 26px 32px 64px;
 }
 
 .page-head {
@@ -181,7 +355,10 @@ h3 {
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
-  margin-bottom: 20px;
+  margin-bottom: 22px;
+}
+.page-head h1 {
+  font-size: 22px;
 }
 .page-head p {
   margin: 4px 0 0;
@@ -200,7 +377,7 @@ h3 {
   padding: 18px;
 }
 .card-head {
-  padding: 14px 18px;
+  padding: 15px 18px;
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
@@ -211,7 +388,7 @@ h3 {
 
 .grid {
   display: grid;
-  gap: 16px;
+  gap: 14px;
 }
 .grid-stats {
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -224,25 +401,28 @@ h3 {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 14px 16px;
+  box-shadow: var(--shadow);
+  padding: 15px 17px;
 }
 .stat .label {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 11.5px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  font-weight: 600;
+  font-weight: 700;
 }
 .stat .value {
-  font-size: 26px;
-  font-weight: 640;
-  letter-spacing: -0.02em;
-  margin-top: 2px;
+  font-family: var(--font-display);
+  font-size: 25px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  margin-top: 3px;
   font-variant-numeric: tabular-nums;
 }
 .stat .sub {
   color: var(--text-faint);
   font-size: 12px;
+  margin-top: 1px;
 }
 
 /* ---------- Tables ---------- */
@@ -259,12 +439,12 @@ table {
 
 th {
   text-align: left;
-  font-weight: 600;
-  color: var(--text-muted);
-  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-faint);
+  font-size: 10.5px;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding: 10px 14px;
+  letter-spacing: 0.06em;
+  padding: 11px 16px;
   border-bottom: 1px solid var(--border);
   white-space: nowrap;
   background: var(--surface);
@@ -273,7 +453,7 @@ th {
 }
 
 td {
-  padding: 11px 14px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--border);
   vertical-align: middle;
 }
@@ -282,7 +462,7 @@ tbody tr:last-child td {
   border-bottom: none;
 }
 tbody tr:hover td {
-  background: var(--surface-2);
+  background: #fbfaff;
 }
 
 .num {
@@ -306,10 +486,10 @@ tbody tr:hover td {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 3px 9px;
+  padding: 3px 10px;
   border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 11.5px;
+  font-weight: 700;
   white-space: nowrap;
 }
 .pill::before {
@@ -348,7 +528,7 @@ tbody tr:hover td {
 
 label {
   display: block;
-  font-weight: 550;
+  font-weight: 650;
   font-size: 12px;
   color: var(--text-muted);
   margin-bottom: 5px;
@@ -357,7 +537,7 @@ label {
 input,
 select {
   width: 100%;
-  padding: 8px 10px;
+  padding: 8px 11px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   background: var(--surface);
@@ -392,19 +572,20 @@ select:focus {
   align-items: center;
   justify-content: center;
   gap: 7px;
-  padding: 8px 14px;
-  border-radius: var(--radius-sm);
+  padding: 8px 15px;
+  border-radius: 999px;
   border: 1px solid var(--border-strong);
   background: var(--surface);
   color: var(--text);
   font: inherit;
   font-size: 13px;
-  font-weight: 550;
+  font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
 }
 .btn:hover:not(:disabled) {
-  background: var(--surface-2);
+  border-color: var(--accent);
+  color: var(--accent-text);
   text-decoration: none;
 }
 .btn:disabled {
@@ -412,13 +593,39 @@ select:focus {
   cursor: not-allowed;
 }
 .btn-primary {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: var(--accent-gradient);
+  border-color: transparent;
   color: #fff;
+  box-shadow: 0 6px 16px -6px rgba(93, 63, 211, 0.55);
 }
 .btn-primary:hover:not(:disabled) {
+  filter: brightness(1.06);
+  color: #fff;
+}
+.btn-info {
+  background: var(--info);
+  border-color: var(--info);
+  color: #fff;
+}
+.btn-info:hover:not(:disabled) {
   filter: brightness(1.08);
-  background: var(--accent);
+  background: var(--info);
+  color: #fff;
+}
+/* Outline variant — white fill, colored border/text. Used for a punch action's "available but
+   not the active one right now" look (Start break before it's pressed; Punch in once already
+   punched in, kept visible rather than removed so the state change reads as a toggle). */
+.btn-outline-info {
+  background: var(--surface);
+  border-color: var(--info);
+  color: var(--info);
+}
+.btn-outline-info:hover:not(:disabled) {
+  background: var(--info-soft);
+  color: var(--info);
+}
+.btn-outline-info:disabled {
+  opacity: 0.7;
 }
 .btn-danger {
   background: var(--danger);
@@ -428,6 +635,7 @@ select:focus {
 .btn-danger:hover:not(:disabled) {
   filter: brightness(1.08);
   background: var(--danger);
+  color: #fff;
 }
 .btn-warning {
   background: var(--warn);
@@ -437,9 +645,10 @@ select:focus {
 .btn-warning:hover:not(:disabled) {
   filter: brightness(1.08);
   background: var(--warn);
+  color: #fff;
 }
 .btn-lg {
-  padding: 11px 20px;
+  padding: 11px 22px;
   font-size: 14px;
 }
 .btn-row {
@@ -452,7 +661,7 @@ select:focus {
 
 .notice {
   border-radius: var(--radius);
-  padding: 12px 14px;
+  padding: 12px 15px;
   font-size: 13px;
   border: 1px solid transparent;
 }
@@ -470,7 +679,7 @@ select:focus {
   color: var(--danger);
 }
 .notice strong {
-  font-weight: 650;
+  font-weight: 700;
 }
 
 .empty {
@@ -486,13 +695,15 @@ select:focus {
   display: grid;
   place-items: center;
   padding: 24px;
+  background: radial-gradient(circle at 15% 15%, var(--accent-soft), transparent 45%),
+    radial-gradient(circle at 85% 85%, var(--idle-soft), transparent 45%), var(--bg);
 }
 .login-card {
   width: 100%;
   max-width: 380px;
 }
 .login-card .card-pad {
-  padding: 26px;
+  padding: 28px;
 }
 .login-head {
   margin-bottom: 20px;
@@ -506,15 +717,16 @@ select:focus {
 
 .punch {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-  flex-wrap: wrap;
+  text-align: center;
+  gap: 18px;
 }
 .clock {
+  font-family: var(--font-display);
   font-size: 40px;
-  font-weight: 620;
-  letter-spacing: -0.03em;
+  font-weight: 800;
+  letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
   line-height: 1.1;
 }
@@ -523,11 +735,11 @@ select:focus {
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .bar {
-  height: 6px;
+  height: 7px;
   border-radius: 999px;
   background: var(--surface-2);
   overflow: hidden;
@@ -536,7 +748,7 @@ select:focus {
 .bar span {
   display: block;
   height: 100%;
-  background: var(--accent);
+  background: var(--accent-gradient);
   border-radius: 999px;
 }
 .bar.over span {
@@ -619,12 +831,60 @@ select:focus {
   flex: 1;
 }
 
+/*
+ * Collapsed sidebar — a class toggled from the client (AppShell.js), not a media query.
+ * The default (before the toggle is ever touched) is decided in JS at mount from
+ * window.innerWidth, so narrow screens still start collapsed; from then on it's the
+ * visitor's explicit choice, persisted in localStorage, same as Hubstaff's own toggle.
+ */
+.sidebar.collapsed {
+  width: 80px;
+  padding: 14px 10px;
+}
+.sidebar.collapsed .brand span:not(.brand-mark),
+.sidebar.collapsed .nav a span {
+  opacity: 0;
+  max-width: 0;
+}
+.sidebar.collapsed .nav-group-label {
+  opacity: 0;
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.sidebar.collapsed .whoami {
+  opacity: 0;
+  max-width: 0;
+  flex: 0;
+}
+.sidebar.collapsed .brand {
+  justify-content: center;
+}
+.sidebar.collapsed .nav a {
+  justify-content: center;
+  padding: 10px;
+}
+.sidebar.collapsed .nav a.active::before {
+  left: -8px;
+}
+.sidebar.collapsed .sidebar-foot {
+  align-items: center;
+  padding: 8px;
+}
+.sidebar.collapsed .sidebar-foot .inline {
+  justify-content: center;
+}
+.sidebar.collapsed .sidebar-foot .btn {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 50%;
+}
+.sidebar.collapsed .sidebar-foot .btn span {
+  display: none;
+}
+
 @media (max-width: 720px) {
-  .topbar-inner {
-    height: auto;
-    padding: 10px 16px;
-    flex-wrap: wrap;
-  }
   .main {
     padding: 18px 16px 48px;
   }

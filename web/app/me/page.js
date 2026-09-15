@@ -1,14 +1,29 @@
 import Link from 'next/link';
 import { api, requireUser } from '@/lib/api';
 import ShiftPanel from '@/components/ShiftPanel';
-import { duration, time, workedSecondsOf, breakSecondsOf, isOpenShift } from '@/lib/format';
+import WorkTimeClock from '@/components/WorkTimeClock';
+import { duration, time, timeSec, workedSecondsOf, breakSecondsOf, isOpenShift } from '@/lib/format';
 
-export const metadata = { title: 'My shift · KD Tracker' };
+/** Whole-hours target reads as "8h", not "8h 00m" — minutes only show up when there are any. */
+function hoursLabel(seconds) {
+  const h = Math.floor((seconds || 0) / 3600);
+  const m = Math.round(((seconds || 0) % 3600) / 60);
+  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+}
+
+/** Break time/allowance read in plain minutes ("0m", "60m") rather than the "Xh Ym" duration()
+ * format used elsewhere — a break is rarely long enough for hours to matter. */
+function minutesLabel(seconds) {
+  return `${Math.round((seconds || 0) / 60)}m`;
+}
+
+export const metadata = { title: 'My shift · WorkBuddy' };
 
 export default async function MyShiftPage() {
-  const [user, status] = await Promise.all([
+  const [user, status, projects] = await Promise.all([
     requireUser(),
     api('/api/attendance/status'),
+    api('/api/projects'),
   ]);
 
   const shift   = status.shift ?? null;
@@ -18,6 +33,10 @@ export default async function MyShiftPage() {
   const todayWorked = workedSecondsOf(shift);
   const todayBreak  = breakSecondsOf(shift);
   const breaks      = shift?.breaks ?? [];
+
+  const shiftTarget    = status.shiftTargetSeconds ?? 32400;
+  const remainingToday = Math.max(shiftTarget - todayWorked, 0);
+  const targetReached  = punched && remainingToday === 0 && todayWorked > 0;
 
   return (
     <>
@@ -34,37 +53,37 @@ export default async function MyShiftPage() {
 
       <div className="stack">
         {/* Live punch controls + ticking clock */}
-        <ShiftPanel initial={status} timezone={user.timezone} />
+        <ShiftPanel initial={status} timezone={user.timezone} projects={projects} />
 
         {/* Today's at-a-glance stats */}
         <div className="grid grid-stats">
           <div className="stat">
-            <div className="label">Worked today</div>
-            <div className="value">{duration(todayWorked)}</div>
-            <div className="sub">{isOpen ? 'so far' : shift ? 'completed' : 'no shift yet'}</div>
+            <div className="label">Required Work</div>
+            <div className="value">{hoursLabel(shiftTarget)}</div>
           </div>
 
           <div className="stat">
-            <div className="label">Break today</div>
-            <div className="value">{duration(todayBreak)}</div>
-            <div className="sub">
-              of {duration(status.breakAllowanceSeconds ?? 3600)} allowance
+            <div className="label">Work Time</div>
+            <div className="value">
+              {/* Same base value ShiftPanel's own "Worked today" clock uses (status.workedSeconds,
+                  not the workedSecondsOf(shift) recompute below) — that recompute uses Date.now()
+                  at SSR render time, which lags behind the backend's own snapshot by however long
+                  the request took, so the two clocks would start a second or two apart and never
+                  agree until the next poll. */}
+              <WorkTimeClock state={status.state} baseWorked={status.workedSeconds || 0} />
             </div>
           </div>
 
           <div className="stat">
-            <div className="label">Idle today</div>
-            <div className="value">{duration(shift?.idleSeconds ?? 0)}</div>
-            <div className="sub">no keyboard or mouse activity</div>
+            <div className="label">Break Time</div>
+            <div className="value">{minutesLabel(todayBreak)}</div>
+            <div className="sub">Allowed: {minutesLabel(status.breakAllowanceSeconds ?? 3600)}</div>
           </div>
 
           <div className="stat">
-            <div className="label">Audio sampling</div>
-            <div className="value" style={{ fontSize: 20 }}>
-              {user.consent.audio ? 'On' : 'Off'}
-            </div>
-            <div className="sub">
-              <Link href="/consent">Change this</Link>
+            <div className="label">Time Remaining</div>
+            <div className="value" style={targetReached ? { color: 'var(--ok)' } : undefined}>
+              {targetReached ? 'Done' : duration(remainingToday)}
             </div>
           </div>
         </div>
@@ -102,10 +121,10 @@ export default async function MyShiftPage() {
                   <tbody>
                     {breaks.map((b) => (
                       <tr key={b.id}>
-                        <td className="num">{time(b.start, user.timezone)}</td>
+                        <td className="num">{timeSec(b.start, user.timezone)}</td>
                         <td className="num">
                           {b.end
-                            ? time(b.end, user.timezone)
+                            ? timeSec(b.end, user.timezone)
                             : <span className="pill pill-break">On break now</span>}
                         </td>
                         <td className="num">

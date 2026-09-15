@@ -272,6 +272,19 @@ export default function EmployeeActions({ employee, departments = [] }) {
               {busy === 'audio' ? 'Saving…' : 'Turn off audio'}
             </button>
           ) : null}
+
+          <button
+            type="button"
+            className="btn"
+            disabled={busy !== null}
+            onClick={() => update({ blurScreenshots: !employee.blurScreenshots }, 'blur')}
+          >
+            {busy === 'blur'
+              ? 'Saving…'
+              : employee.blurScreenshots
+              ? 'Show unblurred'
+              : 'Blur screenshots'}
+          </button>
         </div>
 
         {/* Inline password reset form */}

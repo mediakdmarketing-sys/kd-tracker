@@ -3,6 +3,7 @@
 const express = require('express');
 const { z } = require('zod');
 const service = require('./attendance.service');
+const projectService = require('../projects/project.service');
 const { authenticate } = require('../../middleware/auth');
 const { requireSelfOrAdmin } = require('../../middleware/rbac');
 const { validate, q } = require('../../middleware/validate');
@@ -65,6 +66,29 @@ router.post(
   })
 );
 
+const switchProjectSchema = z.object({
+  // null (via JSON `"projectId": null`) returns to unassigned time; the field is required so
+  // an employee cannot leave the intent ambiguous by omitting it.
+  projectId: z.string().uuid().nullable(),
+  at: z.string().datetime({ offset: true }).optional(),
+});
+
+/** Switches the current project for the caller's own open shift. Self only — see the
+ * employeeId note on the punch endpoints above; the same reasoning applies here. */
+router.post(
+  '/project',
+  validate(switchProjectSchema),
+  asyncHandler(async (req, res) => {
+    res.json(
+      await projectService.switchProject({
+        employee: req.user,
+        projectId: req.body.projectId,
+        at: req.body.at ? new Date(req.body.at).getTime() : undefined,
+      })
+    );
+  })
+);
+
 /** Live state for the tray icon / portal header. */
 router.get(
   '/status',
@@ -116,6 +140,16 @@ router.get(
     }
 
     res.json(paged(rows, total, page));
+  })
+);
+
+/** Per-project time breakdown for one calendar date — the employee/admin detail pages. */
+router.get(
+  '/:employeeId/projects',
+  requireSelfOrAdmin('employeeId'),
+  validate(z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'date must be YYYY-MM-DD') }), 'query'),
+  asyncHandler(async (req, res) => {
+    res.json(await projectService.summaryForEmployeeDate(req.params.employeeId, req.query.date));
   })
 );
 

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { api, requireUser } from '@/lib/api';
 
-export const metadata = { title: 'My team · KD Tracker' };
+export const metadata = { title: 'My team · WorkBuddy' };
 
 export default async function LeaderIndexPage() {
   const [user, departments] = await Promise.all([

@@ -2,14 +2,16 @@ import Link from 'next/link';
 import { api, requireUser } from '@/lib/api';
 import { duration, time, STATE_LABEL, STATE_CLASS } from '@/lib/format';
 
-export const metadata = { title: 'Team live board · KD Tracker' };
+export const metadata = { title: 'Team live board · WorkBuddy' };
 
 export default async function LeaderMembersPage({ searchParams }) {
   const params = await searchParams;
-  const [user, data] = await Promise.all([
+  const [user, data, agentConfig] = await Promise.all([
     requireUser(),
     api('/api/leader/members'),
+    api('/api/config'),
   ]);
+  const shiftTargetSeconds = agentConfig.shift.targetSeconds;
 
   const filterDept = params.department || '';
   const rows = filterDept
@@ -45,6 +47,10 @@ export default async function LeaderMembersPage({ searchParams }) {
           <div className="stat">
             <div className="label">Not started</div>
             <div className="value">{summary.notStarted}</div>
+          </div>
+          <div className="stat">
+            <div className="label">On leave</div>
+            <div className="value" style={{ color: 'var(--idle)' }}>{summary.onLeave || 0}</div>
           </div>
         </div>
 
@@ -92,7 +98,18 @@ export default async function LeaderMembersPage({ searchParams }) {
                         </div>
                       </td>
                       <td className="num">{row.punchIn ? time(row.punchIn, user.timezone) : '—'}</td>
-                      <td className="num">{duration(row.workedSeconds)}</td>
+                      <td className="num">
+                        {duration(row.workedSeconds)}
+                        {row.workedSeconds > shiftTargetSeconds ? (
+                          <span
+                            className="pill pill-flag"
+                            style={{ marginLeft: 6, fontSize: 11 }}
+                            title={`Over the ${duration(shiftTargetSeconds)} shift target`}
+                          >
+                            OT
+                          </span>
+                        ) : null}
+                      </td>
                       <td className="num">
                         <span className={row.overBreak ? 'pill pill-flag' : undefined}>
                           {duration(row.breakSeconds)}

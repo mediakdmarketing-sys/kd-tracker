@@ -1,6 +1,6 @@
 'use strict';
 
-const config = require('../../config');
+const settings = require('../../services/settings');
 const { db } = require('../../db');
 const { uuid } = require('../../utils/ids');
 const t = require('../../utils/time');
@@ -49,7 +49,7 @@ async function generate({ month }) {
   const records = aggregates.map((row) => {
     const workedSeconds = Number(row.worked) || 0;
     const idleSeconds   = Number(row.idle)   || 0;
-    const billableSeconds = config.payroll.deductIdle
+    const billableSeconds = settings.get().payroll.deductIdle
       ? Math.max(0, workedSeconds - idleSeconds)
       : workedSeconds;
     return {
@@ -60,7 +60,7 @@ async function generate({ month }) {
       total_worked_seconds: workedSeconds,
       total_break_seconds: Number(row.breaks) || 0,
       total_idle_seconds: idleSeconds,
-      idle_deducted: config.payroll.deductIdle,
+      idle_deducted: settings.get().payroll.deductIdle,
       days_present: Number(row.days) || 0,
       days_flagged: flaggedBy[row.employee_id] || 0,
       generated_on: generatedOn,

@@ -1,6 +1,7 @@
 'use strict';
 
 const config = require('../../config');
+const settings = require('../../services/settings');
 const { db, isUniqueViolation } = require('../../db');
 const { uuid } = require('../../utils/ids');
 const t = require('../../utils/time');
@@ -219,7 +220,7 @@ async function uploadAudio({
 
   // A sample longer than the configured window means a misconfigured or tampered agent —
   // continuous recording is exactly what the sampling design exists to prevent (spec 6.3).
-  const maxDuration = config.capture.audioSampleDurationSec * 1.5;
+  const maxDuration = settings.get().capture.audioSampleDurationSec * 1.5;
   if (durationSeconds > maxDuration) {
     throw badRequest(
       `Audio sample of ${durationSeconds}s exceeds the maximum sample length of ${Math.floor(
@@ -436,7 +437,7 @@ async function readFile(table, id) {
   const key = table === 'screenshots' ? row.image_url : row.file_url;
   if (toBool(row.file_deleted) || !key) {
     throw notFound(
-      `The file was deleted under the ${config.retention.days}-day retention policy. The record of the capture is retained.`
+      `The file was deleted under the ${settings.get().retention.days}-day retention policy. The record of the capture is retained.`
     );
   }
 

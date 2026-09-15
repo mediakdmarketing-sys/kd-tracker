@@ -24,7 +24,9 @@ import { time } from '@/lib/format';
 
 const INITIAL_VISIBLE = 10;
 
-export default function ScreenshotGrid({ items, timezone, date, buildFileUrl }) {
+export default function ScreenshotGrid({ items, timezone, from, to, fileUrlBase, blurred = false }) {
+  const rangeLabel = from && to && from !== to ? `${from} to ${to}` : from || to || '';
+  const multiDay = Boolean(from && to && from !== to);
   const [revealed, setRevealed] = useState(() => new Set());
   const [showAll, setShowAll] = useState(false);
 
@@ -42,17 +44,20 @@ export default function ScreenshotGrid({ items, timezone, date, buildFileUrl }) 
   const visibleGroups = showAll ? groups : groups.slice(0, INITIAL_VISIBLE);
   const hiddenCount = groups.length - INITIAL_VISIBLE;
 
-  // Stable formatter passed to every tile — constructed once per timezone value.
-  // Avoids 128 × new Intl.DateTimeFormat(...) inside CaptureTile render.
+  // Stable formatter passed to every tile — constructed once per (timezone, multiDay) pair.
+  // Avoids 128 × new Intl.DateTimeFormat(...) inside CaptureTile render. Includes the date
+  // too when the view spans more than one day — two captures both timestamped "14:32" on
+  // different days would otherwise be indistinguishable in the grid.
   const timeFmt = useMemo(
     () =>
       new Intl.DateTimeFormat('en-GB', {
         timeZone: timezone || 'Asia/Kolkata',
+        ...(multiDay ? { month: 'short', day: '2-digit' } : {}),
         hour: '2-digit',
         minute: '2-digit',
         hour12: false,
       }),
-    [timezone]
+    [timezone, multiDay]
   );
 
   const reveal = useCallback(
@@ -73,7 +78,8 @@ export default function ScreenshotGrid({ items, timezone, date, buildFileUrl }) 
         <h2>Screenshots</h2>
         <div className="inline">
           <span className="faint">
-            {groups.length} capture{groups.length === 1 ? '' : 's'} on {date}
+            {groups.length} capture{groups.length === 1 ? '' : 's'}{' '}
+            {multiDay ? 'between' : 'on'} {rangeLabel}
             {multiDisplay ? ` · ${items.length} images across multiple displays` : ''}
             {purgedFiles ? ` · ${purgedFiles} file${purgedFiles === 1 ? '' : 's'} already purged` : ''}
           </span>
@@ -93,7 +99,9 @@ export default function ScreenshotGrid({ items, timezone, date, buildFileUrl }) 
       </div>
 
       {groups.length === 0 ? (
-        <div className="empty">No screenshots captured on this date.</div>
+        <div className="empty">
+          No screenshots captured {multiDay ? 'in this range' : 'on this date'}.
+        </div>
       ) : (
         <div className="card-pad">
           <div className="shots">
@@ -104,7 +112,8 @@ export default function ScreenshotGrid({ items, timezone, date, buildFileUrl }) 
                 timeFmt={timeFmt}
                 revealed={revealed.has(group.id)}
                 onReveal={reveal}
-                buildFileUrl={buildFileUrl}
+                fileUrlBase={fileUrlBase}
+                blurred={blurred}
               />
             ))}
           </div>
@@ -126,9 +135,13 @@ export default function ScreenshotGrid({ items, timezone, date, buildFileUrl }) 
 // CaptureTile — memo so only the one revealed tile re-renders on setRevealed
 // ---------------------------------------------------------------------------
 
-const CaptureTile = memo(function CaptureTile({ group, timeFmt, revealed, onReveal, buildFileUrl }) {
+const CaptureTile = memo(function CaptureTile({ group, timeFmt, revealed, onReveal, fileUrlBase, blurred }) {
   const available = group.images.filter((i) => !i.fileDeleted);
   const allPurged = available.length === 0;
+  // Per-tile, not global: showing one screenshot clearly shouldn't unblur the other 127 —
+  // whoever's looking decided this one specifically needed a closer look.
+  const [showClear, setShowClear] = useState(false);
+  const stillBlurred = blurred && !showClear;
 
   const captureTimeLabel = formatWithFmt(timeFmt, group.capturedAt);
 
@@ -139,20 +152,50 @@ const CaptureTile = memo(function CaptureTile({ group, timeFmt, revealed, onReve
           File deleted under the 31-day retention rule. The record of the capture is kept.
         </div>
       ) : revealed ? (
-        <div className={group.images.length > 1 ? 'shot-displays' : undefined}>
-          {group.images.map((image) =>
-            image.fileDeleted ? (
-              <div className="shot-gone" key={image.id}>Purged</div>
-            ) : (
-              <a href={buildFileUrl ? buildFileUrl(image) : `/bff${image.fileUrl}`} target="_blank" rel="noreferrer" key={image.id}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={buildFileUrl ? buildFileUrl(image) : `/bff${image.fileUrl}`}
-                  alt={`${image.displayLabel || `Display ${image.displayIndex + 1}`} at ${captureTimeLabel}`}
-                  title={image.displayLabel || `Display ${image.displayIndex + 1}`}
-                />
-              </a>
-            )
+        <div style={{ position: 'relative' }}>
+          <div
+            className={group.images.length > 1 ? 'shot-displays' : undefined}
+            style={stillBlurred ? { filter: 'blur(14px)', transform: 'scale(1.03)' } : undefined}
+          >
+            {group.images.map((image) => {
+              if (image.fileDeleted) return <div className="shot-gone" key={image.id}>Purged</div>;
+              // fileUrlBase overrides the row's own fileUrl for callers (the leader-scoped
+              // views) whose per-employee GET route differs from the admin-only one the API
+              // response's fileUrl always points to (capture.service.js's shapeScreenshot).
+              // A plain string, not a function: this component is 'use client' and a Server
+              // Component parent cannot hand a closure across that boundary.
+              const url = fileUrlBase ? `${fileUrlBase}/${image.id}` : `/bff${image.fileUrl}`;
+              return (
+                <a href={url} target="_blank" rel="noreferrer" key={image.id}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={url}
+                    alt={`${image.displayLabel || `Display ${image.displayIndex + 1}`} at ${captureTimeLabel}`}
+                    title={image.displayLabel || `Display ${image.displayIndex + 1}`}
+                  />
+                </a>
+              );
+            })}
+          </div>
+          {stillBlurred && (
+            <button
+              type="button"
+              onClick={() => setShowClear(true)}
+              style={{
+                position: 'absolute',
+                inset: 0,
+                width: '100%',
+                border: 0,
+                background: 'rgba(26, 27, 46, 0.28)',
+                color: '#fff',
+                cursor: 'pointer',
+                font: 'inherit',
+                fontWeight: 600,
+                fontSize: 12,
+              }}
+            >
+              Blurred by default — click to view clearly
+            </button>
           )}
         </div>
       ) : (
@@ -197,7 +240,12 @@ function formatWithFmt(fmt, iso) {
     const parts = fmt.formatToParts(new Date(iso));
     const h = parts.find((p) => p.type === 'hour')?.value ?? '00';
     const m = parts.find((p) => p.type === 'minute')?.value ?? '00';
-    return `${h.padStart(2, '0')}:${m.padStart(2, '0')}`;
+    const time = `${h.padStart(2, '0')}:${m.padStart(2, '0')}`;
+    // Only present when the formatter was built with { month, day } (multi-day view) —
+    // absent, this is a no-op and the single-day "HH:MM" label is unchanged.
+    const month = parts.find((p) => p.type === 'month')?.value;
+    const day = parts.find((p) => p.type === 'day')?.value;
+    return month && day ? `${month} ${day}, ${time}` : time;
   } catch {
     return '—';
   }

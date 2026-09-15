@@ -1,6 +1,6 @@
 'use strict';
 
-const config = require('../config');
+const settings = require('../services/settings');
 const { db } = require('../db');
 const { storage } = require('../storage');
 const t = require('../utils/time');
@@ -47,7 +47,7 @@ async function purgeTable({ table, urlColumn, timeColumn, cutoff }) {
   return { table, candidates: rows.length, deleted, orphansMarked: orphans, failures };
 }
 
-async function purge({ days = config.retention.days, at = t.now() } = {}) {
+async function purge({ days = settings.get().retention.days, at = t.now() } = {}) {
   const cutoff = t.daysAgo(days, at);
 
   const screenshots = await purgeTable({

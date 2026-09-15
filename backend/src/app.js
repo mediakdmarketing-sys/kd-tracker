@@ -6,6 +6,7 @@ const cors = require('cors');
 const compression = require('compression');
 
 const config = require('./config');
+const settings = require('./services/settings');
 const { db } = require('./db');
 const { authenticate } = require('./middleware/auth');
 const { apiLimiter } = require('./middleware/rateLimit');
@@ -15,6 +16,8 @@ const { lastRuns } = require('./jobs/jobRunner');
 
 const authRoutes = require('./modules/auth/auth.routes');
 const attendanceRoutes = require('./modules/attendance/attendance.routes');
+const projectRoutes = require('./modules/projects/project.routes');
+const leaveRoutes = require('./modules/leave/leave.routes');
 const capture = require('./modules/capture/capture.routes');
 const adminRoutes = require('./modules/admin/admin.routes');
 const leaderRoutes = require('./modules/leader/leader.routes');
@@ -80,30 +83,36 @@ function createApp() {
     })
   );
 
-  /** Capture settings the agent reads on start, so intervals are changed server-side. */
+  /**
+   * Capture settings the agent reads on start and on every status poll, so an admin change
+   * in Settings (backend/src/services/settings.js) reaches running agents without a restart.
+   */
   app.get('/api/config', authenticate, (req, res) => {
+    const s = settings.get();
     res.json({
       screenshot: {
-        minIntervalSeconds: config.capture.screenshotMinIntervalSec,
-        maxIntervalSeconds: config.capture.screenshotMaxIntervalSec,
+        minIntervalSeconds: s.capture.screenshotMinIntervalSec,
+        maxIntervalSeconds: s.capture.screenshotMaxIntervalSec,
       },
       audio: {
         enabled: req.user.consentAudio,
-        sampleDurationSeconds: config.capture.audioSampleDurationSec,
-        sampleGapSeconds: config.capture.audioSampleGapSec,
+        sampleDurationSeconds: s.capture.audioSampleDurationSec,
+        sampleGapSeconds: s.capture.audioSampleGapSec,
       },
       shift: {
-        targetSeconds: config.shift.targetSeconds,
-        breakAllowanceSeconds: config.shift.breakAllowanceSeconds,
-        idleThresholdSeconds: config.shift.idleThresholdSeconds,
+        targetSeconds: s.shift.targetSeconds,
+        breakAllowanceSeconds: s.shift.breakAllowanceSeconds,
+        idleThresholdSeconds: s.shift.idleThresholdSeconds,
       },
-      retentionDays: config.retention.days,
+      retentionDays: s.retention.days,
       maxUploadBytes: config.capture.maxUploadBytes,
     });
   });
 
   app.use('/api/auth', authRoutes);
   app.use('/api/attendance', attendanceRoutes);
+  app.use('/api/projects', projectRoutes);
+  app.use('/api/leave', leaveRoutes);
   // Single canonical path. The old /api/screenshot (singular) alias is removed: it allowed
   // the upload rate limit to be bypassed by splitting requests across both paths.
   app.use('/api/screenshots', capture.screenshots);

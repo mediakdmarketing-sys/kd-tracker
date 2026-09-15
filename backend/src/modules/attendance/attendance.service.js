@@ -1,6 +1,7 @@
 'use strict';
 
-const config = require('../../config');
+const settings = require('../../services/settings');
+const projectService = require('../projects/project.service');
 const { db, transaction, isUniqueViolation } = require('../../db');
 const { uuid } = require('../../utils/ids');
 const t = require('../../utils/time');
@@ -58,7 +59,7 @@ function shape(row, breaks = []) {
  * offline correct the number instead of baking in a wrong one.
  */
 async function computeIdleSeconds(attendance, trx = db()) {
-  const threshold = config.shift.idleThresholdSeconds;
+  const threshold = settings.get().shift.idleThresholdSeconds;
   const start = Number(attendance.punch_in);
   const end = Number(attendance.punch_out) || t.now();
 
@@ -183,11 +184,14 @@ async function punchOut({ employee, at, requestedAt }) {
   const open = await runningBreak(shift.id);
   if (open) await endBreak({ employee, at: resolved.at, silent: true });
 
+  // Project time must not run past the shift it belongs to.
+  await projectService.endRunningEntry(shift.id, resolved.at);
+
   const fresh = await db()('attendance').where({ id: shift.id }).first();
   const breakSeconds = fresh.total_break_seconds || 0;
   const grossSeconds = t.secondsBetween(Number(fresh.punch_in), resolved.at);
   const workedSeconds = Math.max(0, grossSeconds - breakSeconds);
-  const overBreak = breakSeconds > config.shift.breakAllowanceSeconds;
+  const overBreak = breakSeconds > settings.get().shift.breakAllowanceSeconds;
   const idleSeconds = await computeIdleSeconds({ ...fresh, punch_out: resolved.at });
 
   // A shift can be flagged for more than one reason; keep them all rather than the last one.
@@ -195,7 +199,7 @@ async function punchOut({ employee, at, requestedAt }) {
   if (overBreak) {
     reasons.push(
       `Break time ${t.formatDuration(breakSeconds)} exceeds the ${t.formatDuration(
-        config.shift.breakAllowanceSeconds
+        settings.get().shift.breakAllowanceSeconds
       )} allowance`
     );
   }
@@ -233,6 +237,10 @@ async function startBreak({ employee, at, requestedAt }) {
         now: receivedAt,
       })
     : { at: at ?? receivedAt };
+
+  // A break pauses project time same as it pauses capture — nothing should be "running" on a
+  // project while the employee is on a break.
+  await projectService.endRunningEntry(shift.id, resolved.at);
 
   await transaction(async (trx) => {
     await trx('breaks').insert({
@@ -293,7 +301,7 @@ async function endBreak({ employee, at, requestedAt, silent = false }) {
       .update({
         status: 'open',
         total_break_seconds: totalBreak,
-        over_break: totalBreak > config.shift.breakAllowanceSeconds,
+        over_break: totalBreak > settings.get().shift.breakAllowanceSeconds,
         updated_at: receivedAt,
       });
   });
@@ -305,7 +313,7 @@ async function endBreak({ employee, at, requestedAt, silent = false }) {
   const attendancePatch = {
     status: 'open',
     total_break_seconds: totalBreak,
-    over_break: totalBreak > config.shift.breakAllowanceSeconds,
+    over_break: totalBreak > settings.get().shift.breakAllowanceSeconds,
     updated_at: receivedAt,
   };
   return shape({ ...shift, ...attendancePatch }, allBreaks);
@@ -335,18 +343,21 @@ async function currentStatus(employee) {
     ? breakSeconds + t.secondsBetween(Number(openBreak.break_start), t.now())
     : breakSeconds;
 
+  const currentProject = shift.status === 'open' ? await projectService.currentForShift(shift.id) : null;
+
   return {
+    currentProject,
     state: shift.status === 'on_break' ? 'on_break' : 'working',
     shift: shape(shift, breaks),
     elapsedSeconds: elapsed,
     workedSeconds: Math.max(0, elapsed - liveBreakSeconds),
     breakSeconds: liveBreakSeconds,
-    breakRemainingSeconds: Math.max(0, config.shift.breakAllowanceSeconds - liveBreakSeconds),
+    breakRemainingSeconds: Math.max(0, settings.get().shift.breakAllowanceSeconds - liveBreakSeconds),
     // Sent explicitly: once the break is over the allowance, `breakRemainingSeconds` is 0 and
     // a client cannot work out what the allowance was.
-    breakAllowanceSeconds: config.shift.breakAllowanceSeconds,
-    overBreak: liveBreakSeconds > config.shift.breakAllowanceSeconds,
-    shiftTargetSeconds: config.shift.targetSeconds,
+    breakAllowanceSeconds: settings.get().shift.breakAllowanceSeconds,
+    overBreak: liveBreakSeconds > settings.get().shift.breakAllowanceSeconds,
+    shiftTargetSeconds: settings.get().shift.targetSeconds,
     // The agent captures only while working, never on a break (spec 6.2 / 6.3).
     captureAllowed: shift.status === 'open',
     audioAllowed: shift.status === 'open' && employee.consentAudio,

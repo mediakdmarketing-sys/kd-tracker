@@ -46,6 +46,31 @@ export function time(iso, tz = DEFAULT_TZ) {
   }
 }
 
+/**
+ * Same as time(), but down to the second — minute precision makes two breaks a minute or two
+ * apart (or a break that starts and ends inside the same minute) look identical or backwards,
+ * which is confusing when a length is shown right next to them. Used for break start/end only;
+ * punch in/out stays at minute precision since a shift is rarely short enough for that to matter.
+ */
+export function timeSec(iso, tz = DEFAULT_TZ) {
+  if (!iso) return '—';
+  try {
+    const parts = _fmt('en-GB', {
+      timeZone: tz,
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    }).formatToParts(new Date(iso));
+    const h = parts.find((p) => p.type === 'hour')?.value ?? '00';
+    const m = parts.find((p) => p.type === 'minute')?.value ?? '00';
+    const s = parts.find((p) => p.type === 'second')?.value ?? '00';
+    return `${h.padStart(2, '0')}:${m.padStart(2, '0')}:${s.padStart(2, '0')}`;
+  } catch {
+    return '—';
+  }
+}
+
 export function dateLabel(value, tz = DEFAULT_TZ) {
   if (!value) return '—';
   const isDate = DATE_RE.test(value);
@@ -151,6 +176,7 @@ export const STATE_LABEL = {
   on_break: 'On break',
   punched_out: 'Punched out',
   not_started: 'Not started',
+  on_leave: 'On leave',
 };
 
 export const STATE_CLASS = {
@@ -158,4 +184,5 @@ export const STATE_CLASS = {
   on_break: 'pill-break',
   punched_out: 'pill-out',
   not_started: 'pill-none',
+  on_leave: 'pill-idle',
 };

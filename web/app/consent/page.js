@@ -1,7 +1,7 @@
 import { getSessionUser, api } from '@/lib/api';
 import ConsentForm from './ConsentForm';
 
-export const metadata = { title: 'What we monitor · KD Tracker' };
+export const metadata = { title: 'What we monitor · WorkBuddy' };
 
 /**
  * Story W-3. This page stands between an employee and their first punch-in, and the text on it

@@ -2,6 +2,8 @@
 
 const bcrypt = require('bcryptjs');
 const config = require('../../config');
+const settings = require('../../services/settings');
+const leaveService = require('../leave/leave.service');
 const { db, isUniqueViolation } = require('../../db');
 const { uuid } = require('../../utils/ids');
 const t = require('../../utils/time');
@@ -48,6 +50,10 @@ async function dashboard({ date } = {}) {
         .whereNull('break_end')
     : [];
 
+  const approvedLeaveByEmployee = await leaveService.approvedLeaveByEmployeeForDates(
+    employees.map((e, i) => ({ employeeId: e.id, date: employeeDates[i] }))
+  );
+
   const since = t.hoursAgo(24);
   const lastActivity = await db()('activity_logs')
     .whereIn('employee_id', employeeIds)
@@ -86,9 +92,14 @@ async function dashboard({ date } = {}) {
       ? breakToday + t.secondsBetween(Number(runningBreak.break_start), nowMs)
       : breakToday;
 
+    const onLeave = approvedLeaveByEmployee.get(emp.id);
+
     let state = 'not_started';
     if (current) state = current.status === 'on_break' ? 'on_break' : 'working';
     else if (shifts.length) state = 'punched_out';
+    // Only overrides the otherwise-unexplained "not started" case — an employee who actually
+    // punched in or worked earlier that day shows what they really did, approved leave or not.
+    else if (onLeave) state = 'on_leave';
 
     const lastSeen = lastSeenBy[emp.id] || null;
 
@@ -99,6 +110,7 @@ async function dashboard({ date } = {}) {
       department: emp.department,
       date: empDate,
       state,
+      leaveType: onLeave ? onLeave.type : null,
       // True when the employee is still on a shift that began on an earlier calendar day.
       overnight: Boolean(current && current.date !== empDate),
       shiftDate: current ? current.date : shifts[0]?.date || empDate,
@@ -106,14 +118,14 @@ async function dashboard({ date } = {}) {
       punchOut: !current && shifts[0] ? toIso(shifts[0].punch_out) : null,
       workedSeconds: workedToday,
       breakSeconds: liveBreak,
-      overBreak: liveBreak > config.shift.breakAllowanceSeconds,
-      shiftTargetSeconds: config.shift.targetSeconds,
+      overBreak: liveBreak > settings.get().shift.breakAllowanceSeconds,
+      shiftTargetSeconds: settings.get().shift.targetSeconds,
       lastActivityAt: toIso(lastSeen),
       // A live shift with no activity ping inside the idle window is probably idle rather
       // than working — surfaced here so HR sees it without digging through logs.
       appearsIdle:
         state === 'working' &&
-        (!lastSeen || nowMs - lastSeen > config.shift.idleThresholdSeconds * 1000),
+        (!lastSeen || nowMs - lastSeen > settings.get().shift.idleThresholdSeconds * 1000),
       needsReview: toBool(current?.needs_review || shifts[0]?.needs_review),
     };
   });
@@ -124,6 +136,7 @@ async function dashboard({ date } = {}) {
     onBreak: rows.filter((r) => r.state === 'on_break').length,
     punchedOut: rows.filter((r) => r.state === 'punched_out').length,
     notStarted: rows.filter((r) => r.state === 'not_started').length,
+    onLeave: rows.filter((r) => r.state === 'on_leave').length,
     flagged: rows.filter((r) => r.needsReview || r.overBreak).length,
   };
 
@@ -162,6 +175,16 @@ async function report({ from, to, department, employeeId }) {
   const flags = await flagQuery.groupBy('a.employee_id').select('a.employee_id').count({ c: '*' });
   const flagsBy = Object.fromEntries(flags.map((f) => [f.employee_id, Number(f.c)]));
 
+  // Approved leave days per employee in range. Note the same limitation as any other column
+  // here: this report is built from the attendance JOIN above, so an employee with zero
+  // attendance rows in the whole period (e.g. on leave the entire time) won't have a row to
+  // attach a leave count to at all — a gap worth knowing about, not silently patched over.
+  const leaveDaysBy = await leaveService.approvedDaysInRange({
+    employeeIds: rows.map((r) => r.employee_id),
+    from,
+    to,
+  });
+
   return rows.map((r) => {
     const worked = Number(r.worked_seconds) || 0;
     return {
@@ -176,6 +199,7 @@ async function report({ from, to, department, employeeId }) {
       breakSeconds: Number(r.break_seconds) || 0,
       idleSeconds: Number(r.idle_seconds) || 0,
       flaggedDays: flagsBy[r.employee_id] || 0,
+      leaveDays: leaveDaysBy[r.employee_id] || 0,
     };
   });
 }
@@ -276,6 +300,7 @@ async function createEmployee(input) {
     timezone: input.timezone || 'Asia/Kolkata',
     consent_monitoring: false,
     consent_audio: false,
+    blur_screenshots: false,
     consent_given_at: null,
     consent_version: null,
     created_at: nowMs,
@@ -311,6 +336,9 @@ async function updateEmployee(id, input) {
   // Audio consent belongs to the employee. HR may turn it off (e.g. on a written request),
   // but must never be able to turn it on for someone.
   if (input.consentAudio === false) patch.consent_audio = false;
+
+  // Screenshot blur is a display preference, not consent — HR may set it either way.
+  if (input.blurScreenshots !== undefined) patch.blur_screenshots = input.blurScreenshots;
 
   await db()('employees').where({ id }).update(patch);
 

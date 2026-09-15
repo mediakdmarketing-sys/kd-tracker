@@ -1,10 +1,11 @@
 'use strict';
 
 const { db } = require('../../db');
-const config = require('../../config');
+const settings = require('../../services/settings');
 const t = require('../../utils/time');
 const { toIso, toBool } = require('../../utils/http');
 const { publicEmployee } = require('../auth/auth.service');
+const leaveService = require('../leave/leave.service');
 
 /**
  * Resolve which employee IDs a leader (or admin) may act on.
@@ -45,6 +46,25 @@ async function resolveMemberIds(leaderDepts, leaderId) {
   ];
 
   return [...new Set(allIds)];
+}
+
+/**
+ * Like resolveMemberIds, but for leave review specifically: regular employees only, never
+ * sub-leaders. A leader's (or sub-leader's) own leave request must always be decided by an
+ * Admin, never by another leader — even a senior leader who manages a superset of departments
+ * and would otherwise see that sub-leader's team in resolveMemberIds. Dropping sub-leaders here
+ * guarantees that path stays closed rather than relying on self-exclusion alone.
+ */
+async function resolveLeaveMemberIds(leaderDepts) {
+  if (leaderDepts === null) return null; // admin — no filter
+  if (!leaderDepts.length) return [];
+
+  const regularRows = await db()('employees')
+    .whereIn('department', leaderDepts)
+    .where({ status: 'active', role: 'user' })
+    .select('id');
+
+  return regularRows.map((r) => r.id);
 }
 
 /**
@@ -101,7 +121,7 @@ async function memberDashboard(user, leaderDepts) {
 
   // No departments or no members.
   if (memberIds !== null && memberIds.length === 0) {
-    return { generatedAt: toIso(t.now()), summary: { total: 0, working: 0, onBreak: 0, punchedOut: 0, notStarted: 0 }, employees: [] };
+    return { generatedAt: toIso(t.now()), summary: { total: 0, working: 0, onBreak: 0, punchedOut: 0, notStarted: 0, onLeave: 0 }, employees: [] };
   }
 
   const base = db()('employees')
@@ -112,8 +132,13 @@ async function memberDashboard(user, leaderDepts) {
   const employees = await base.select('id', 'name', 'email', 'department', 'timezone');
 
   const nowMs = t.now();
-  const dates = new Set(employees.map((e) => t.localDate(nowMs, e.timezone)));
+  const empDatesByEmployee = employees.map((e) => t.localDate(nowMs, e.timezone));
+  const dates = new Set(empDatesByEmployee);
   const empIds = employees.map((e) => e.id);
+
+  const approvedLeaveByEmployee = await leaveService.approvedLeaveByEmployeeForDates(
+    employees.map((e, i) => ({ employeeId: e.id, date: empDatesByEmployee[i] }))
+  );
 
   const attendance = await db()('attendance')
     .whereIn('employee_id', empIds)
@@ -159,9 +184,12 @@ async function memberDashboard(user, leaderDepts) {
       ? breakToday + t.secondsBetween(Number(runningBreak.break_start), nowMs)
       : breakToday;
 
+    const onLeave = approvedLeaveByEmployee.get(emp.id);
+
     let state = 'not_started';
     if (current) state = current.status === 'on_break' ? 'on_break' : 'working';
     else if (shifts.length) state = 'punched_out';
+    else if (onLeave) state = 'on_leave';
 
     const lastSeen = lastSeenBy[emp.id] || null;
 
@@ -171,14 +199,15 @@ async function memberDashboard(user, leaderDepts) {
       email: emp.email,
       department: emp.department,
       state,
+      leaveType: onLeave ? onLeave.type : null,
       punchIn: current ? toIso(current.punch_in) : shifts[0] ? toIso(shifts[0].punch_in) : null,
       punchOut: !current && shifts[0] ? toIso(shifts[0].punch_out) : null,
       workedSeconds: workedToday,
       breakSeconds: liveBreak,
-      overBreak: liveBreak > config.shift.breakAllowanceSeconds,
+      overBreak: liveBreak > settings.get().shift.breakAllowanceSeconds,
       lastActivityAt: toIso(lastSeen),
       appearsIdle:
-        state === 'working' && (!lastSeen || nowMs - lastSeen > config.shift.idleThresholdSeconds * 1000),
+        state === 'working' && (!lastSeen || nowMs - lastSeen > settings.get().shift.idleThresholdSeconds * 1000),
       needsReview: toBool(current?.needs_review || shifts[0]?.needs_review),
     };
   });
@@ -189,9 +218,10 @@ async function memberDashboard(user, leaderDepts) {
     onBreak: rows.filter((r) => r.state === 'on_break').length,
     punchedOut: rows.filter((r) => r.state === 'punched_out').length,
     notStarted: rows.filter((r) => r.state === 'not_started').length,
+    onLeave: rows.filter((r) => r.state === 'on_leave').length,
   };
 
   return { generatedAt: toIso(nowMs), summary, employees: rows };
 }
 
-module.exports = { myDepartments, memberDashboard, resolveMemberIds };
+module.exports = { myDepartments, memberDashboard, resolveMemberIds, resolveLeaveMemberIds };

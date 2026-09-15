@@ -6,7 +6,7 @@ import Pager from '@/components/Pager';
 import NewEmployeeForm from './NewEmployeeForm';
 import { dateLabel } from '@/lib/format';
 
-export const metadata = { title: 'Employees · KD Tracker' };
+export const metadata = { title: 'Employees · WorkBuddy' };
 
 export default async function EmployeesPage({ searchParams }) {
   const params = await searchParams;

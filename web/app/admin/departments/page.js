@@ -3,7 +3,7 @@ import { api, requireUser } from '@/lib/api';
 import CreateDepartmentForm from './CreateDepartmentForm';
 import DeleteDepartmentButton from './DeleteDepartmentButton';
 
-export const metadata = { title: 'Departments · KD Tracker' };
+export const metadata = { title: 'Departments · WorkBuddy' };
 
 export default async function DepartmentsPage() {
   const [, departments, leaders] = await Promise.all([

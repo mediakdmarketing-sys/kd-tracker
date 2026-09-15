@@ -41,6 +41,7 @@ const EXTENSION_BY_TYPE = {
   'audio/ogg': 'ogg',
   'audio/mpeg': 'mp3',
   'audio/wav': 'wav',
+  'application/pdf': 'pdf',
 };
 
 function extensionFor(contentType, fallback) {

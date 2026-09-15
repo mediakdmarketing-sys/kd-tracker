@@ -4,7 +4,7 @@ import { api, requireUser } from '@/lib/api';
 import RangeFilter from '@/components/RangeFilter';
 import { duration, hours, daysAgoDate, todayIn, dateLabel } from '@/lib/format';
 
-export const metadata = { title: 'Reports · KD Tracker' };
+export const metadata = { title: 'Reports · WorkBuddy' };
 
 export default async function ReportsPage({ searchParams }) {
   const params = await searchParams;
@@ -122,13 +122,14 @@ export default async function ReportsPage({ searchParams }) {
                   <th>Hours</th>
                   <th>Break</th>
                   <th>Idle</th>
+                  <th>Leave</th>
                   <th>Flagged</th>
                 </tr>
               </thead>
               <tbody>
                 {report.rows.length === 0 ? (
                   <tr>
-                    <td colSpan={8}>
+                    <td colSpan={9}>
                       <div className="empty">No attendance in this range.</div>
                     </td>
                   </tr>
@@ -145,6 +146,13 @@ export default async function ReportsPage({ searchParams }) {
                       <td className="num">{row.workedHours}</td>
                       <td className="num">{duration(row.breakSeconds)}</td>
                       <td className="num muted">{duration(row.idleSeconds)}</td>
+                      <td className="num">
+                        {row.leaveDays ? (
+                          <span className="pill pill-idle">{row.leaveDays}</span>
+                        ) : (
+                          <span className="faint">—</span>
+                        )}
+                      </td>
                       <td className="num">
                         {row.flaggedDays ? (
                           <span className="pill pill-flag">{row.flaggedDays}</span>

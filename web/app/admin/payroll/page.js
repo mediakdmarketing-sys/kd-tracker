@@ -5,7 +5,7 @@ import RangeFilter from '@/components/RangeFilter';
 import GeneratePayroll from './GeneratePayroll';
 import { currentMonth, dateLabel } from '@/lib/format';
 
-export const metadata = { title: 'Payroll · KD Tracker' };
+export const metadata = { title: 'Payroll · WorkBuddy' };
 
 export default async function PayrollPage({ searchParams }) {
   const params = await searchParams;

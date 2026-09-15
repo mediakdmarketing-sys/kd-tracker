@@ -1,6 +1,6 @@
 'use strict';
 
-const config = require('../config');
+const settings = require('../services/settings');
 const { db } = require('../db');
 const t = require('../utils/time');
 const attendanceService = require('../modules/attendance/attendance.service');
@@ -13,7 +13,7 @@ const attendanceService = require('../modules/attendance/attendance.service');
  * day is flagged for HR rather than silently accepted or silently discarded. Deciding the real
  * end of that shift is a human judgement.
  */
-async function closeStaleShifts({ at = t.now(), maxHours = config.shift.autoCloseHours } = {}) {
+async function closeStaleShifts({ at = t.now(), maxHours = settings.get().shift.autoCloseHours } = {}) {
   const cutoff = t.hoursAgo(maxHours, at);
 
   const stale = await db()('attendance')
@@ -65,7 +65,7 @@ async function closeStaleShifts({ at = t.now(), maxHours = config.shift.autoClos
         total_break_seconds: breakSeconds,
         total_worked_seconds: worked,
         idle_seconds: idle,
-        over_break: breakSeconds > config.shift.breakAllowanceSeconds,
+        over_break: breakSeconds > settings.get().shift.breakAllowanceSeconds,
         auto_closed: true,
         needs_review: true,
         review_reason: `Shift was never punched out; auto-closed ${maxHours}h after punch-in. Worked time needs HR confirmation.`,

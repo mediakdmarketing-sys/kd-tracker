@@ -11,6 +11,7 @@ const FILTERS = [
   { key: 'on_break', label: 'On break' },
   { key: 'punched_out', label: 'Punched out' },
   { key: 'not_started', label: 'Not started' },
+  { key: 'on_leave', label: 'On leave' },
   { key: 'flagged', label: 'Needs review' },
 ];
 
@@ -63,7 +64,7 @@ function CountdownDisplay({ pollMs, onExpire }) {
  * The countdown display is isolated in CountdownDisplay so the employee table only re-renders
  * when the data actually changes, not every second.
  */
-export default function LiveBoard({ initial, timezone }) {
+export default function LiveBoard({ initial, timezone, shiftTargetSeconds }) {
   const [data, setData] = useState(initial);
   const [filter, setFilter] = useState('all');
   const [stale, setStale] = useState(false);
@@ -101,6 +102,7 @@ export default function LiveBoard({ initial, timezone }) {
         <Stat label="On break" value={data.summary.onBreak} tone="var(--warn)" />
         <Stat label="Punched out" value={data.summary.punchedOut} />
         <Stat label="Not started" value={data.summary.notStarted} />
+        <Stat label="On leave" value={data.summary.onLeave || 0} tone="var(--idle)" />
         <Stat label="Needs review" value={data.summary.flagged} tone="var(--danger)" />
       </div>
 
@@ -179,7 +181,18 @@ export default function LiveBoard({ initial, timezone }) {
                       </div>
                     </td>
                     <td className="num">{time(row.punchIn, timezone)}</td>
-                    <td className="num">{duration(row.workedSeconds)}</td>
+                    <td className="num">
+                      {duration(row.workedSeconds)}
+                      {shiftTargetSeconds && row.workedSeconds > shiftTargetSeconds ? (
+                        <span
+                          className="pill pill-flag"
+                          style={{ marginLeft: 6, fontSize: 11 }}
+                          title={`Over the ${duration(shiftTargetSeconds)} shift target`}
+                        >
+                          OT
+                        </span>
+                      ) : null}
+                    </td>
                     <td className="num">
                       <span className={row.overBreak ? 'pill pill-flag' : undefined}>
                         {duration(row.breakSeconds)}

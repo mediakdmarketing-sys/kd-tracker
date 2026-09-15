@@ -8,25 +8,35 @@ import { time, duration } from '@/lib/format';
  * capture types for the same reason (a supervisor reviewing one person's day); the only real
  * differences are which BFF path builds the file URL and whether the admin-only "Consent"
  * column is shown, both handled here via props rather than via two copies of the JSX.
+ *
+ * screenshotUrlBase / audioUrlBase are plain URL-prefix strings, not functions: this renders
+ * ScreenshotGrid and AudioPlayer, both 'use client' components, and a Server Component parent
+ * (every page using CaptureSection is one) cannot hand a closure across that boundary — Next.js
+ * fails the render with "Functions cannot be passed directly to Client Components". Leave
+ * either unset to use the row's own fileUrl (the admin-accessible route) unchanged.
  */
 export default function CaptureSection({
   screenshots,
   audio,
   timezone,
-  date,
-  buildScreenshotUrl,
-  buildAudioUrl,
+  from,
+  to,
+  screenshotUrlBase,
+  audioUrlBase,
   consentAudio,
   showConsentColumn = false,
   subjectLabel = 'employee',
+  blurScreenshots = false,
 }) {
   return (
     <>
       <ScreenshotGrid
         items={screenshots}
         timezone={timezone}
-        date={date}
-        buildFileUrl={buildScreenshotUrl}
+        from={from}
+        to={to}
+        fileUrlBase={screenshotUrlBase}
+        blurred={blurScreenshots}
       />
 
       <div className="card">
@@ -87,7 +97,10 @@ export default function CaptureSection({
                       {sample.fileDeleted ? (
                         <span className="faint">Deleted after 31 days</span>
                       ) : (
-                        <AudioPlayer src={buildAudioUrl(sample)} style={{ height: 32 }} />
+                        <AudioPlayer
+                          src={audioUrlBase ? `${audioUrlBase}/${sample.id}` : `/bff${sample.fileUrl}`}
+                          style={{ height: 32 }}
+                        />
                       )}
                     </td>
                   </tr>

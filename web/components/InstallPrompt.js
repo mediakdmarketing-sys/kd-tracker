@@ -62,7 +62,7 @@ export default function InstallPrompt() {
   return (
     <div
       role="banner"
-      aria-label="Install KD Tracker"
+      aria-label="Install WorkBuddy"
       style={{
         position: 'fixed',
         bottom: 0,
@@ -86,7 +86,21 @@ export default function InstallPrompt() {
         style={{ borderRadius: 8, flexShrink: 0 }}
       />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontWeight: 600, fontSize: 14 }}>Install KD Tracker</div>
+        <div style={{ fontWeight: 700, fontSize: 14 }}>Install WorkBuddy</div>
+        <div
+          style={{
+            fontWeight: 700,
+            fontSize: 11,
+            letterSpacing: '.01em',
+            backgroundImage: 'linear-gradient(120deg, #5b5fef, #9333ea)',
+            backgroundClip: 'text',
+            WebkitBackgroundClip: 'text',
+            color: 'transparent',
+            margin: '1px 0',
+          }}
+        >
+          The Smart Companion for Peak Productivity
+        </div>
         <div style={{ fontSize: 12, color: '#5c6472' }}>
           Add to your home screen for quick access — works offline too.
         </div>
@@ -94,10 +108,10 @@ export default function InstallPrompt() {
       <button
         onClick={install}
         style={{
-          background: '#2f5cff',
+          background: 'linear-gradient(120deg, #5b5fef, #9333ea)',
           color: '#fff',
           border: 'none',
-          borderRadius: 8,
+          borderRadius: 999,
           padding: '8px 16px',
           fontWeight: 600,
           fontSize: 13,

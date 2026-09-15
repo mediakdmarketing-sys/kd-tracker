@@ -1,6 +1,6 @@
 {
-  "name": "KD Tracker",
-  "short_name": "KD Tracker",
+  "name": "WorkBuddy",
+  "short_name": "WorkBuddy",
   "description": "Attendance and work monitoring portal",
   "start_url": "/",
   "display": "standalone",

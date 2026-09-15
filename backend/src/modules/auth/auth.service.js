@@ -91,6 +91,7 @@ function publicEmployee(row) {
     employeeCode: row.employee_code,
     timezone: row.timezone,
     status: row.status,
+    blurScreenshots: toBool(row.blur_screenshots),
     consent: {
       monitoring: toBool(row.consent_monitoring),
       audio: toBool(row.consent_audio),

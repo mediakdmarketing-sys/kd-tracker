@@ -14,7 +14,7 @@ import {
   breakSecondsOf,
 } from '@/lib/format';
 
-export const metadata = { title: 'My history · KD Tracker' };
+export const metadata = { title: 'My history · WorkBuddy' };
 
 export default async function HistoryPage({ searchParams }) {
   const params = await searchParams;

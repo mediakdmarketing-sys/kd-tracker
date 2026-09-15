@@ -45,6 +45,9 @@ const ACTIONS = {
   DEACTIVATED_EMPLOYEE: 'deactivated_employee',
   ASSIGNED_LEADER: 'assigned_leader',
   REMOVED_LEADER: 'removed_leader',
+  UPDATED_SETTINGS: 'updated_settings',
+  REVIEWED_LEAVE_REQUEST: 'reviewed_leave_request',
+  VIEWED_LEAVE_PROOF: 'viewed_leave_proof',
 };
 
 module.exports = { record, ACTIONS };
