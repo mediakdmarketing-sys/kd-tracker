@@ -94,6 +94,95 @@ describe('capture gating', () => {
   });
 });
 
+describe('break overdue notification', () => {
+  const MIN = 60_000;
+
+  function agentWithClock({ remaining, state = 'on_break' }) {
+    const clock = { t: 1_000_000 };
+    const events = [];
+    const agent = new Agent({
+      api: fakeApi(
+        statusResponse({
+          state,
+          captureAllowed: false,
+          breakSeconds: 3000,
+          breakAllowanceSeconds: 3600,
+          breakRemainingSeconds: remaining,
+          overBreak: remaining === 0,
+        })
+      ),
+      outbox,
+      uploader: { drain: async () => {}, stop() {} },
+      capture: { screenshots: async () => [], audioSample: async () => null },
+      now: () => clock.t,
+      onNotify: (event, data) => events.push([event, data]),
+    });
+    return { agent, clock, events };
+  }
+
+  const overdue = (events) => events.filter(([e]) => e === 'breakOverdue');
+
+  it('stays quiet while there is allowance left', async () => {
+    const { agent, clock, events } = agentWithClock({ remaining: 600 });
+    await agent.syncStatus();
+
+    clock.t += 9 * MIN;
+    await agent.tick();
+
+    expect(overdue(events)).toHaveLength(0);
+  });
+
+  it('notifies once the allowance runs out, with how long ago', async () => {
+    const { agent, clock, events } = agentWithClock({ remaining: 600 });
+    await agent.syncStatus();
+
+    clock.t += 10 * MIN + 2 * MIN;
+    await agent.tick();
+
+    expect(overdue(events)).toEqual([['breakOverdue', 120]]);
+  });
+
+  it('repeats every five minutes, not every tick', async () => {
+    const { agent, clock, events } = agentWithClock({ remaining: 0 });
+    await agent.syncStatus();
+
+    await agent.tick(); // already over: first alert straight away
+    clock.t += 1000;
+    await agent.tick();
+    clock.t += 4 * MIN;
+    await agent.tick();
+    expect(overdue(events)).toHaveLength(1);
+
+    clock.t += 2 * MIN; // now > 5 min since the first alert
+    await agent.tick();
+    expect(overdue(events)).toHaveLength(2);
+  });
+
+  it('stops once the break ends', async () => {
+    const { agent, clock, events } = agentWithClock({ remaining: 0 });
+    await agent.syncStatus();
+    await agent.tick();
+    expect(overdue(events)).toHaveLength(1);
+
+    agent.api.request = async () => statusResponse({ state: 'working' });
+    await agent.syncStatus();
+
+    clock.t += 30 * MIN;
+    await agent.tick();
+    expect(overdue(events)).toHaveLength(1);
+  });
+
+  it('never fires for someone who is working or punched out', async () => {
+    const { agent, clock, events } = agentWithClock({ remaining: 0, state: 'working' });
+    await agent.syncStatus();
+
+    clock.t += 30 * MIN;
+    await agent.tick();
+
+    expect(overdue(events)).toHaveLength(0);
+  });
+});
+
 describe('multi-display capture', () => {
   it('queues one item per display, sharing a capture group', async () => {
     const agent = makeAgent({

@@ -16,6 +16,9 @@ const PUNCH_ENDPOINTS = {
   breakEnd: '/api/attendance/break-end',
 };
 
+// How often to repeat the "break is over" nudge while the employee is still on the break.
+const BREAK_REMINDER_MS = 5 * 60_000;
+
 class Agent {
   /**
    * @param {object} deps
@@ -37,6 +40,11 @@ class Agent {
     this.random = random;
 
     this.config = DEFAULT_CAPTURE;
+    // When the day's break allowance runs out (epoch ms), while a break is running. Null at any
+    // other time. Computed from the server's own remaining-seconds figure on every status sync,
+    // so the agent never keeps a second, drifting copy of the break arithmetic.
+    this.breakDeadline = null;
+    this.lastBreakAlertAt = null;
     this.state = {
       signedIn: api.isSignedIn(),
       employee: null,
@@ -141,6 +149,8 @@ class Agent {
 
     const nowCapturing = Boolean(status.captureAllowed);
 
+    this.#trackBreak(shiftState, status);
+
     // Just came back online — let the employee know uploads are resuming.
     if (wasOffline) {
       this.#notify('backOnline', this.outbox.stats(this.now()).pending);
@@ -165,6 +175,29 @@ class Agent {
       status,
       lastError: null,
     });
+  }
+
+  #trackBreak(shiftState, status) {
+    if (shiftState !== 'on_break' || !Number.isFinite(status?.breakRemainingSeconds)) {
+      this.breakDeadline = null;
+      this.lastBreakAlertAt = null;
+      return;
+    }
+    this.breakDeadline = this.now() + status.breakRemainingSeconds * 1000;
+  }
+
+  /**
+   * Called every tick. Once the allowance is spent and the employee is still on a break, nudge
+   * them, then repeat every BREAK_REMINDER_MS until they end it. Offline is fine: the deadline
+   * is a local clock comparison, and the notification is local too.
+   */
+  #checkBreakOverdue(now) {
+    if (this.breakDeadline === null || this.state.shiftState !== 'on_break') return;
+    if (now < this.breakDeadline) return;
+    if (this.lastBreakAlertAt !== null && now - this.lastBreakAlertAt < BREAK_REMINDER_MS) return;
+
+    this.lastBreakAlertAt = now;
+    this.#notify('breakOverdue', Math.round((now - this.breakDeadline) / 1000));
   }
 
   #startCapture(audioAllowed) {
@@ -207,6 +240,18 @@ class Agent {
         breakEnd: 'working',
       }[action];
 
+      // No fresh server figure offline, so estimate from the last one: the allowance minus the
+      // break time already used before this break began.
+      if (action === 'breakStart') {
+        const used = this.state.status?.breakSeconds || 0;
+        const allowance = this.config.shift?.breakAllowanceSeconds ?? DEFAULT_CAPTURE.shift.breakAllowanceSeconds;
+        this.breakDeadline = this.now() + Math.max(0, allowance - used) * 1000;
+        this.lastBreakAlertAt = null;
+      } else {
+        this.breakDeadline = null;
+        this.lastBreakAlertAt = null;
+      }
+
       if (optimistic === 'working') {
         this.#startCapture(this.state.audioAllowed);
         this.#notify('resetSession');
@@ -243,6 +288,8 @@ class Agent {
   async tick() {
     if (!this.state.signedIn) return;
     const now = this.now();
+
+    this.#checkBreakOverdue(now);
 
     if (this.state.captureAllowed && this.screenshotScheduler.isDue(now)) {
       this.screenshotScheduler.arm(now);

@@ -13,7 +13,7 @@ const path = require('path');
 const { Notification } = require('electron');
 const logger = require('../core/logger');
 
-const ICON_PATH = path.join(__dirname, '..', '..', 'build', 'tray-logo.png');
+const ICON_PATH = path.join(__dirname, '..', 'assets', 'logo.png');
 
 const COOLDOWNS = {
   screen_monitoring_fail:  5 * 60_000,   // 5 min
@@ -82,6 +82,22 @@ function notifyBreakStart() {
 
 function notifyBreakEnd() {
   notify('break_end', 'Break ended', 'Back to work — screen monitoring has resumed.', 'always');
+}
+
+/**
+ * The day's break allowance is used up and the break is still running. The agent decides when
+ * to repeat this (every few minutes), so it is 'always' here rather than double-throttled.
+ */
+function notifyBreakOverdue(overSeconds = 0) {
+  const mins = Math.floor(overSeconds / 60);
+  notify(
+    'break_overdue',
+    'Break time is over',
+    mins >= 1
+      ? `Your break allowance ended ${mins} min ago. Please end your break and get back to work.`
+      : 'Your break allowance has ended. Please end your break and get back to work.',
+    'always'
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -213,6 +229,7 @@ module.exports = {
   notifyPunchOut,
   notifyBreakStart,
   notifyBreakEnd,
+  notifyBreakOverdue,
   // Capture health
   notifyRecordingActive,
   notifyScreenMonitoringFailed,

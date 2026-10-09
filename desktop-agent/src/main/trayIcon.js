@@ -1,12 +1,14 @@
 'use strict';
 
-// Tray icons, generated rather than shipped as files.
+// Tray icons: the WorkBuddy logo with a status dot, generated from one logo file.
 //
 // The icon is the only thing most employees will ever see of this agent, and it has to say
-// truthfully what is happening: capturing, on a break, offline with a backlog. Drawing four
-// tiny discs in code keeps them in step with the states in one place, and avoids binary
-// assets that drift out of sync with the code that picks between them.
+// truthfully what is happening: capturing, on a break, offline with a backlog. The logo says
+// which app this is; the dot in the corner says what it is doing. Painting the dot in code keeps
+// all four states in step in one place instead of four binary assets drifting out of sync with
+// the code that picks between them.
 
+const path = require('path');
 const zlib = require('zlib');
 const { nativeImage } = require('electron');
 
@@ -70,19 +72,80 @@ function discPng(rgb, size = 16) {
   ]);
 }
 
+// Status colours. Slightly brighter than a UI palette because the dot is only a few pixels
+// wide on a taskbar that can be light or dark.
 const COLOURS = {
   off: [140, 148, 163], // signed out or punched out
-  working: [18, 128, 92],
-  break: [164, 97, 10],
-  offline: [180, 35, 31], // queue is backing up
+  working: [22, 163, 74],
+  break: [217, 119, 6],
+  offline: [220, 38, 38], // queue is backing up
 };
+
+const LOGO_PATH = path.join(__dirname, '..', 'assets', 'logo.png');
+
+// Drawn at 32px and tagged as 2x, so it is sharp at 16 logical pixels on a high-DPI taskbar and
+// still acceptable on a standard one.
+const SIZE = 32;
+const DOT = { cx: 23, cy: 23, radius: 7.5, ring: 9.5 };
+
+let rgbaOrder = null;
+
+/**
+ * Whether this platform's raw bitmaps are RGBA or BGRA. Skia picks per platform, and getting it
+ * wrong swaps red and blue — green would show as green but amber as blue-ish. Detected by
+ * decoding a known red pixel rather than assuming from process.platform.
+ */
+function bitmapIsRgba() {
+  if (rgbaOrder === null) {
+    const probe = nativeImage.createFromBuffer(discPng([255, 0, 0], 16)).toBitmap();
+    const centre = (8 * 16 + 8) * 4;
+    rgbaOrder = probe[centre] === 255;
+  }
+  return rgbaOrder;
+}
+
+/** Composites the status dot (with a white ring for contrast) onto a raw 32x32 bitmap. */
+function paintDot(bitmap, rgb) {
+  const rgba = bitmapIsRgba();
+  const [r, g, b] = rgba ? rgb : [rgb[2], rgb[1], rgb[0]];
+
+  for (let y = 0; y < SIZE; y += 1) {
+    for (let x = 0; x < SIZE; x += 1) {
+      const d = Math.hypot(x - DOT.cx, y - DOT.cy);
+      const ringCover = Math.max(0, Math.min(1, DOT.ring - d));
+      if (ringCover === 0) continue;
+      const dotCover = Math.max(0, Math.min(1, DOT.radius - d));
+
+      const i = (y * SIZE + x) * 4;
+      // Ring first (white), then the coloured dot over it. Premultiplied "over" compositing.
+      const ringA = ringCover;
+      for (let c = 0; c < 3; c += 1) bitmap[i + c] = Math.round(255 * ringA + bitmap[i + c] * (1 - ringA));
+      bitmap[i + 3] = Math.round(255 * ringA + bitmap[i + 3] * (1 - ringA));
+
+      if (dotCover > 0) {
+        const src = [r, g, b];
+        for (let c = 0; c < 3; c += 1) bitmap[i + c] = Math.round(src[c] * dotCover + bitmap[i + c] * (1 - dotCover));
+        bitmap[i + 3] = Math.round(255 * dotCover + bitmap[i + 3] * (1 - dotCover));
+      }
+    }
+  }
+}
+
+function logoWithDot(rgb) {
+  const logo = nativeImage.createFromPath(LOGO_PATH);
+  // No logo file (or unreadable): fall back to the plain status disc rather than a blank icon.
+  if (logo.isEmpty()) return nativeImage.createFromBuffer(discPng(rgb));
+
+  const small = logo.resize({ width: SIZE, height: SIZE, quality: 'best' });
+  const bitmap = Buffer.from(small.toBitmap());
+  paintDot(bitmap, rgb);
+  return nativeImage.createFromBitmap(bitmap, { width: SIZE, height: SIZE, scaleFactor: 2 });
+}
 
 const cache = new Map();
 
 function iconFor(state) {
-  if (!cache.has(state)) {
-    cache.set(state, nativeImage.createFromBuffer(discPng(COLOURS[state] || COLOURS.off)));
-  }
+  if (!cache.has(state)) cache.set(state, logoWithDot(COLOURS[state] || COLOURS.off));
   return cache.get(state);
 }
 

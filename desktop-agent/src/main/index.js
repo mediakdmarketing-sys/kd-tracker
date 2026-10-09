@@ -95,6 +95,7 @@ async function start() {
         case 'punchOut':              notifications.notifyPunchOut(data); break;
         case 'breakStart':            notifications.notifyBreakStart(); break;
         case 'breakEnd':              notifications.notifyBreakEnd(); break;
+        case 'breakOverdue':          notifications.notifyBreakOverdue(data ?? 0); break;
         // Capture health
         case 'recordingActive':       notifications.notifyRecordingActive(); break;
         case 'screenMonitoringOk':    notifications.notifyRecordingActive(); break; // same UX
@@ -285,10 +286,11 @@ function showPopup() {
     skipTaskbar: true,
     alwaysOnTop: true,
     title: 'WorkBuddy',
-    // The tray icon itself stays procedural (see trayIcon.js — it draws the working/break/
-    // offline status dots, which the app's own logo can't show). This is the window's own
-    // identity: the title-bar icon and what Alt-Tab shows for it.
-    icon: path.join(__dirname, '..', '..', 'build', 'tray-logo.png'),
+    // The tray icon is this same logo plus a status dot (see trayIcon.js). This is the window's
+    // own identity: the title-bar icon and what Alt-Tab shows for it.
+    // Lives under src/ (not build/) so it is packaged with the app; build/ is gitignored and
+    // not shipped, which left this pointing at a missing file and Electron's atom icon showing.
+    icon: path.join(__dirname, '..', 'assets', 'logo.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
