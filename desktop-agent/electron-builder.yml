@@ -32,6 +32,9 @@ files:
 # to resolve a path that no longer matches, so the whole package is unpacked.
 asarUnpack:
   - node_modules/better-sqlite3/**/*
+  # active-win shells out to a bundled helper binary (Windows/macOS), which cannot execute
+  # from inside an asar archive.
+  - node_modules/active-win/**/*
 
 win:
   target:

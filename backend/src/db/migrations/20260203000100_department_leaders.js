@@ -9,8 +9,8 @@
 //  - department_leaders is a join table: one row = one employee is a leader of one dept.
 //    An employee can lead multiple departments; a department can have multiple leaders.
 //  - employees.role gains a 'leader' value. The CHECK constraint is updated.
-//    SQLite cannot ALTER a CHECK on an existing column, so the constraint is enforced in
-//    the application (auth middleware + zod schema); Postgres gets the real CHECK.
+//    Postgres is patched here. SQLite cannot ALTER a CHECK and DOES enforce the original one,
+//    so it is rewritten in 20260203000300_sqlite_allow_leader_role.js.
 
 exports.up = async function up(knex) {
   // 1. Add 'leader' to the role check on Postgres (SQLite ignores ALTER TABLE … CHECK).

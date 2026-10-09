@@ -66,6 +66,13 @@ body {
   overflow-x: hidden;
 }
 
+/* html's overflow is handed to the viewport, which is fine for a sticky sidebar. If body also
+   says `hidden` it becomes its own scroll container and the sidebar sticks to *it* — which
+   never scrolls — so the sidebar scrolled away with the page. `clip` clips without that. */
+body {
+  overflow-x: clip;
+}
+
 body {
   background: var(--bg);
   color: var(--text);
@@ -113,6 +120,10 @@ h3 {
   width: 100%;
   max-width: 100vw;
   overflow-x: hidden;
+  /* `hidden` turns .shell into a scroll container, which makes the sticky sidebar stick to
+     .shell instead of the viewport, so it scrolled away with the page. `clip` hides the same
+     overflow without creating one; browsers without it keep the `hidden` line above. */
+  overflow-x: clip;
   display: flex;
   align-items: stretch;
 }
@@ -892,3 +903,77 @@ select:focus {
     font-size: 32px;
   }
 }
+
+/* ---------- Productivity ---------- */
+
+.mix {
+  display: flex;
+  height: 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--surface-2);
+  min-width: 120px;
+}
+.mix .m-productive { background: var(--ok); }
+.mix .m-neutral { background: var(--warn); }
+.mix .m-distracting { background: var(--danger); }
+
+.score {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.score .track {
+  width: 56px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.score .track span { display: block; height: 100%; background: var(--ok); }
+.score.s-average .track span { background: var(--warn); }
+.score.s-review .track span { background: var(--danger); }
+
+.dot { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 6px; }
+.dot.productive { background: var(--ok); }
+.dot.neutral { background: var(--warn); }
+.dot.distracting { background: var(--danger); }
+
+/* Bars coloured by category so they agree with the dots and the mix bar. */
+.bar.productive span { background: var(--ok); }
+.bar.neutral span { background: var(--warn); }
+.bar.distracting span { background: var(--danger); }
+
+/* Quick date presets above a filter bar. */
+.presets { display: flex; gap: 6px; flex-wrap: wrap; }
+.preset {
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.preset:hover { border-color: var(--accent); color: var(--accent-text); }
+.preset.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-text); }
+
+/* One-line helper text instead of a full banner. */
+.hint {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+.hint svg { flex: none; margin-top: 2px; }
+
+.stat .value.good { color: var(--ok); }
+.stat .value.average { color: var(--warn); }
+.stat .value.review { color: var(--danger); }
+
+/* Slim, quiet scrollbar for the sidebar. */
+.sidebar { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }

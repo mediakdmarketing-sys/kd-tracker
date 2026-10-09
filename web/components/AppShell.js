@@ -42,6 +42,13 @@ const Icon = {
       <rect x="3" y="16" width="7" height="5" rx="2" />
     </svg>
   ),
+  productivity: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M12 3a9 9 0 1 0 9 9" />
+      <path d="M12 12l5-5" />
+      <circle cx="12" cy="12" r="1.5" />
+    </svg>
+  ),
   reports: (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M3 3v18h18" />
@@ -119,6 +126,7 @@ const ADMIN_GROUPS = [
     label: 'Overview',
     links: [
       { href: '/admin', label: 'Live board', icon: Icon.board },
+      { href: '/admin/productivity', label: 'Productivity', icon: Icon.productivity },
       { href: '/admin/reports', label: 'Reports', icon: Icon.reports },
     ],
   },

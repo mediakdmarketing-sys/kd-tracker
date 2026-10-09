@@ -18,6 +18,7 @@ async function migrate() {
 /** Wipes rows between tests without paying for a full migrate cycle. */
 async function truncate() {
   for (const table of [
+    'app_categories',
     'job_runs',
     'payroll_summary',
     'audit_logs',
@@ -73,6 +74,8 @@ function as(token) {
     get: (url) => request(app).get(url).set('Authorization', `Bearer ${token}`),
     post: (url) => request(app).post(url).set('Authorization', `Bearer ${token}`),
     patch: (url) => request(app).patch(url).set('Authorization', `Bearer ${token}`),
+    put: (url) => request(app).put(url).set('Authorization', `Bearer ${token}`),
+    delete: (url) => request(app).delete(url).set('Authorization', `Bearer ${token}`),
   };
 }
 

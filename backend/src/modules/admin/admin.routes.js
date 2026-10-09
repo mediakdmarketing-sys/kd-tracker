@@ -6,6 +6,7 @@ const service = require('./admin.service');
 const settings = require('../../services/settings');
 const projectService = require('../projects/project.service');
 const leaveService = require('../leave/leave.service');
+const productivityService = require('../productivity/productivity.service');
 const { authenticate } = require('../../middleware/auth');
 const { requireAdmin } = require('../../middleware/rbac');
 const { validate, q } = require('../../middleware/validate');
@@ -408,6 +409,63 @@ router.patch(
   validate(updateProjectSchema),
   asyncHandler(async (req, res) => {
     res.json(await projectService.updateProject(req.params.id, req.body));
+  })
+);
+
+// --- Productivity (score + app categories) -------------------------------------------------
+
+const productivityQuery = z.object({
+  from: DATE,
+  to: DATE,
+  department: z.string().max(120).optional(),
+});
+
+const appCategorySchema = z.object({
+  appName: z.string().trim().min(1).max(120),
+  category: z.enum(['productive', 'neutral', 'distracting']),
+});
+
+router.get(
+  '/productivity',
+  validate(productivityQuery, 'query'),
+  asyncHandler(async (req, res) => {
+    res.json(await productivityService.overview(q(req)));
+  })
+);
+
+router.get(
+  '/app-categories',
+  asyncHandler(async (req, res) => {
+    res.json(await productivityService.listApps());
+  })
+);
+
+router.patch(
+  '/app-categories',
+  validate(appCategorySchema),
+  asyncHandler(async (req, res) => {
+    const result = await productivityService.setCategory({ ...req.body, updatedBy: req.user.id });
+    await audit.record(req, {
+      action: audit.ACTIONS.UPDATED_SETTINGS,
+      targetType: 'app_category',
+      details: { app: req.body.appName, category: req.body.category },
+    });
+    res.json(result);
+  })
+);
+
+router.delete(
+  '/app-categories',
+  validate(z.object({ appName: z.string().trim().min(1).max(120) }), 'query'),
+  asyncHandler(async (req, res) => {
+    const { appName } = q(req);
+    const result = await productivityService.resetCategory(appName);
+    await audit.record(req, {
+      action: audit.ACTIONS.UPDATED_SETTINGS,
+      targetType: 'app_category',
+      details: { app: appName, category: 'reset' },
+    });
+    res.json(result);
   })
 );
 
