@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { post } from '@/lib/client';
 import PasswordField from '@/components/PasswordField';
+import { connectDesktopAgent } from '@/lib/agentConnect';
 
 export default function LoginForm() {
   const router = useRouter();
@@ -20,6 +21,8 @@ export default function LoginForm() {
 
     try {
       await post('/login', { email, password });
+      // Signed in here => sign the desktop agent in too. Best-effort, never blocks the portal.
+      connectDesktopAgent();
       router.replace(params.get('next') || '/');
       router.refresh();
     } catch (err) {

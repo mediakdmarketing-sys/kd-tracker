@@ -45,6 +45,30 @@ class ApiClient {
     return res.body.employee;
   }
 
+  /**
+   * Signs in with a one-time code from the web portal instead of a password. The code is minted
+   * for an employee who has already authenticated there; the response matches login().
+   */
+  async connectWithCode(code) {
+    const res = await this.#send('/api/auth/agent-token', {
+      method: 'POST',
+      body: { code },
+      auth: false,
+    });
+
+    if (res.status !== 200) {
+      const error = new Error(res.body?.error?.message || 'Could not connect to your account');
+      error.status = res.status;
+      throw error;
+    }
+
+    this.tokens.save({
+      accessToken: res.body.accessToken,
+      refreshToken: res.body.refreshToken,
+    });
+    return res.body.employee;
+  }
+
   async logout() {
     const { refreshToken } = this.tokens.load() || {};
     if (refreshToken) {

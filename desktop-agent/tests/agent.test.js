@@ -185,8 +185,10 @@ describe('break overdue notification', () => {
 
 describe('multi-display capture', () => {
   it('queues one item per display, sharing a capture group', async () => {
+    // Capture not allowed by the status sync, so the agent's own "capture straight away on
+    // punch-in" does not queue extra items ahead of the explicit captureScreens() below.
     const agent = makeAgent({
-      api: fakeApi(statusResponse()),
+      api: fakeApi(statusResponse({ captureAllowed: false })),
       capture: {
         screenshots: async () => [
           { buffer: Buffer.from('primary'), displayIndex: 0, label: 'Built-in' },

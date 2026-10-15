@@ -4,7 +4,7 @@
 // tested without launching a window.
 
 const path = require('path');
-const { app, BrowserWindow, Tray, Menu, ipcMain, safeStorage, shell, powerMonitor } = require('electron');
+const { app, BrowserWindow, Tray, Menu, ipcMain, safeStorage, shell, powerMonitor, dialog } = require('electron');
 
 const logger = require('../core/logger');
 const { loadSettings } = require('../core/settings');
@@ -13,6 +13,7 @@ const { FileTokenStore } = require('../core/tokenStore');
 const { ApiClient } = require('../core/apiClient');
 const { Uploader } = require('../core/uploader');
 const { Agent } = require('../core/agent');
+const { parseConnectLink, parseSyncLink, SCHEME } = require('../core/connectLink');
 
 const capture = require('./capture');
 const activity = require('./activity');
@@ -21,7 +22,10 @@ const { iconFor } = require('./trayIcon');
 const notifications = require('./notifications');
 
 const ACTIVITY_WINDOW_SECONDS = 60;
-const STATUS_SYNC_MS = 60_000;
+// The portal normally nudges the agent (workbuddy://sync) the moment something changes there;
+// this poll is the safety net for when that link is blocked or the agent was asleep, so it is
+// what bounds how long a web punch-in can go unnoticed.
+const STATUS_SYNC_MS = 20_000;
 
 let tray = null;
 let popup = null;
@@ -29,11 +33,85 @@ let agent = null;
 let outbox = null;
 let timers = [];
 
+// Let the web portal sign this agent in: after an employee signs in on the portal it opens a
+// workbuddy://connect?code=... link, and the OS hands it to us. In development the app is
+// `electron.exe <path>`, so the registration has to name that path or the link would launch a
+// bare Electron with no app.
+if (process.defaultApp) {
+  if (process.argv.length >= 2) {
+    app.setAsDefaultProtocolClient(SCHEME, process.execPath, [path.resolve(process.argv[1])]);
+  }
+} else {
+  app.setAsDefaultProtocolClient(SCHEME);
+}
+
+// A link that arrives before the agent has finished starting waits here.
+let pendingConnectCode = null;
+
+async function connectFromLink(code) {
+  if (!agent) {
+    pendingConnectCode = code;
+    return;
+  }
+  // Nothing signed in yet, so a link is about to decide whose account this laptop reports to.
+  // A web page can open one of these on its own, so a person has to agree first; otherwise a
+  // page could point the agent at an account it controls.
+  if (!agent.state.signedIn) {
+    const { response } = await dialog.showMessageBox({
+      type: 'question',
+      buttons: ['Connect', 'Cancel'],
+      defaultId: 1,
+      cancelId: 1,
+      title: 'Connect WorkBuddy',
+      message: 'Sign this desktop agent in from the web portal?',
+      detail: 'You just signed in to the WorkBuddy portal in your browser. Choose Cancel if that was not you.',
+    });
+    if (response !== 0) {
+      logger.info('Connect link declined by the user');
+      return;
+    }
+  }
+  try {
+    const result = await agent.connect(code);
+    if (!result.connected) logger.info('Connect link ignored', { reason: result.reason });
+  } catch (err) {
+    logger.warn('Connect link failed', { status: err.status, message: err.message });
+    notifications.notifyConnectFailed(err.message);
+  }
+}
+
+/**
+ * Acts on a workbuddy:// link, wherever the OS delivered it. Returns whether it was one of ours,
+ * so the caller can fall back to just showing the popup for a plain second launch.
+ */
+function handleLink(input) {
+  const code = parseConnectLink(input);
+  if (code) {
+    connectFromLink(code);
+    return true;
+  }
+  if (parseSyncLink(input)) {
+    // Punched in, took a break or punched out on the portal: look now instead of waiting for
+    // the next poll. Nothing to do if nobody is signed in.
+    if (agent?.state.signedIn) agent.syncStatus().catch(onTickError);
+    return true;
+  }
+  return false;
+}
+
 // One agent per machine. A second copy would double every capture and fight over the queue.
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  app.on('second-instance', () => showPopup());
+  // Windows and Linux deliver a link to the already-running copy as argv of a second launch.
+  app.on('second-instance', (_event, argv) => {
+    if (!handleLink(argv)) showPopup();
+  });
+  // macOS delivers it as an event instead.
+  app.on('open-url', (event, url) => {
+    event.preventDefault();
+    handleLink(url);
+  });
   app.whenReady().then(start).catch((err) => {
     logger.error('Agent failed to start', { message: err.message, stack: err.stack });
     app.quit();
@@ -66,9 +144,6 @@ async function start() {
         agent.markSignedOut();
         notifications.notifyAccountDeactivated();
       } else {
-        if (status.abandoned > 0) {
-          notifications.notifyQueueAbandoned(status.abandoned);
-        }
         agent.refreshQueueStats();
       }
       refreshTray();
@@ -97,18 +172,15 @@ async function start() {
         case 'breakEnd':              notifications.notifyBreakEnd(); break;
         case 'breakOverdue':          notifications.notifyBreakOverdue(data ?? 0); break;
         // Capture health
-        case 'recordingActive':       notifications.notifyRecordingActive(); break;
-        case 'screenMonitoringOk':    notifications.notifyRecordingActive(); break; // same UX
         case 'screenMonitoringFailed':notifications.notifyScreenMonitoringFailed(); break;
         case 'audioDisabled':         notifications.notifyAudioDisabled(); break;
         case 'micMuted':              notifications.notifyMicMuted(); break;
         // Connectivity
         case 'offline':               notifications.notifyOffline(); break;
-        case 'backOnline':            notifications.notifyBackOnline(data ?? 0); break;
-        case 'queueAbandoned':        notifications.notifyQueueAbandoned(data ?? 1); break;
         // Account / session
         case 'accountDeactivated':    notifications.notifyAccountDeactivated(); break;
         case 'sessionExpired':        notifications.notifySessionExpired(); break;
+        case 'connected':             notifications.notifyConnected(data); break;
         case 'wokeFromSleep':         notifications.notifyWokeFromSleep(); break;
         default: break;
       }
@@ -124,6 +196,11 @@ async function start() {
     await agent.syncConfig();
     await agent.syncStatus();
   }
+
+  // Launched by a workbuddy:// link (agent was not running yet), or a link arrived mid-startup.
+  const launchCode = pendingConnectCode || parseConnectLink(process.argv);
+  pendingConnectCode = null;
+  if (launchCode) connectFromLink(launchCode);
 
   uploader.start(settings.drainIntervalMs);
 
@@ -299,6 +376,11 @@ function showPopup() {
   });
 
   popup.loadFile(path.join(__dirname, '..', 'renderer', 'popup.html'));
+  // On Windows, hide() then show() quietly puts the taskbar button back even though the window
+  // was created with skipTaskbar. This is a tray panel, so re-assert it on every show.
+  popup.on('show', () => {
+    if (popup && !popup.isDestroyed()) popup.setSkipTaskbar(true);
+  });
   // Dismiss on blur (clicking anywhere else), like a real tray panel.
   popup.on('blur', () => { if (popup && !popup.isDestroyed()) popup.hide(); });
   popup.on('closed', () => { popup = null; });
@@ -310,7 +392,6 @@ function registerIpc() {
   ipcMain.handle('agent:signOut', () => agent.signOut());
   ipcMain.handle('agent:punch', (_e, action) => agent.punch(action));
   ipcMain.handle('agent:sync', () => agent.syncStatus());
-  ipcMain.handle('agent:drainNow', () => agent.uploader.drain());
 }
 
 function quit() {

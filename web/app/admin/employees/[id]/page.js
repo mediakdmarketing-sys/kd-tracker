@@ -1,5 +1,6 @@
 import { Suspense, cache } from 'react';
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 import { api, requireUser } from '@/lib/api';
 import RangeFilter from '@/components/RangeFilter';
 import CaptureSection from '@/components/CaptureSection';
@@ -16,7 +17,13 @@ import { averageActivity } from '@/lib/activity';
  * this function.
  */
 const getEmployee = cache(async (id) => {
-  return api(`/api/admin/employees/${id}`);
+  try {
+    return await api(`/api/admin/employees/${id}`);
+  } catch (err) {
+    // An unknown id is a missing page, not a server fault.
+    if (err?.status === 404) notFound();
+    throw err;
+  }
 });
 
 export async function generateMetadata({ params }) {

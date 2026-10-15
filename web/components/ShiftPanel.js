@@ -4,6 +4,7 @@ import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { call, post } from '@/lib/client';
 import { clock, duration, time } from '@/lib/format';
+import { syncDesktopAgent } from '@/lib/agentConnect';
 
 // ---------------------------------------------------------------------------
 // ClockDisplay
@@ -197,6 +198,9 @@ export default function ShiftPanel({ initial, timezone, projects = [] }) {
     setError(null);
     try {
       await post(`/api/attendance/${path}`);
+      // Punch in/out and breaks change what the desktop agent should be doing; tell it now so
+      // capture starts and stops at once rather than at its next poll.
+      syncDesktopAgent();
       await refresh();
       router.refresh();
     } catch (err) {

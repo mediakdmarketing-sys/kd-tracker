@@ -21,6 +21,13 @@ icon: build/icon.png
 # No auto-update server wired up yet (icebox) — never publish on a plain `build`.
 publish: null
 
+# Registers workbuddy:// with the OS on install, so the web portal can sign the agent in after an
+# employee signs in there (see src/core/connectLink.js).
+protocols:
+  - name: WorkBuddy
+    schemes:
+      - workbuddy
+
 files:
   - src/**/*
   - package.json

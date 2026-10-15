@@ -246,8 +246,64 @@ async function recordConsent(employeeId, { monitoring, audio }) {
   return publicEmployee(updated);
 }
 
+// --- Desktop agent hand-off ---------------------------------------------------------------
+//
+// Signed in on the web portal => the agent signs in too, no second password prompt. The portal
+// mints a one-time code for the authenticated employee, passes it to the agent in a
+// workbuddy:// link, and the agent trades it for its own session. See the migration for why only
+// a hash is stored.
+
+const AGENT_CODE_TTL_MS = 60 * 1000;
+
+async function createAgentCode(employeeId) {
+  const nowMs = now();
+  // Housekeeping on the write path: old rows are useless after the TTL and nothing else prunes
+  // them. An hour of slack keeps a just-expired row around for debugging.
+  await db()('agent_connect_codes').where('expires_at', '<', nowMs - 60 * 60 * 1000).del();
+
+  const code = randomToken();
+  await db()('agent_connect_codes').insert({
+    id: uuid(),
+    employee_id: employeeId,
+    code_hash: sha256(code),
+    expires_at: nowMs + AGENT_CODE_TTL_MS,
+    created_at: nowMs,
+  });
+  return { code, expiresInSeconds: AGENT_CODE_TTL_MS / 1000 };
+}
+
+async function exchangeAgentCode({ code }) {
+  const nowMs = now();
+  const hash = sha256(code);
+
+  // Claim the code in one statement. A select-then-update would let two simultaneous exchanges
+  // both pass the "unused" check; the WHERE on used_at makes exactly one of them win.
+  const claimed = await db()('agent_connect_codes')
+    .where({ code_hash: hash })
+    .whereNull('used_at')
+    .where('expires_at', '>', nowMs)
+    .update({ used_at: nowMs });
+
+  // One message for unknown, used and expired alike: nothing here should help someone guess.
+  if (!claimed) throw unauthorized('This connect link has expired. Sign in on the web portal again.');
+
+  const stored = await db()('agent_connect_codes').where({ code_hash: hash }).first();
+  const row = await db()('employees').where({ id: stored.employee_id }).first();
+  if (!row) throw unauthorized('This connect link has expired. Sign in on the web portal again.');
+  if (row.status !== 'active') throw forbidden('Account is deactivated. Contact HR.');
+
+  return {
+    accessToken: signAccessToken(row),
+    refreshToken: await issueRefreshToken(row.id, 'desktop'),
+    expiresIn: config.auth.expiresIn,
+    employee: publicEmployee(row),
+  };
+}
+
 module.exports = {
   login,
+  createAgentCode,
+  exchangeAgentCode,
   refresh,
   logout,
   logoutEverywhere,

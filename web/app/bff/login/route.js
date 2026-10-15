@@ -7,7 +7,16 @@ import { writeSession, apiUrl } from '@/lib/session';
  * this employee's id — two users logged in from the same browser get independent sessions.
  */
 export async function POST(request) {
-  const { email, password } = await request.json();
+  let email;
+  let password;
+  try {
+    ({ email, password } = await request.json());
+  } catch {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION_ERROR', message: 'Request body must be valid JSON.' } },
+      { status: 400 }
+    );
+  }
 
   let res;
   try {

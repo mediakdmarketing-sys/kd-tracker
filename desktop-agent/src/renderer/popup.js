@@ -142,7 +142,6 @@ function signedInView() {
           : ''
       }
       <div class="row" style="margin-top:10px">
-        <button id="drain" ${busy ? 'disabled' : ''}>Upload now</button>
         <button id="signout" ${busy ? 'disabled' : ''}>Sign out</button>
       </div>
     </div>
@@ -162,7 +161,6 @@ function wire() {
   });
 
   document.getElementById('signout')?.addEventListener('click', () => run(() => window.agent.signOut()));
-  document.getElementById('drain')?.addEventListener('click', () => run(() => window.agent.drainNow()));
 
   document.querySelectorAll('[data-punch]').forEach((button) => {
     button.addEventListener('click', () => run(() => window.agent.punch(button.dataset.punch)));

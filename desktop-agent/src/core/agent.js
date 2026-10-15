@@ -45,6 +45,9 @@ class Agent {
     // so the agent never keeps a second, drifting copy of the break arithmetic.
     this.breakDeadline = null;
     this.lastBreakAlertAt = null;
+    // True while punch() waits for its own follow-up status sync, so that sync does not announce
+    // a change the agent has just announced itself.
+    this.selfPunchPending = false;
     this.state = {
       signedIn: api.isSignedIn(),
       employee: null,
@@ -84,6 +87,26 @@ class Agent {
     await this.syncConfig();
     await this.syncStatus();
     return employee;
+  }
+
+  /**
+   * Signs in from a web-portal hand-off code (workbuddy://connect link).
+   *
+   * Ignored when someone is already signed in: a link must never swap the account an agent is
+   * running as. Otherwise any page that can open a workbuddy:// link could move this laptop's
+   * monitoring onto an account of its choosing. Signing out first is the deliberate way.
+   *
+   * @returns {Promise<{connected: boolean, reason?: string, employee?: object}>}
+   */
+  async connect(code) {
+    if (this.state.signedIn) return { connected: false, reason: 'already_signed_in' };
+
+    const employee = await this.api.connectWithCode(code);
+    this.#emit({ signedIn: true, employee, lastError: null });
+    await this.syncConfig();
+    await this.syncStatus();
+    this.#notify('connected', employee?.name);
+    return { connected: true, employee };
   }
 
   async signOut() {
@@ -140,7 +163,15 @@ class Agent {
 
     const status = res.body;
     const shiftState = status.state === 'punched_out' ? 'punched_out' : status.state;
-    const wasOffline = !this.state.online;
+    const previousShiftState = this.state.shiftState;
+
+    // The state changed without the employee using this agent — they punched in, took a break
+    // or punched out on the web portal. They must be told capture just started or stopped, so
+    // it does not begin silently. (When the agent made the change itself it has already shown
+    // its own notification; selfPunchPending stops this one doubling up.)
+    if (!this.selfPunchPending && previousShiftState !== 'unknown') {
+      this.#notifyRemoteChange(previousShiftState, shiftState);
+    }
     const wasCapturing = this.state.captureAllowed;
 
     // The server decides whether capture is allowed. The agent never assumes it may capture.
@@ -150,11 +181,6 @@ class Agent {
     const nowCapturing = Boolean(status.captureAllowed);
 
     this.#trackBreak(shiftState, status);
-
-    // Just came back online — let the employee know uploads are resuming.
-    if (wasOffline) {
-      this.#notify('backOnline', this.outbox.stats(this.now()).pending);
-    }
 
     // Punch-in just happened (capture was off, now it is on): fire the first screenshot and
     // audio sample immediately instead of waiting for the scheduler interval (5–10 min).
@@ -175,6 +201,20 @@ class Agent {
       status,
       lastError: null,
     });
+  }
+
+  #notifyRemoteChange(from, to) {
+    if (from === to) return;
+    if (from === 'punched_out' && to === 'working') {
+      this.#notify('resetSession');
+      this.#notify('punchIn');
+    } else if (from === 'working' && to === 'on_break') {
+      this.#notify('breakStart');
+    } else if (from === 'on_break' && to === 'working') {
+      this.#notify('breakEnd');
+    } else if (to === 'punched_out' && (from === 'working' || from === 'on_break')) {
+      this.#notify('punchOut');
+    }
   }
 
   #trackBreak(shiftState, status) {
@@ -276,7 +316,12 @@ class Agent {
     if (action === 'breakStart') this.#notify('breakStart');
     if (action === 'breakEnd')   this.#notify('breakEnd');
 
-    return this.syncStatus();
+    this.selfPunchPending = true;
+    try {
+      return await this.syncStatus();
+    } finally {
+      this.selfPunchPending = false;
+    }
   }
 
   // --- Capture -------------------------------------------------------------------------
@@ -324,11 +369,8 @@ class Agent {
       return 0;
     }
 
-    // At least one real image came back — screen monitoring is working.
-    this.#notify('screenMonitoringOk');
-    // Full confirmation: both screen and (if applicable) audio are active.
-    this.#notify('recordingActive');
-
+    // No toast per capture: the punch-in notification already says monitoring is active, and a
+    // notification for every screenshot is noise. Only failures (above) tell the employee.
     const captureGroupId = crypto.randomUUID();
 
     for (const image of images) {

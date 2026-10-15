@@ -11,6 +11,5 @@ contextBridge.exposeInMainWorld('agent', {
   signOut: () => ipcRenderer.invoke('agent:signOut'),
   punch: (action) => ipcRenderer.invoke('agent:punch', action),
   sync: () => ipcRenderer.invoke('agent:sync'),
-  drainNow: () => ipcRenderer.invoke('agent:drainNow'),
   onState: (handler) => ipcRenderer.on('agent:state', (_event, state) => handler(state)),
 });

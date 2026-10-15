@@ -1,6 +1,6 @@
 'use strict';
 
-// OS-level notifications for every important agent event.
+// OS-level notifications for agent events. Only the keys in ENABLED (below) are shown.
 //
 // Dedup rules:
 //  'always'   — no guard; used for explicit user actions (punch-in/out, break start/end)
@@ -20,13 +20,18 @@ const COOLDOWNS = {
   recording_disabled:      5 * 60_000,
   mic_muted:               5 * 60_000,
   offline:                 3 * 60_000,   // 3 min — don't spam while flapping
-  queue_abandoned:         5 * 60_000,
 };
 
 const lastShown = {};       // cooldown timestamps   key → epoch ms
 const shownOnce = new Set(); // lifetime once-only keys
 
+// The only notifications that actually pop up. Everything else in this file still runs its logic
+// and is wired up, but is dropped here, so turning one back on is adding its key to this set
+// rather than rewriting anything. The tray icon and the popup still show the live state.
+const ENABLED = new Set(['break_overdue']);
+
 function notify(key, title, body, mode = 'cooldown') {
+  if (!ENABLED.has(key)) return;
   if (!Notification.isSupported()) return;
 
   const now = Date.now();
@@ -104,16 +109,6 @@ function notifyBreakOverdue(overSeconds = 0) {
 // Capture health — cooldown so background loops do not spam
 // ---------------------------------------------------------------------------
 
-/** First screenshot of the shift came back with real data. */
-function notifyRecordingActive() {
-  notify(
-    'recording_active',
-    'Recording active',
-    'Screen monitoring is enabled. Screenshots and activity are being captured.',
-    'always'
-  );
-}
-
 /** Screenshot came back blank — macOS screen recording permission likely missing. */
 function notifyScreenMonitoringFailed() {
   notify(
@@ -158,32 +153,6 @@ function notifyOffline() {
   );
 }
 
-/** Connection restored — queued items are uploading. */
-function notifyBackOnline(pending) {
-  // 'always' here: coming back online is an explicit state change worth showing every time.
-  notify(
-    'back_online',
-    'Back online',
-    pending > 0
-      ? `Connection restored. Uploading ${pending} queued item${pending === 1 ? '' : 's'}.`
-      : 'Connection restored.',
-    'always'
-  );
-}
-
-/**
- * One or more captures were permanently abandoned (e.g. outside any valid shift window).
- * Shown once per cooldown window so a stuck batch does not spam.
- */
-function notifyQueueAbandoned(count) {
-  notify(
-    'queue_abandoned',
-    'Capture upload failed',
-    `${count} item${count === 1 ? '' : 's'} could not be delivered and ${count === 1 ? 'has' : 'have'} been removed from the queue. Check the audit log for details.`,
-    'cooldown'
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Account / session
 // ---------------------------------------------------------------------------
@@ -198,6 +167,28 @@ function notifyAccountDeactivated() {
     'Account deactivated',
     'Your account has been deactivated by HR. Please contact your manager.',
     'once'
+  );
+}
+
+/** The web portal handed this laptop a sign-in (workbuddy:// link). */
+function notifyConnected(name) {
+  notify(
+    'connected',
+    'WorkBuddy connected',
+    name
+      ? `Signed in as ${name} from the web portal. Punch in when you are ready to start.`
+      : 'Signed in from the web portal. Punch in when you are ready to start.',
+    'always'
+  );
+}
+
+/** The link could not be used — expired, already used, or the server was unreachable. */
+function notifyConnectFailed(message) {
+  notify(
+    'connect_failed',
+    'Could not connect WorkBuddy',
+    `${message || 'The link did not work.'} You can sign in from the WorkBuddy tray icon instead.`,
+    'cooldown'
   );
 }
 
@@ -231,16 +222,15 @@ module.exports = {
   notifyBreakEnd,
   notifyBreakOverdue,
   // Capture health
-  notifyRecordingActive,
   notifyScreenMonitoringFailed,
   notifyAudioDisabled,
   notifyMicMuted,
   // Connectivity
   notifyOffline,
-  notifyBackOnline,
-  notifyQueueAbandoned,
   // Account
   notifyAccountDeactivated,
   notifySessionExpired,
   notifyWokeFromSleep,
+  notifyConnected,
+  notifyConnectFailed,
 };

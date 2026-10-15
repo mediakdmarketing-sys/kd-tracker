@@ -218,7 +218,15 @@ async function punchOut({ employee, at, requestedAt }) {
     updated_at: receivedAt,
   };
 
-  await db()('attendance').where({ id: shift.id }).update(patch);
+  // Guarded on the shift still being open: the stale-shift sweeper may have closed it since the
+  // read above, and an unconditional write would stamp a real punch-out over its auto-close
+  // while leaving auto_closed / needs_review set.
+  const affected = await db()('attendance')
+    .where({ id: shift.id })
+    .whereIn('status', ['open', 'on_break'])
+    .update(patch);
+  if (!affected) throw conflict('No open shift to punch out of.');
+
   const breaks = await db()('breaks').where({ attendance_id: shift.id }).orderBy('break_start');
   return shape({ ...fresh, ...patch }, breaks);
 }

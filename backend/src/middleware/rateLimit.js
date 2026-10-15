@@ -25,6 +25,13 @@ const loginLimiter = make({
   keyGenerator: (req) => `${req.ip}:${String(req.body?.email || '').toLowerCase()}`,
 });
 
+/** Code exchange is unauthenticated by nature, so cap guessing per IP. Codes are 256-bit anyway. */
+const agentTokenLimiter = make({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  keyGenerator: (req) => req.ip,
+});
+
 /**
  * Uploads (story C-6). Steady state is ~12 screenshots/hour per employee.
  *
@@ -42,4 +49,4 @@ const uploadLimiter = make({
 /** Broad backstop for everything else. */
 const apiLimiter = make({ windowMs: 60 * 1000, max: 300 });
 
-module.exports = { loginLimiter, uploadLimiter, apiLimiter };
+module.exports = { loginLimiter, agentTokenLimiter, uploadLimiter, apiLimiter };

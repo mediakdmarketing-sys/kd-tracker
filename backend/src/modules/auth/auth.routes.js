@@ -5,7 +5,7 @@ const { z } = require('zod');
 const service = require('./auth.service');
 const { authenticate } = require('../../middleware/auth');
 const { validate } = require('../../middleware/validate');
-const { loginLimiter } = require('../../middleware/rateLimit');
+const { loginLimiter, agentTokenLimiter } = require('../../middleware/rateLimit');
 const { asyncHandler } = require('../../utils/http');
 const { notImplemented } = require('../../utils/errors');
 
@@ -37,6 +37,25 @@ router.post(
   validate(loginSchema),
   asyncHandler(async (req, res) => {
     res.json(await service.login(req.body));
+  })
+);
+
+// Signed in on the web portal => the desktop agent signs in too. The portal calls agent-code
+// (authenticated) and passes the result to the agent, which calls agent-token (no session yet).
+router.post(
+  '/agent-code',
+  authenticate,
+  asyncHandler(async (req, res) => {
+    res.json(await service.createAgentCode(req.user.id));
+  })
+);
+
+router.post(
+  '/agent-token',
+  agentTokenLimiter,
+  validate(z.object({ code: z.string().min(20).max(200) })),
+  asyncHandler(async (req, res) => {
+    res.json(await service.exchangeAgentCode(req.body));
   })
 );
 

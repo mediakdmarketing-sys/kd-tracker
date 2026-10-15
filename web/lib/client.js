@@ -18,7 +18,10 @@ export async function call(path, { method = 'GET', body } = {}) {
   // the access token itself hasn't expired. A component-level error banner would leave the
   // employee stuck on a page where nothing they do will ever work; send them to sign in
   // instead, consistent with what a fresh page load already does (lib/api.js).
-  if (res.status === 401 || (isJson && payload?.error?.code === 'ACCOUNT_DEACTIVATED')) {
+  // The sign-in call itself is exempt: there is no session to end, and a 401 there means
+  // "wrong password" — redirecting would reload the page and swallow the error message.
+  const isLoginCall = path === '/login';
+  if (!isLoginCall && (res.status === 401 || (isJson && payload?.error?.code === 'ACCOUNT_DEACTIVATED'))) {
     window.location.href = '/login';
     // Never resolves: the navigation above is about to tear this page down anyway, and
     // nothing calling `call()` should try to render a result for a session that just ended.
