@@ -1,22 +1,42 @@
 'use strict';
 
-// Creates the first (or any further) admin account without seeding demo data.
+// Creates an admin account without seeding demo data, or resets that account's password.
 //
 //   ADMIN_NAME="Priya" ADMIN_EMAIL=you@company.com ADMIN_PASSWORD='...' npm run db:create-admin
+//   ... same, plus ADMIN_RESET=1, to set a new password on an account that already exists.
 //
 // Values come from the environment, not argv, so the password stays out of shell history and
 // process listings.
 
-const { destroy } = require('./index');
+const bcrypt = require('bcryptjs');
+const config = require('../config');
+const { db, destroy } = require('./index');
 const adminService = require('../modules/admin/admin.service');
+const t = require('../utils/time');
 
 const MIN_PASSWORD_LENGTH = 12;
 
-async function main() {
-  const { ADMIN_NAME: name, ADMIN_EMAIL: email, ADMIN_PASSWORD: password } = process.env;
+async function resetPassword(email, password) {
+  const row = await db()('employees').whereRaw('LOWER(email) = ?', [email.toLowerCase()]).first();
+  if (!row) throw new Error('No account with that email to reset.');
 
-  if (!name || !email || !password) {
-    console.error('Set ADMIN_NAME, ADMIN_EMAIL and ADMIN_PASSWORD, then run again.');
+  await db()('employees')
+    .where({ id: row.id })
+    .update({
+      password_hash: await bcrypt.hash(password, config.auth.bcryptRounds),
+      updated_at: t.now(),
+    });
+  // Any session signed in with the old password must not outlive the reset.
+  await db()('refresh_tokens').where({ employee_id: row.id }).whereNull('revoked_at').update({ revoked_at: t.now() });
+  return row.email;
+}
+
+async function main() {
+  const { ADMIN_NAME: name, ADMIN_EMAIL: email, ADMIN_PASSWORD: password, ADMIN_RESET: reset } = process.env;
+  const resetting = ['1', 'true', 'yes'].includes(String(reset || '').toLowerCase());
+
+  if (!email || !password || (!resetting && !name)) {
+    console.error('Set ADMIN_NAME (not needed for reset), ADMIN_EMAIL and ADMIN_PASSWORD, then run again.');
     process.exit(2);
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -29,8 +49,12 @@ async function main() {
   }
 
   try {
-    const admin = await adminService.createEmployee({ name, email, password, role: 'admin' });
-    console.log(`Admin created: ${admin.email}`);
+    if (resetting) {
+      console.log(`Password reset for: ${await resetPassword(email, password)}`);
+    } else {
+      const admin = await adminService.createEmployee({ name, email, password, role: 'admin' });
+      console.log(`Admin created: ${admin.email}`);
+    }
     await destroy();
     process.exit(0);
   } catch (err) {
