@@ -13,6 +13,7 @@
     "db:migrate": "node src/db/cli.js migrate",
     "db:rollback": "node src/db/cli.js rollback",
     "db:seed": "node src/db/cli.js seed",
+    "db:create-admin": "node src/db/createAdmin.js",
     "db:reset": "node src/db/cli.js reset",
     "job:purge": "node src/jobs/run.js purge",
     "job:payroll": "node src/jobs/run.js payroll",
