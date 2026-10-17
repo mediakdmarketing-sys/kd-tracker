@@ -3,6 +3,22 @@
 // Browser-side calls all go through the BFF proxy, which attaches the token server-side.
 // There is deliberately no way for client code to read or send the access token itself.
 
+const RELOAD_GUARD_KEY = 'kd_truncated_reload_at';
+const RELOAD_GUARD_MS = 15_000;
+
+/** Reloads the page unless it already did so moments ago. Returns whether it reloaded. */
+function reloadOnce() {
+  try {
+    const last = Number(sessionStorage.getItem(RELOAD_GUARD_KEY) || 0);
+    if (Date.now() - last < RELOAD_GUARD_MS) return false;
+    sessionStorage.setItem(RELOAD_GUARD_KEY, String(Date.now()));
+  } catch {
+    // Storage blocked: reload anyway rather than leave the error on screen.
+  }
+  window.location.reload();
+  return true;
+}
+
 export async function call(path, { method = 'GET', body } = {}) {
   const res = await fetch(`/bff${path}`, {
     method,
@@ -11,7 +27,20 @@ export async function call(path, { method = 'GET', body } = {}) {
   });
 
   const isJson = res.headers.get('content-type')?.includes('json');
-  const payload = isJson ? await res.json() : await res.text();
+  const text = await res.text();
+
+  let payload = text;
+  if (isJson) {
+    try {
+      payload = JSON.parse(text);
+    } catch {
+      // The reply arrived cut short (a flaky connection or proxy). The server has already acted
+      // on the request, so showing "Unterminated string in JSON…" helps nobody; reloading shows
+      // the real, current state. Once per few seconds at most, so a persistent fault cannot loop.
+      if (reloadOnce()) return new Promise(() => {});
+      throw new Error('The connection dropped before the reply arrived. Please try again.');
+    }
+  }
 
   // The session is over — either the token is outright invalid (401), or the account was
   // deactivated mid-session, which arrives as 403 ACCOUNT_DEACTIVATED rather than 401 because

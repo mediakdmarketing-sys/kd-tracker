@@ -51,30 +51,33 @@ async function forward(request, params) {
     );
   }
 
-  // Pass the body straight through: JSON, images and CSV downloads all work unchanged.
-  // The Range trio (accept-ranges/content-range/content-length) has to come along too, or the
-  // backend's 206 response reaches the browser looking like a malformed 200.
+  // JSON, images, audio and CSV downloads all pass through unchanged. accept-ranges and
+  // content-range have to come along, or the backend's 206 response reaches the browser looking
+  // like a malformed 200.
   //
-  // fetch() decompresses a gzip/br upstream body but leaves its headers as they were (a CDN in
-  // front of the API compresses even tiny JSON), so content-length can describe the compressed
-  // bytes. Forwarding it makes the browser cut the longer decoded body short and fail to parse
-  // it. It is only passed on for a 206, where it must match the range and the API never
-  // compresses it; everything else is streamed with its length left to the platform.
-  const keepLength = res.status === 206 && !res.headers.get('content-encoding');
+  // The body is read in full and content-length is set from the bytes actually held. Copying the
+  // upstream content-length is wrong whenever a CDN in front of the API compressed the body:
+  // fetch() decodes it but leaves the header describing the compressed size, so the browser cut
+  // the longer decoded body short and JSON.parse failed. Captures are small (a few hundred KB at
+  // most), so buffering costs nothing noticeable.
+  let body;
+  try {
+    body = await res.arrayBuffer();
+  } catch {
+    return NextResponse.json(
+      { error: { code: 'API_UNREACHABLE', message: 'Cannot reach the server.' } },
+      { status: 503 }
+    );
+  }
+
   const headers = new Headers();
-  for (const name of [
-    'content-type',
-    'content-disposition',
-    'cache-control',
-    'accept-ranges',
-    'content-range',
-    ...(keepLength ? ['content-length'] : []),
-  ]) {
+  for (const name of ['content-type', 'content-disposition', 'cache-control', 'accept-ranges', 'content-range']) {
     const value = res.headers.get(name);
     if (value) headers.set(name, value);
   }
+  headers.set('content-length', String(body.byteLength));
 
-  return new NextResponse(res.body, { status: res.status, headers });
+  return new NextResponse(body, { status: res.status, headers });
 }
 
 export async function GET(request, { params }) {
