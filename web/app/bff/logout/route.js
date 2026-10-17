@@ -11,7 +11,7 @@ export async function POST() {
       // Revoke server-side too, so the token is dead even if the cookie survives somewhere.
       await fetch(apiUrl('/api/auth/logout'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Accept-Encoding': 'identity' },
         body: JSON.stringify({ refreshToken }),
         cache: 'no-store',
       });

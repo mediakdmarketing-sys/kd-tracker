@@ -34,6 +34,9 @@ async function forward(request, params) {
     res = await fetch(target, {
       method: request.method,
       headers: {
+        // The CDN in front of the API compresses and can leave a content-length that does not
+        // match the decoded body; asking for the plain body removes that whole class of bug.
+        'Accept-Encoding': 'identity',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(hasBody ? { 'Content-Type': request.headers.get('content-type') || 'application/json' } : {}),
         ...(range ? { Range: range } : {}),

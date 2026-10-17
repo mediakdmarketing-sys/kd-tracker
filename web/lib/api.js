@@ -17,6 +17,7 @@ export async function api(path, { method = 'GET', body, cache = 'no-store' } = {
     res = await fetch(apiUrl(path), {
       method,
       headers: {
+        'Accept-Encoding': 'identity',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(body ? { 'Content-Type': 'application/json' } : {}),
       },

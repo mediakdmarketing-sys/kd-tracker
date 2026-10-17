@@ -22,7 +22,7 @@ export async function POST(request) {
   try {
     res = await fetch(apiUrl('/api/auth/login'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Accept-Encoding': 'identity' },
       body: JSON.stringify({ email, password, client: 'web' }),
       cache: 'no-store',
     });

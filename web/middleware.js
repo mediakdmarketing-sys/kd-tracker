@@ -42,7 +42,7 @@ export async function middleware(request) {
   try {
     const res = await fetch(apiUrl('/api/auth/refresh'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Accept-Encoding': 'identity' },
       body: JSON.stringify({ refreshToken }),
       cache: 'no-store',
     });
