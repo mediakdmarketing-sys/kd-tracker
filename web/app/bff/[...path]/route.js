@@ -52,10 +52,12 @@ async function forward(request, params) {
   // The Range trio (accept-ranges/content-range/content-length) has to come along too, or the
   // backend's 206 response reaches the browser looking like a malformed 200.
   //
-  // fetch() decompresses a gzip/br upstream body but leaves its headers as they were, so for a
-  // compressed response content-length describes the compressed bytes. Forwarding it would make
-  // the browser cut the (longer) decoded body short and fail to parse the JSON.
-  const compressed = Boolean(res.headers.get('content-encoding'));
+  // fetch() decompresses a gzip/br upstream body but leaves its headers as they were (a CDN in
+  // front of the API compresses even tiny JSON), so content-length can describe the compressed
+  // bytes. Forwarding it makes the browser cut the longer decoded body short and fail to parse
+  // it. It is only passed on for a 206, where it must match the range and the API never
+  // compresses it; everything else is streamed with its length left to the platform.
+  const keepLength = res.status === 206 && !res.headers.get('content-encoding');
   const headers = new Headers();
   for (const name of [
     'content-type',
@@ -63,7 +65,7 @@ async function forward(request, params) {
     'cache-control',
     'accept-ranges',
     'content-range',
-    ...(compressed ? [] : ['content-length']),
+    ...(keepLength ? ['content-length'] : []),
   ]) {
     const value = res.headers.get(name);
     if (value) headers.set(name, value);
