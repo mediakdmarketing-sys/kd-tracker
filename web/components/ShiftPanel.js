@@ -319,7 +319,9 @@ export default function ShiftPanel({ initial, timezone, projects = [] }) {
               </span>
             </div>
 
-            {!onBreak && (
+            {/* Only offered once an admin has created projects; with none, the only choice would
+                be "Unassigned time" and the picker is just noise. */}
+            {!onBreak && projects.length > 0 && (
               <div style={{ marginTop: 12 }}>
                 <label htmlFor="project-picker" style={{ marginBottom: 4 }}>
                   Working on
