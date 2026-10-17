@@ -1,22 +1,12 @@
-import { Plus_Jakarta_Sans, Inter } from 'next/font/google';
+import '@fontsource-variable/plus-jakarta-sans';
+import '@fontsource-variable/inter';
 import './globals.css';
 import ServiceWorkerRegistrar from '@/components/ServiceWorkerRegistrar';
 import InstallPrompt from '@/components/InstallPrompt';
 
-// Self-hosted at build time (no runtime request to Google Fonts, no FOUC) — exposed as CSS
-// custom properties that globals.css's --font-display / --font tokens build on.
-const jakarta = Plus_Jakarta_Sans({
-  subsets: ['latin'],
-  weight: ['500', '600', '700', '800'],
-  variable: '--font-jakarta',
-  display: 'swap',
-});
-const inter = Inter({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-inter',
-  display: 'swap',
-});
+// Fonts are self-hosted npm packages rather than next/font/google: that loader downloads from
+// Google at build time, and a failed download failed the whole deploy. globals.css's
+// --font-display / --font tokens name the families these imports register.
 
 export const metadata = {
   title: 'WorkBuddy',
@@ -47,7 +37,7 @@ export const viewport = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className={`${jakarta.variable} ${inter.variable}`}>
+    <html lang="en">
       <head>
         <link rel="manifest" href="/manifest.json" />
       </head>
