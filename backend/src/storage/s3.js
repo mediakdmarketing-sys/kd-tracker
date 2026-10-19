@@ -33,7 +33,16 @@ function load() {
   client = new sdk.S3Client({
     region,
     // S3-compatible providers (Cloudflare R2, MinIO, Backblaze B2) need an explicit endpoint.
-    ...(endpoint ? { endpoint, forcePathStyle: forcePathStyle || true } : {}),
+    ...(endpoint
+      ? {
+          endpoint,
+          forcePathStyle: forcePathStyle || true,
+          // SDK >= 3.729 adds CRC32 trailer checksums by default, which R2 and other
+          // S3-compatible stores do not all accept. Only compute them when S3 requires it.
+          requestChecksumCalculation: 'WHEN_REQUIRED',
+          responseChecksumValidation: 'WHEN_REQUIRED',
+        }
+      : {}),
     // Fall back to the ambient credential chain (IAM role, SSO) when keys are not supplied —
     // preferable to long-lived static keys in production.
     ...(accessKey && secretKey

@@ -79,13 +79,15 @@ const config = {
     driver: str('STORAGE_DRIVER', 'local'),
     localDir: resolveFromRoot(str('STORAGE_LOCAL_DIR', './storage')),
     s3: {
-      bucket: process.env.S3_BUCKET || null,
-      region: process.env.S3_REGION || null,
-      accessKey: process.env.S3_ACCESS_KEY || null,
-      secretKey: process.env.S3_SECRET_KEY || null,
+      // Trimmed: a stray space/newline pasted into a hosting dashboard silently breaks the
+      // request signature (SignatureDoesNotMatch) and is very hard to spot by eye.
+      bucket: (process.env.S3_BUCKET || '').trim() || null,
+      region: (process.env.S3_REGION || '').trim() || null,
+      accessKey: (process.env.S3_ACCESS_KEY || '').trim() || null,
+      secretKey: (process.env.S3_SECRET_KEY || '').trim() || null,
       // Set for S3-compatible providers (Cloudflare R2, MinIO, Backblaze B2).
       // R2: https://<ACCOUNT_ID>.r2.cloudflarestorage.com  with S3_REGION=auto
-      endpoint: process.env.S3_ENDPOINT || null,
+      endpoint: (process.env.S3_ENDPOINT || '').trim().replace(/\/+$/, '') || null,
       forcePathStyle: ['1', 'true', 'yes', 'on'].includes(
         String(process.env.S3_FORCE_PATH_STYLE || '').toLowerCase()
       ),
