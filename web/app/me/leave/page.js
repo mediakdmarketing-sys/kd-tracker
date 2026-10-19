@@ -30,13 +30,6 @@ export default async function MyLeavePage() {
       <div className="stack">
         <LeaveRequestForm name={user.name} email={user.email} timezone={user.timezone} />
 
-        <div className="notice notice-warn" style={{ fontSize: 13 }}>
-          For the Sick Leaves, Bereavement Leaves, and Emergency Leaves, should provide proper
-          proof. For example, if you are taking sick leave you need to provide an authenticated
-          medical certificate from your doctor with the doctor&apos;s information — otherwise
-          that leave is considered a No Pay Leave.
-        </div>
-
         <div className="card">
           <div className="card-head">
             <h2>Your requests</h2>
