@@ -10,6 +10,16 @@ const ADMIN = ['admin'];
 // `roles` decides who sees it; every account sees the "everyone" sections first.
 const SECTIONS = [
   {
+    id: 'about',
+    title: 'What is WorkBuddy?',
+    roles: ALL,
+    body: [
+      'WorkBuddy is the company attendance and work-tracking app. It records when you start and finish your day, your breaks, your leave and, while you are punched in, how active you were.',
+      'It has two parts that work together: this web portal (punch, history, leave, reports) and the desktop agent, a small app on your computer that takes the screenshots and activity counts.',
+      'Your day in short: sign in, punch in, work, take breaks when you need them, punch out. Everything else happens in the background.',
+    ],
+  },
+  {
     id: 'start',
     title: 'Getting started',
     roles: ALL,
@@ -28,6 +38,19 @@ const SECTIONS = [
       'After you sign in here, the agent asks "Sign this desktop agent in from the web portal?". Click Connect. Click Cancel if you did not just sign in.',
       'Capture only happens when the agent is signed in as you, you are punched in, and you are not on a break.',
       'Pictures taken while you are offline wait in a queue and upload when the connection is back.',
+    ],
+  },
+  {
+    id: 'agent-install',
+    title: 'Installing the desktop agent (Windows)',
+    roles: ALL,
+    body: [
+      'Get the WorkBuddy installer (.exe) from HR/IT and run it. It installs for your user only and does not need admin rights.',
+      'Windows may show a "Windows protected your PC" warning because the installer is not code-signed yet. Click More info, then Run anyway. This is expected for the company installer.',
+      'After install, WorkBuddy starts in the system tray (bottom-right, near the clock; click the ^ arrow if you do not see it). It does not open a normal window.',
+      'Sign in on this portal. The agent then asks "Sign this desktop agent in from the web portal?". Click Connect. The tray icon now shows you as signed in.',
+      'Leave it running. Closing it from the tray stops capture, and it does not start by itself when Windows starts, so open WorkBuddy from the Start menu after you turn on your computer.',
+      'Only install it on the computer you work on. Do not install it on a shared or personal computer.',
     ],
   },
   {
@@ -106,6 +129,32 @@ const SECTIONS = [
     body: [
       'Settings control screenshot and audio timing, target shift length, break allowance, idle threshold, auto-close time, retention days and whether idle time is deducted from payroll. Changes apply to everyone, and agents pick them up with no reinstall.',
       'The Audit log records who viewed whose screenshots, audio or attendance history and when. It cannot be edited or deleted.',
+    ],
+  },
+  {
+    id: 'glossary',
+    title: 'Words used in the app',
+    roles: ALL,
+    body: [
+      'Punch in / Punch out: start and end of your working day.',
+      'Break: time you pause the work clock. You have a daily allowance; going over it flags the day for HR review.',
+      'Flagged: a day HR should look at, for example an over-long break or a missing punch out.',
+      'Auto-closed: a shift the system ended for you because you never punched out. HR confirms the real end time.',
+      'Idle: no keyboard or mouse activity for a set time (10 minutes by default).',
+      'No Pay Leave: sick, bereavement or emergency leave taken without proof.',
+      'Pending / Approved / Rejected / Cancelled: the status of a leave request.',
+    ],
+  },
+  {
+    id: 'faq',
+    title: 'Common questions',
+    roles: ALL,
+    body: [
+      'Can my leader see my screen live? No. Screenshots are taken at random times and reviewed later; there is no live viewing.',
+      'Is my password or what I type recorded? No. Only the count of keystrokes and mouse actions is kept, never the content.',
+      'I forgot to punch in. Tell your leader or HR; they can correct the day. Do not punch in late and leave it.',
+      'My internet dropped. The agent keeps screenshots and punches in a queue on your computer and uploads them when you are back online.',
+      'Can I use WorkBuddy on my phone? You can open the portal to view history and request leave, but screenshots only come from the desktop agent.',
     ],
   },
   {
