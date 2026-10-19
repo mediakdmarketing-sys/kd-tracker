@@ -7,7 +7,7 @@ const path = require('path');
 const { app, BrowserWindow, Tray, Menu, ipcMain, safeStorage, shell, powerMonitor, dialog } = require('electron');
 
 const logger = require('../core/logger');
-const { loadSettings } = require('../core/settings');
+const { loadSettings, BUNDLED } = require('../core/settings');
 const { Outbox } = require('../core/outbox');
 const { FileTokenStore } = require('../core/tokenStore');
 const { ApiClient } = require('../core/apiClient');
@@ -329,7 +329,7 @@ function refreshTray() {
 
 function agentPortalUrl() {
   // The portal usually sits alongside the API; good enough for a "read the policy" link.
-  return (process.env.KD_PORTAL_URL || 'http://localhost:3000').replace(/\/$/, '');
+  return (process.env.KD_PORTAL_URL || BUNDLED.portalUrl).replace(/\/$/, '');
 }
 
 // --- Popup --------------------------------------------------------------------------------

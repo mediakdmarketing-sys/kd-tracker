@@ -9,6 +9,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const BUNDLED = require('../config/defaults.json');
 
 const DEFAULT_CAPTURE = {
   screenshot: { minIntervalSeconds: 300, maxIntervalSeconds: 600 },
@@ -29,7 +30,9 @@ function loadSettings(dataDir) {
   }
 
   return {
-    apiBaseUrl: process.env.KD_API_URL || stored.apiBaseUrl || 'http://localhost:4000',
+    // env > per-machine settings.json > bundled defaults (src/config/defaults.json, edit it
+    // before building the installer so employees need no setup).
+    apiBaseUrl: process.env.KD_API_URL || stored.apiBaseUrl || BUNDLED.apiBaseUrl,
     // How often to try the queue. Independent of capture cadence: a backlog should drain
     // steadily even while nothing new is being captured.
     drainIntervalMs: stored.drainIntervalMs || 15_000,
@@ -44,4 +47,4 @@ function loadSettings(dataDir) {
   };
 }
 
-module.exports = { loadSettings, DEFAULT_CAPTURE };
+module.exports = { loadSettings, DEFAULT_CAPTURE, BUNDLED };
