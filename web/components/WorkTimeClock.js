@@ -32,7 +32,8 @@ export default function WorkTimeClock({ state, baseWorked }) {
 
   const out       = state === 'punched_out';
   const working   = state === 'working';
-  const workedSeconds = out ? 0 : baseWorked + (working ? tick : 0);
+  // Punched out mid-day keeps the banked total; a day with nothing worked is 0 either way.
+  const workedSeconds = out ? baseWorked : baseWorked + (working ? tick : 0);
 
   return <>{clock(workedSeconds)}</>;
 }

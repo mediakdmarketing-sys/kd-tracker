@@ -243,6 +243,30 @@ describe('live status', () => {
     expect(res.body.overBreak).toBe(true);
   });
 
+  it('continues the day after a punch-out and re-punch-in (e.g. a power cut)', async () => {
+    const employee = await createEmployee();
+    const user = toUser(employee);
+    const now = t.now();
+
+    // 40 minutes worked, then the power goes: punch out, then back in 10 minutes later.
+    await attendanceService.punchIn({ employee: user, at: now - 60 * 60000 });
+    await attendanceService.punchOut({ employee: user, at: now - 20 * 60000 });
+    const token = await login(employee);
+
+    const out = await as(token).get('/api/attendance/status');
+    expect(out.body.state).toBe('punched_out');
+    expect(out.body.workedSeconds).toBe(40 * 60);
+
+    await attendanceService.punchIn({ employee: user, at: now - 10 * 60000 });
+    const back = await as(token).get('/api/attendance/status');
+
+    expect(back.body.state).toBe('working');
+    expect(back.body.priorWorkedSeconds).toBe(40 * 60);
+    // 40 min banked + ~10 min of the new shift, never restarting from zero.
+    expect(back.body.workedSeconds).toBeGreaterThanOrEqual(50 * 60);
+    expect(back.body.workedSeconds).toBeLessThan(51 * 60);
+  });
+
   it('does not allow capture while on a break', async () => {
     const employee = await createEmployee();
     const user = toUser(employee);

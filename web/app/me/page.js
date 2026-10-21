@@ -30,7 +30,9 @@ export default async function MyShiftPage() {
   const isOpen  = isOpenShift(shift);
   const punched = status.state !== 'punched_out';
 
-  const todayWorked = workedSecondsOf(shift);
+  // Whole-day total from the server (earlier shifts + this one), so a re-punch-in after a power
+  // cut continues the day's target. Falls back to this shift alone for an older backend.
+  const todayWorked = status.workedSeconds ?? workedSecondsOf(shift);
   const todayBreak  = breakSecondsOf(shift);
   const breaks      = shift?.breaks ?? [];
 

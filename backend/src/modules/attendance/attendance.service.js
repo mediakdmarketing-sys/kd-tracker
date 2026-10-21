@@ -327,6 +327,18 @@ async function endBreak({ employee, at, requestedAt, silent = false }) {
   return shape({ ...shift, ...attendancePatch }, allBreaks);
 }
 
+/**
+ * Worked seconds already banked today by closed shifts. A power cut or a lunch-time punch-out
+ * ends a shift early; the next punch-in the same day carries on from this total instead of
+ * starting the day's target again.
+ */
+async function closedWorkedOnDate(employeeId, date, exceptId = null) {
+  const q = db()('attendance').where({ employee_id: employeeId, date, status: 'closed' });
+  if (exceptId) q.andWhereNot({ id: exceptId });
+  const [{ total }] = await q.sum({ total: 'total_worked_seconds' });
+  return Number(total) || 0;
+}
+
 /** What the tray UI and the portal header show: the employee's live state. */
 async function currentStatus(employee) {
   const shift = await openShift(employee.id);
@@ -335,9 +347,13 @@ async function currentStatus(employee) {
       .where({ employee_id: employee.id })
       .orderBy('punch_in', 'desc')
       .first();
+    const today = t.localDate(t.now(), employee.timezone);
     return {
       state: 'punched_out',
       shift: last ? shape(last) : null,
+      // Everything worked so far today, so the portal can show what is left of the target.
+      workedSeconds: await closedWorkedOnDate(employee.id, today),
+      shiftTargetSeconds: settings.get().shift.targetSeconds,
       canPunchIn: employee.consentMonitoring,
       consentRequired: !employee.consentMonitoring,
     };
@@ -352,13 +368,16 @@ async function currentStatus(employee) {
     : breakSeconds;
 
   const currentProject = shift.status === 'open' ? await projectService.currentForShift(shift.id) : null;
+  const priorWorkedSeconds = await closedWorkedOnDate(employee.id, shift.date, shift.id);
 
   return {
     currentProject,
     state: shift.status === 'on_break' ? 'on_break' : 'working',
     shift: shape(shift, breaks),
     elapsedSeconds: elapsed,
-    workedSeconds: Math.max(0, elapsed - liveBreakSeconds),
+    // Today's total: earlier closed shifts plus this one, so a re-punch-in continues the day.
+    workedSeconds: priorWorkedSeconds + Math.max(0, elapsed - liveBreakSeconds),
+    priorWorkedSeconds,
     breakSeconds: liveBreakSeconds,
     breakRemainingSeconds: Math.max(0, settings.get().shift.breakAllowanceSeconds - liveBreakSeconds),
     // Sent explicitly: once the break is over the allowance, `breakRemainingSeconds` is 0 and

@@ -90,6 +90,8 @@ function signedInView() {
   const working = state.shiftState === 'working';
   const onBreak = state.shiftState === 'on_break';
   const out = !working && !onBreak;
+  // Punched out earlier today (e.g. power cut): the next punch-in continues from this total.
+  const banked = out && Number(shift.workedSeconds) > 0;
 
   return h(`
     <h1>${escape(state.employee?.name || 'Signed in')}</h1>
@@ -99,9 +101,9 @@ function signedInView() {
 
     <div class="card">
       <div class="muted" style="font-size:11px;font-weight:650;letter-spacing:.04em">
-        ${out ? 'NOT PUNCHED IN' : 'WORKED TODAY'}
+        ${out && !banked ? 'NOT PUNCHED IN' : 'WORKED TODAY'}
       </div>
-      <div class="clock">${out ? '—' : duration(shift.workedSeconds)}</div>
+      <div class="clock">${out && !banked ? '—' : duration(shift.workedSeconds)}</div>
       <div style="margin-top:8px">
         ${
           working

@@ -49,7 +49,7 @@ const SECTIONS = [
       'Windows may show a "Windows protected your PC" warning because the installer is not code-signed yet. Click More info, then Run anyway. This is expected for the company installer.',
       'After install, WorkBuddy starts in the system tray (bottom-right, near the clock; click the ^ arrow if you do not see it). It does not open a normal window.',
       'Sign in on this portal. The agent then asks "Sign this desktop agent in from the web portal?". Click Connect. The tray icon now shows you as signed in.',
-      'Leave it running. Closing it from the tray stops capture, and it does not start by itself when Windows starts, so open WorkBuddy from the Start menu after you turn on your computer.',
+      'Leave it running. It starts by itself when you sign in to Windows, so after a restart or power cut it is already running. Quitting it from the tray stops capture until you open WorkBuddy again from the Start menu.',
       'Only install it on the computer you work on. Do not install it on a shared or personal computer.',
     ],
   },

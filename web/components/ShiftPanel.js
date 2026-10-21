@@ -43,21 +43,24 @@ const ClockDisplay = memo(function ClockDisplay({
   const working = state === 'working';
   const onBreak = state === 'on_break';
 
-  const workedSeconds = out ? 0 : baseWorked + (working ? tick : 0);
+  // Punched out mid-day (power cut, lunch): keep showing what is already banked so the next
+  // punch-in visibly continues from there rather than from zero.
+  const banked        = out && baseWorked > 0;
+  const workedSeconds = out ? baseWorked : baseWorked + (working ? tick : 0);
   const breakSeconds  = out ? 0 : baseBreak  + (onBreak  ? tick : 0);
   const overBreak     = breakSeconds > allowance;
 
   return (
     <>
-      <div className="clock-label">{out ? 'Not punched in' : 'Worked today'}</div>
-      <div className="clock">{out ? '—' : clock(workedSeconds)}</div>
+      <div className="clock-label">{out && !banked ? 'Not punched in' : 'Worked today'}</div>
+      <div className="clock">{out && !banked ? '—' : clock(workedSeconds)}</div>
       <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
         {!out && (
           <BreakDonut used={breakSeconds} allowance={allowance} over={overBreak} />
         )}
         <span className="muted">
           {out ? (
-            'Punch in to start your shift.'
+            banked ? 'Punch in to continue where you left off.' : 'Punch in to start your shift.'
           ) : (
             <>
               Break used {duration(breakSeconds)} of {duration(allowance)}

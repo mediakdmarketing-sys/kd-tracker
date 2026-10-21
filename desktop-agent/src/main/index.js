@@ -187,6 +187,11 @@ async function start() {
     },
   });
 
+  // Start with Windows/macOS so a reboot or power cut does not leave capture off until the
+  // employee remembers to open it. Packaged builds only: `npm start` in development must not
+  // register the dev Electron binary as a login item.
+  if (app.isPackaged) app.setLoginItemSettings({ openAtLogin: true });
+
   audio.registerHandlers();
   activity.start();
   registerIpc();
@@ -195,6 +200,10 @@ async function start() {
   if (api.isSignedIn()) {
     await agent.syncConfig();
     await agent.syncStatus();
+  } else {
+    // First run or a lapsed session: Windows often tucks a new tray icon into the hidden ^
+    // overflow, so without this the employee launches the app and sees nothing happen.
+    showPopup();
   }
 
   // Launched by a workbuddy:// link (agent was not running yet), or a link arrived mid-startup.
