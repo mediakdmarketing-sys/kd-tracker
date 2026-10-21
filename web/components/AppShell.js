@@ -173,6 +173,9 @@ const USER_GROUP = {
     { href: '/me', label: 'My shift', icon: Icon.me },
     { href: '/me/history', label: 'My history', icon: Icon.history },
     { href: '/me/leave', label: 'Leave', icon: Icon.leave },
+    // Same group for every role: right under the links people use every day, not after the
+    // team/admin sections where it was easy to miss.
+    { href: '/help', label: 'Help', icon: Icon.help },
   ],
 };
 
@@ -250,13 +253,6 @@ export default function AppShell({ user, children }) {
               </nav>
             </div>
           ))}
-
-          <nav className="nav">
-            <NavLink href="/help">
-              {Icon.help}
-              <span>Help</span>
-            </NavLink>
-          </nav>
 
           <div className="sidebar-foot">
             <div className="inline" style={{ width: '100%' }}>

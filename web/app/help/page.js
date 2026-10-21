@@ -100,6 +100,47 @@ const SECTIONS = [
     ],
   },
   {
+    id: 'leader-leave',
+    title: 'For leaders: approving leave',
+    roles: LEADERS,
+    body: [
+      'Open Leave requests and filter by Pending. Each request shows the type, dates, full or half day, the reason and any proof file.',
+      'Sick, Bereavement and Emergency leave need proof. If none is attached, say so in your decision: leave taken without proof is treated as No Pay Leave.',
+      'Approve or Reject. The employee sees the new status straight away.',
+    ],
+  },
+  {
+    id: 'leader-day',
+    title: 'For leaders: reading a team member’s day',
+    roles: LEADERS,
+    body: [
+      'Open a member from My team or the Live board. For the day or range you pick you see worked time, breaks, idle time, activity counts, screenshots, audio samples and project time.',
+      'Worked time is the total for the whole day, so an employee who punched out and back in (for example after a power cut) is counted once, not twice.',
+      'Over the shift target is shown as overtime. It is information for you, not an approval.',
+    ],
+  },
+  {
+    id: 'leader-flags',
+    title: 'For leaders: flags and what they mean',
+    roles: LEADERS,
+    body: [
+      'Over the break allowance: the day total of breaks went past the allowance.',
+      'Auto-closed: the employee never punched out, so the system ended the shift. The real end time needs confirming with them or HR.',
+      'Needs review: something about the shift was unusual, for example a punch that arrived late from an offline computer. The reason is written next to the flag.',
+      'Appears idle: no keyboard or mouse activity for longer than the idle threshold while punched in. Check before assuming, the person may be in a meeting or reading.',
+    ],
+  },
+  {
+    id: 'leader-privacy',
+    title: 'For leaders: privacy rules',
+    roles: LEADERS,
+    body: [
+      'A team leader can only open people in the departments they lead. Every time anyone opens someone’s screenshots, audio or attendance history it is written to the audit log.',
+      'Open captured media only when you have a reason. Do not copy, share or forward it outside the company.',
+      'If a screenshot shows something private (a bank page, a personal message), do not act on it and tell HR so it can be reviewed.',
+    ],
+  },
+  {
     id: 'admin-people',
     title: 'For admins: people and structure',
     roles: ADMIN,
@@ -120,6 +161,41 @@ const SECTIONS = [
       'Reports: pick a date range and optionally a department, then Export CSV.',
       'Payroll: choose the month, Generate to summarise closed shifts, then Export CSV. Generating again for the same month is safe, it updates rather than duplicates. Review flagged and auto-closed shifts first.',
       'Leave requests shows every request in the company, with proof files, for approval or rejection.',
+    ],
+  },
+  {
+    id: 'admin-rollout',
+    title: 'For admins: rolling out the desktop agent',
+    roles: ADMIN,
+    body: [
+      'Employees need the WorkBuddy agent on the computer they work on. Once the installer link is configured for the portal, a Download button appears on every employee’s Help and My shift pages.',
+      'Roll out in two steps: try it with two or three employees for a day, check that their screenshots appear on their member page, then give the link to everyone.',
+      'Each employee signs in on the portal, then clicks Connect when the agent asks. After that the agent keeps itself signed in.',
+      'Someone punched in but no captures? Check that the agent is running, that they are signed in on it, and that they accepted the monitoring notice. See "Something is not working".',
+      'Agents with auto-update turned on install new versions by themselves, only while the employee is punched out.',
+    ],
+  },
+  {
+    id: 'admin-payroll-check',
+    title: 'For admins: monthly payroll checklist',
+    roles: ADMIN,
+    body: [
+      '1. After the last working day, open Live board and make sure nobody is still punched in.',
+      '2. Go through the flagged and auto-closed shifts for the month (they are marked on each employee’s attendance). Confirm the real end time with the employee or their leader.',
+      '3. Approve or reject any pending Leave requests for the month, so leave is counted correctly.',
+      '4. Open Payroll, choose the month and click Generate. Generating again for the same month updates the figures, it never duplicates them.',
+      '5. Export CSV and keep the file with your payroll records.',
+    ],
+  },
+  {
+    id: 'admin-offboarding',
+    title: 'For admins: when someone leaves',
+    roles: ADMIN,
+    body: [
+      'Open the employee’s page and choose Deactivate. They are signed out everywhere at once, including the desktop agent, and can no longer punch in.',
+      'Their history, payroll rows and audit entries stay. Nothing is deleted, and captured media is removed on the normal retention schedule.',
+      'If they led a department, assign a new leader first so leave requests are not left with nobody to approve them.',
+      'Ask them to uninstall WorkBuddy from any personal computer it was installed on.',
     ],
   },
   {
@@ -172,9 +248,58 @@ const SECTIONS = [
 
 const ROLE_LABEL = { user: 'Employee', leader: 'Team leader', admin: 'HR / Admin' };
 
+// A short checklist at the top, so each role sees what to do first.
+const QUICK_START = {
+  user: {
+    title: 'Your first day in four steps',
+    steps: [
+      'Install the WorkBuddy desktop agent and leave it running in the system tray.',
+      'Sign in on this portal, read the monitoring notice and accept it. Click Connect when the agent asks.',
+      'Open My shift and click Punch in. Take breaks with Start break and End break.',
+      'When you finish, click Punch out. Signing out is not needed.',
+    ],
+  },
+  leader: {
+    title: 'Your first day as a team leader',
+    steps: [
+      'Open My team to see the departments you lead and who is working now.',
+      'Use Live board during the day. Click a member to read their day.',
+      'Check Leave requests for anything Pending and approve or reject it.',
+      'Your own shift works like everyone else’s: install the agent, punch in, punch out.',
+    ],
+  },
+  admin: {
+    title: 'Getting the company set up',
+    steps: [
+      'Settings: confirm shift length, break allowance, capture timing and retention.',
+      'Departments, then Employees, then assign a leader to each department.',
+      'Give employees the agent installer link and check one pilot account’s screenshots.',
+      'Each month: review flags, then Payroll → Generate → Export CSV.',
+    ],
+  },
+};
+
+// Sections each role should read first, in this order. Everything else follows in page order.
+const ROLE_FIRST = {
+  leader: ['team', 'leader-leave', 'leader-day', 'leader-flags', 'leader-privacy'],
+  admin: ['admin-people', 'admin-rollout', 'admin-reports', 'admin-payroll-check', 'admin-settings', 'admin-offboarding'],
+};
+
+function sectionsFor(role) {
+  const visible = SECTIONS.filter((s) => s.roles.includes(role));
+  const first = ROLE_FIRST[role] || [];
+  const rank = (s) => {
+    const i = first.indexOf(s.id);
+    return i === -1 ? first.length : i;
+  };
+  // Array.prototype.sort is stable, so sections outside the list keep their written order.
+  return [...visible].sort((a, b) => rank(a) - rank(b));
+}
+
 export default async function HelpPage() {
   const user = await requireUser();
-  const sections = SECTIONS.filter((s) => s.roles.includes(user.role));
+  const sections = sectionsFor(user.role);
+  const quickStart = QUICK_START[user.role] || QUICK_START.user;
   // Read at request time on the server, so changing the installer link needs no code change.
   const agentDownloadUrl = process.env.AGENT_DOWNLOAD_URL || '';
 
@@ -191,6 +316,17 @@ export default async function HelpPage() {
       </div>
 
       <div className="stack">
+        <div className="card card-pad">
+          <div style={{ fontWeight: 650, fontSize: 15, marginBottom: 8 }}>{quickStart.title}</div>
+          <ol style={{ margin: 0, paddingLeft: 20, lineHeight: 1.65 }}>
+            {quickStart.steps.map((step) => (
+              <li key={step} style={{ marginBottom: 4 }}>
+                {step}
+              </li>
+            ))}
+          </ol>
+        </div>
+
         <div className="card card-pad">
           <div className="faint" style={{ marginBottom: 8, fontSize: 13 }}>
             Jump to
