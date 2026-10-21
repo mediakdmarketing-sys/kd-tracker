@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { call, post } from '@/lib/client';
 import { clock, duration, time } from '@/lib/format';
 import { syncDesktopAgent } from '@/lib/agentConnect';
+import { STATUS_EVENT } from '@/components/ShiftStats';
 
 // ---------------------------------------------------------------------------
 // ClockDisplay
@@ -189,6 +190,12 @@ export default function ShiftPanel({ initial, timezone, projects = [] }) {
       // A dropped poll is not worth an error banner; the next one will recover.
     }
   }, []);
+
+  // Tell the stat tiles below (ShiftStats) about every status this panel receives, so the two
+  // never show different numbers.
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent(STATUS_EVENT, { detail: status }));
+  }, [status]);
 
   useEffect(() => {
     // Poll every 5 minutes — ClockDisplay's local tick keeps the display live between polls.

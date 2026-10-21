@@ -1,21 +1,8 @@
 import Link from 'next/link';
 import { api, requireUser } from '@/lib/api';
 import ShiftPanel from '@/components/ShiftPanel';
-import WorkTimeClock from '@/components/WorkTimeClock';
-import { duration, time, timeSec, workedSecondsOf, breakSecondsOf, isOpenShift } from '@/lib/format';
-
-/** Whole-hours target reads as "8h", not "8h 00m" — minutes only show up when there are any. */
-function hoursLabel(seconds) {
-  const h = Math.floor((seconds || 0) / 3600);
-  const m = Math.round(((seconds || 0) % 3600) / 60);
-  return m === 0 ? `${h}h` : `${h}h ${m}m`;
-}
-
-/** Break time/allowance read in plain minutes ("0m", "60m") rather than the "Xh Ym" duration()
- * format used elsewhere — a break is rarely long enough for hours to matter. */
-function minutesLabel(seconds) {
-  return `${Math.round((seconds || 0) / 60)}m`;
-}
+import ShiftStats from '@/components/ShiftStats';
+import { duration, time, timeSec, breakSecondsOf, isOpenShift } from '@/lib/format';
 
 export const metadata = { title: 'My shift · WorkBuddy' };
 
@@ -31,15 +18,8 @@ export default async function MyShiftPage() {
   const isOpen  = isOpenShift(shift);
   const punched = status.state !== 'punched_out';
 
-  // Whole-day total from the server (earlier shifts + this one), so a re-punch-in after a power
-  // cut continues the day's target. Falls back to this shift alone for an older backend.
-  const todayWorked = status.workedSeconds ?? workedSecondsOf(shift);
   const todayBreak  = breakSecondsOf(shift);
   const breaks      = shift?.breaks ?? [];
-
-  const shiftTarget    = status.shiftTargetSeconds ?? 32400;
-  const remainingToday = Math.max(shiftTarget - todayWorked, 0);
-  const targetReached  = punched && remainingToday === 0 && todayWorked > 0;
 
   return (
     <>
@@ -69,37 +49,8 @@ export default async function MyShiftPage() {
         <ShiftPanel initial={status} timezone={user.timezone} projects={projects} />
 
         {/* Today's at-a-glance stats */}
-        <div className="grid grid-stats">
-          <div className="stat">
-            <div className="label">Required Work</div>
-            <div className="value">{hoursLabel(shiftTarget)}</div>
-          </div>
-
-          <div className="stat">
-            <div className="label">Work Time</div>
-            <div className="value">
-              {/* Same base value ShiftPanel's own "Worked today" clock uses (status.workedSeconds,
-                  not the workedSecondsOf(shift) recompute below) — that recompute uses Date.now()
-                  at SSR render time, which lags behind the backend's own snapshot by however long
-                  the request took, so the two clocks would start a second or two apart and never
-                  agree until the next poll. */}
-              <WorkTimeClock state={status.state} baseWorked={status.workedSeconds || 0} />
-            </div>
-          </div>
-
-          <div className="stat">
-            <div className="label">Break Time</div>
-            <div className="value">{minutesLabel(todayBreak)}</div>
-            <div className="sub">Allowed: {minutesLabel(status.breakAllowanceSeconds ?? 3600)}</div>
-          </div>
-
-          <div className="stat">
-            <div className="label">Time Remaining</div>
-            <div className="value" style={targetReached ? { color: 'var(--ok)' } : undefined}>
-              {targetReached ? 'Done' : duration(remainingToday)}
-            </div>
-          </div>
-        </div>
+        {/* Shares ShiftPanel's live status, so the tiles and the clock above never disagree. */}
+        <ShiftStats initial={status} fallbackBreakSeconds={todayBreak} />
 
         {/* Today's shift detail — punch in/out + break table */}
         {shift && (
