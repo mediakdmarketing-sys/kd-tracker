@@ -101,6 +101,25 @@ unless you have proper cross-compilation toolchains set up. `npm run rebuild:nat
 succeed on the build machine before `npm run build:*` will produce something that actually
 runs.
 
+## Distributing and updating
+
+> The "Native module: better-sqlite3" section above is obsolete: the outbox now uses `sql.js`
+> (pure WASM), so no C++ toolchain or `rebuild:native` is needed on any platform.
+
+1. Build: `npm install && npm run build:win` (needs `build/icon.png`, see `npm run icon`).
+2. Upload `dist/WorkBuddy Setup <version>.exe`, `…exe.blockmap` and `latest.yml` to a public
+   static folder, e.g. a Cloudflare R2 bucket with the public `r2.dev` URL enabled.
+3. First install: give employees the `.exe` link. In the web portal set `AGENT_DOWNLOAD_URL`
+   (Vercel env var) to that link and the Help and My shift pages show a Download button.
+4. Auto-update: set `updateUrl` in `src/config/defaults.json` (or `KD_UPDATE_URL`) and the
+   `publish.url` in `electron-builder.yml` to that same folder, then build. Installed copies
+   check every 4 hours, download in the background and restart only while the employee is
+   punched out (or when the app is quit). To ship an update, bump `version` in `package.json`,
+   build, and upload the three files over the old ones. Copies built before `updateUrl` was
+   set do not update themselves; they need one manual re-install.
+
+Auto-update is Windows-only for now: macOS updates require a signed and notarised app.
+
 ## Architecture
 
 ```

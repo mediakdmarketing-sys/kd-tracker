@@ -20,6 +20,7 @@ const activity = require('./activity');
 const audio = require('./audio');
 const { iconFor } = require('./trayIcon');
 const notifications = require('./notifications');
+const { startUpdater } = require('./updater');
 
 const ACTIVITY_WINDOW_SECONDS = 60;
 // The portal normally nudges the agent (workbuddy://sync) the moment something changes there;
@@ -32,6 +33,7 @@ let popup = null;
 let agent = null;
 let outbox = null;
 let timers = [];
+let stopUpdater = () => {};
 
 // Let the web portal sign this agent in: after an employee signs in on the portal it opens a
 // workbuddy://connect?code=... link, and the OS hands it to us. In development the app is
@@ -191,6 +193,13 @@ async function start() {
   // employee remembers to open it. Packaged builds only: `npm start` in development must not
   // register the dev Electron binary as a login item.
   if (app.isPackaged) app.setLoginItemSettings({ openAtLogin: true });
+
+  // New builds arrive on their own. A restart is only allowed while the employee is punched out
+  // (or the app is quit), never mid-shift. A no-op in development or with no update URL set.
+  stopUpdater = startUpdater({
+    url: process.env.KD_UPDATE_URL || BUNDLED.updateUrl,
+    isIdle: () => agent.state.shiftState === 'punched_out',
+  });
 
   audio.registerHandlers();
   activity.start();
@@ -406,6 +415,7 @@ function registerIpc() {
 function quit() {
   timers.forEach(clearInterval);
   timers = [];
+  stopUpdater();
   agent?.uploader.stop();
   activity.stop();
   audio.destroy();

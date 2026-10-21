@@ -26,6 +26,7 @@ export default async function MyShiftPage() {
     api('/api/projects'),
   ]);
 
+  const agentDownloadUrl = process.env.AGENT_DOWNLOAD_URL || '';
   const shift   = status.shift ?? null;
   const isOpen  = isOpenShift(shift);
   const punched = status.state !== 'punched_out';
@@ -54,6 +55,16 @@ export default async function MyShiftPage() {
       </div>
 
       <div className="stack">
+        {agentDownloadUrl && (
+          <div className="notice" style={{ fontSize: 13 }}>
+            Screenshots and activity come from the WorkBuddy desktop agent. Not installed yet?{' '}
+            <a href={agentDownloadUrl} download>
+              <strong>Download it here</strong>
+            </a>{' '}
+            (see <Link href="/help#agent-install">install steps</Link>).
+          </div>
+        )}
+
         {/* Live punch controls + ticking clock */}
         <ShiftPanel initial={status} timezone={user.timezone} projects={projects} />
 

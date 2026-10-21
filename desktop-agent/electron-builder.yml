@@ -18,8 +18,14 @@ directories:
 # for macOS automatically; Linux uses PNGs directly.
 icon: build/icon.png
 
-# No auto-update server wired up yet (icebox) — never publish on a plain `build`.
-publish: null
+# Auto-update feed: a static folder (e.g. a public Cloudflare R2 bucket) holding the installer,
+# its .blockmap and the latest.yml electron-builder writes into dist/. Upload all three after
+# each build. The URL here is only baked into app-update.yml; the agent itself reads
+# `updateUrl` from src/config/defaults.json (or KD_UPDATE_URL), so set that one too.
+# Nothing is ever uploaded by `build:*`; publishing is manual.
+publish:
+  provider: generic
+  url: https://updates.example.com/workbuddy
 
 # Registers workbuddy:// with the OS on install, so the web portal can sign the agent in after an
 # employee signs in there (see src/core/connectLink.js).

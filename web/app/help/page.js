@@ -175,6 +175,8 @@ const ROLE_LABEL = { user: 'Employee', leader: 'Team leader', admin: 'HR / Admin
 export default async function HelpPage() {
   const user = await requireUser();
   const sections = SECTIONS.filter((s) => s.roles.includes(user.role));
+  // Read at request time on the server, so changing the installer link needs no code change.
+  const agentDownloadUrl = process.env.AGENT_DOWNLOAD_URL || '';
 
   return (
     <>
@@ -212,6 +214,13 @@ export default async function HelpPage() {
                 </li>
               ))}
             </ul>
+            {s.id === 'agent-install' && agentDownloadUrl && (
+              <p style={{ margin: '14px 0 0' }}>
+                <a className="btn btn-info" href={agentDownloadUrl} download>
+                  Download WorkBuddy for Windows
+                </a>
+              </p>
+            )}
           </details>
         ))}
       </div>
