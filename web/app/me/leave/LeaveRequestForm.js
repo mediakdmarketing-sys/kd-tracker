@@ -134,9 +134,7 @@ export default function LeaveRequestForm({ name, email, timezone }) {
 
         {proofRequired && (
           <div className="notice notice-warn" style={{ fontSize: 12 }}>
-            This leave type needs proof — e.g. an authenticated medical certificate with your
-            doctor&apos;s details for sick leave. Without it, the leave is treated as no-pay.
-          </div>
+            </div>
         )}
 
         <div className="field" style={{ margin: 0 }}>
