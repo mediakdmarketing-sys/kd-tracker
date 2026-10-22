@@ -132,7 +132,7 @@ async function memberDashboard(user, leaderDepts) {
   const employees = await base.select('id', 'name', 'email', 'department', 'timezone');
 
   const nowMs = t.now();
-  const empDatesByEmployee = employees.map((e) => t.localDate(nowMs, e.timezone));
+  const empDatesByEmployee = employees.map(() => t.localDate(nowMs, t.DEFAULT_TIMEZONE));
   const dates = new Set(empDatesByEmployee);
   const empIds = employees.map((e) => e.id);
 
@@ -166,7 +166,7 @@ async function memberDashboard(user, leaderDepts) {
   }, {});
 
   const rows = employees.map((emp) => {
-    const empDate = t.localDate(nowMs, emp.timezone);
+    const empDate = t.localDate(nowMs, t.DEFAULT_TIMEZONE);
     const mine = byEmployee[emp.id] || [];
     const current = mine.find((s) => s.status === 'open' || s.status === 'on_break');
     const todays = mine.filter((a) => a.date === empDate);

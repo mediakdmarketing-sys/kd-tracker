@@ -89,7 +89,7 @@ function publicEmployee(row) {
     role: row.role,
     department: row.department,
     employeeCode: row.employee_code,
-    timezone: row.timezone,
+    timezone: config.timezone,
     status: row.status,
     blurScreenshots: toBool(row.blur_screenshots),
     consent: {

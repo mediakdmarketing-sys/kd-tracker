@@ -54,7 +54,7 @@ async function authenticate(req, res, next) {
         name: row.name,
         role: row.role,
         department: row.department,
-        timezone: row.timezone,
+        timezone: config.timezone,
         status: row.status,
         consentMonitoring: toBool(row.consent_monitoring),
         consentAudio: toBool(row.consent_audio),

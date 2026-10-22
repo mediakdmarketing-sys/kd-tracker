@@ -70,7 +70,7 @@ describe('live dashboard', () => {
     const row = res.body.employees.find((e) => e.employeeId === employee.id);
     expect(row.state).toBe('working');
     expect(row.overnight).toBe(true);
-    expect(row.shiftDate).toBe(t.localDate(yesterday, employee.timezone));
+    expect(row.shiftDate).toBe(t.localDate(yesterday));
   });
 
   it('flags a working employee with no recent activity as idle', async () => {
@@ -94,7 +94,7 @@ describe('reports', () => {
     await attendanceService.punchIn({ employee: user, at: start });
     await attendanceService.punchOut({ employee: user, at: start + 8 * HOUR });
 
-    const date = t.localDate(start, employee.timezone);
+    const date = t.localDate(start);
     const adminToken = await login(await createEmployee({ role: 'admin' }));
     const res = await as(adminToken).get(`/api/admin/reports?from=${date}&to=${date}`);
 
@@ -114,7 +114,7 @@ describe('reports', () => {
       await attendanceService.punchOut({ employee: toUser(emp), at: start + 8 * HOUR });
     }
 
-    const date = t.localDate(start, eng.timezone);
+    const date = t.localDate(start);
     const adminToken = await login(await createEmployee({ role: 'admin' }));
     const res = await as(adminToken).get(
       `/api/admin/reports?from=${date}&to=${date}&department=Design`
@@ -130,7 +130,7 @@ describe('reports', () => {
     await attendanceService.punchIn({ employee: toUser(employee), at: start });
     await attendanceService.punchOut({ employee: toUser(employee), at: start + 8 * HOUR });
 
-    const date = t.localDate(start, employee.timezone);
+    const date = t.localDate(start);
     const adminToken = await login(await createEmployee({ role: 'admin' }));
     const res = await as(adminToken).get(
       `/api/admin/reports?from=${date}&to=${date}&format=csv`

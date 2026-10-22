@@ -224,6 +224,7 @@ const SECTIONS = [
     title: 'Words used in the app',
     roles: ALL,
     body: [
+      'All times in WorkBuddy are New York time (Eastern Time), whatever country your computer is in. A "day" starts and ends at midnight New York time.',
       'Punch in / Punch out: start and end of your working day.',
       'Break: time you pause the work clock. You have a daily allowance; going over it flags the day for HR review.',
       'Flagged: a day HR should look at, for example an over-long break or a missing punch out.',

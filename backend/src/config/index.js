@@ -75,6 +75,10 @@ const config = {
     maxCaptureAgeDays: int('MAX_CAPTURE_AGE_DAYS', 7),
   },
 
+  // The one clock the whole company runs on: attendance dates, the day a shift belongs to and
+  // every time the portal shows. An IANA name; set APP_TIMEZONE to change it for everyone.
+  timezone: str('APP_TIMEZONE', 'America/New_York'),
+
   storage: {
     driver: str('STORAGE_DRIVER', 'local'),
     localDir: resolveFromRoot(str('STORAGE_LOCAL_DIR', './storage')),

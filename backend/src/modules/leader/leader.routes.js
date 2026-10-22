@@ -67,7 +67,7 @@ router.get(
       name: row.name,
       email: row.email,
       department: row.department,
-      timezone: row.timezone,
+      timezone: require('../../config').timezone,
       role: row.role,
       status: row.status,
       blurScreenshots: toBool(row.blur_screenshots),

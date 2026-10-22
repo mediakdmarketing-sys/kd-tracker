@@ -129,7 +129,7 @@ async function punchIn({ employee, at, requestedAt }) {
       employee_id: employee.id,
       punch_in: resolved.at,
       punch_out: null,
-      date: t.localDate(resolved.at, employee.timezone),
+      date: t.localDate(resolved.at),
       total_break_seconds: 0,
       total_worked_seconds: null,
       idle_seconds: 0,
@@ -347,7 +347,7 @@ async function currentStatus(employee) {
       .where({ employee_id: employee.id })
       .orderBy('punch_in', 'desc')
       .first();
-    const today = t.localDate(t.now(), employee.timezone);
+    const today = t.localDate(t.now());
     return {
       state: 'punched_out',
       shift: last ? shape(last) : null,

@@ -28,7 +28,7 @@ async function dashboard({ date } = {}) {
 
   // Each employee's "today" is their own local date unless a date is explicitly requested.
   const nowMs = t.now();
-  const employeeDates = employees.map((e) => date || t.localDate(nowMs, e.timezone));
+  const employeeDates = employees.map(() => date || t.localDate(nowMs, t.DEFAULT_TIMEZONE));
   const dates = new Set(employeeDates);
 
   const employeeIds = employees.map((e) => e.id);
@@ -69,7 +69,7 @@ async function dashboard({ date } = {}) {
     return acc;
   }, {});
   const rows = employees.map((emp) => {
-    const empDate = date || t.localDate(nowMs, emp.timezone);
+    const empDate = date || t.localDate(nowMs, t.DEFAULT_TIMEZONE);
     const mine = attendanceByEmployee[emp.id] || [];
     const current = mine.find((s) => s.status === 'open' || s.status === 'on_break');
 

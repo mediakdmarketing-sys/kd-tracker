@@ -5,9 +5,11 @@
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-// The company works on New York time: new employees start in this zone and a date computed
-// without an explicit zone falls back to it. An employee's own `timezone` still wins.
-const DEFAULT_TIMEZONE = 'America/New_York';
+// The company works on one clock (New York by default, APP_TIMEZONE to change). Everything that
+// needs "the employee's day" uses this instead of the per-row `employees.timezone` column,
+// which is kept only for old data and is no longer consulted. That way a stale row (many were
+// created as Asia/Kolkata) cannot put one person's day, or the times they see, on another clock.
+const DEFAULT_TIMEZONE = require('../config').timezone;
 
 function now() {
   return Date.now();

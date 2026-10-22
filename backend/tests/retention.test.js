@@ -15,7 +15,7 @@ afterAll(destroy);
 async function makeScreenshot(employee, ageDays) {
   const id = uuid();
   const capturedAt = t.daysAgo(ageDays);
-  const date = t.localDate(capturedAt, employee.timezone);
+  const date = t.localDate(capturedAt);
   const key = buildKey({
     type: 'screenshots',
     employeeId: employee.id,
@@ -76,7 +76,7 @@ describe('31-day retention purge', () => {
     const employee = await createEmployee();
     const id = uuid();
     const recordedAt = t.daysAgo(config.retention.days + 1);
-    const date = t.localDate(recordedAt, employee.timezone);
+    const date = t.localDate(recordedAt);
     const key = buildKey({ type: 'audio', employeeId: employee.id, date, id, extension: 'webm' });
 
     await storage().put(key, Buffer.from('audio bytes'), 'audio/webm');

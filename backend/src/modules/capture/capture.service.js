@@ -121,7 +121,7 @@ async function uploadScreenshot({
   const buffer = decodeBase64(imageBase64, { field: 'imageBase64' });
 
   const id = uuid();
-  const date = t.localDate(at, employee.timezone);
+  const date = t.localDate(at);
   // The storage key uses a server-generated id, not the client's `captureId` — a client
   // value has no business shaping a filesystem or bucket path.
   const key = buildKey({
@@ -230,7 +230,7 @@ async function uploadAudio({
   }
 
   const id = uuid();
-  const date = t.localDate(at, employee.timezone);
+  const date = t.localDate(at);
   const key = buildKey({
     type: 'audio',
     employeeId: employee.id,
@@ -330,7 +330,7 @@ async function logActivity({ employee, entries }) {
         mouse_count: e.mouseCount,
         window_title: e.windowTitle ? String(e.windowTitle).slice(0, 255) : null,
         timestamp: at,
-        date: t.localDate(at, employee.timezone),
+        date: t.localDate(at),
         created_at: nowMs,
       };
     });

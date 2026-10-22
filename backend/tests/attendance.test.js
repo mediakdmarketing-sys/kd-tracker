@@ -305,7 +305,7 @@ describe('idle detection', () => {
         mouse_count: 5,
         window_title: 'VS Code',
         timestamp: ts,
-        date: t.localDate(ts, employee.timezone),
+        date: t.localDate(ts),
         created_at: ts,
       }))
     );
