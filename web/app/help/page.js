@@ -1,4 +1,6 @@
 import { requireUser } from '@/lib/api';
+import CopyCommand from '@/components/CopyCommand';
+import OpenOnHash from '@/components/OpenOnHash';
 
 export const metadata = { title: 'Help · WorkBuddy' };
 
@@ -42,45 +44,61 @@ const SECTIONS = [
   },
   {
     id: 'agent-install',
-    title: 'Installing the desktop agent (Windows)',
+    title: 'Install the desktop agent on Windows',
+    badge: 'Windows',
+    steps: true,
     roles: ALL,
     body: [
-      'Get the WorkBuddy installer (.exe) from HR/IT and run it. It installs for your user only and does not need admin rights.',
-      'Windows may show a "Windows protected your PC" warning because the installer is not code-signed yet. Click More info, then Run anyway. This is expected for the company installer.',
-      'After install, WorkBuddy starts in the system tray (bottom-right, near the clock; click the ^ arrow if you do not see it). It does not open a normal window.',
+      'Get the WorkBuddy installer (a file ending in .exe) from HR or IT and double-click it. It installs for your user only and does not need an administrator password.',
+      { text: 'Windows may show a blue "Windows protected your PC" box. This is expected, the installer is not code-signed yet. Click More info, then Run anyway.', tip: 'It looks alarming, but it only means Microsoft has not seen this installer before.' },
+      'When it finishes, WorkBuddy starts in the system tray at the bottom right next to the clock. If you cannot see it, click the ^ arrow. It does not open a normal window.',
       'Sign in on this portal. The agent then asks "Sign this desktop agent in from the web portal?". Click Connect. The tray icon now shows you as signed in.',
-      'Leave it running. It starts by itself when you sign in to Windows, so after a restart or power cut it is already running. Quitting it from the tray stops capture until you open WorkBuddy again from the Start menu.',
-      'Only install it on the computer you work on. Do not install it on a shared or personal computer.',
+      { text: 'Leave it running. It starts by itself when you sign in to Windows, so a restart or power cut does not stop it.', warn: 'Quitting it from the tray stops capture until you open WorkBuddy again from the Start menu. Only install it on the computer you work on, not on a shared or personal one.' },
     ],
   },
   {
     id: 'agent-mac',
-    title: 'Installing the desktop agent (Mac)',
+    title: 'Install the desktop agent on a Mac',
+    badge: 'Mac',
+    steps: true,
     roles: ALL,
     body: [
-      'Pick the right file for your Mac. Apple menu → About This Mac shows the chip: "Apple M1/M2/M3/M4" needs the file with "arm64" in its name, "Intel" needs the file without it.',
-      'Open the .dmg, then drag WorkBuddy into the Applications folder.',
-      'The first time, do not double-click it. macOS blocks apps that are not from the App Store. In Applications, right-click WorkBuddy → Open → Open. If it still refuses, open System Settings → Privacy & Security, scroll down and click Open Anyway next to WorkBuddy.',
-      'WorkBuddy has no Dock icon or window. Look for its icon in the menu bar at the top right, next to the clock. If you are not signed in, a sign-in panel opens by itself.',
-      'Allow the permissions it needs in System Settings → Privacy & Security: Screen & System Audio Recording (for screenshots, without it they come out blank) and Microphone (only if you accepted audio monitoring). After you switch a permission on, quit WorkBuddy from the menu bar and open it again.',
-      'Optional: switch on Accessibility (same Privacy & Security page) if you want keyboard and mouse counts. Attendance and idle time work without it.',
-      'Sign in on this portal and click Connect when the agent asks. It starts by itself when you log in to your Mac. Quitting it from the menu bar stops capture until you open it again from Applications.',
-      'macOS says "WorkBuddy is damaged" or will not open? Open Terminal (Spotlight → Terminal) and run these two lines, one at a time: "xattr -cr /Applications/WorkBuddy.app" and then "codesign --force --deep --sign - /Applications/WorkBuddy.app". Then open WorkBuddy again.',
-      'Terminal answers "Operation not permitted"? In System Settings → Privacy & Security → App Management switch Terminal on, quit Terminal, open it again and repeat the two lines.',
-      '"WorkBuddy is not responding" or nothing appears? Close any stuck copy with "pkill -f WorkBuddy", then open WorkBuddy again from Applications. To see what it prints, run "/Applications/WorkBuddy.app/Contents/MacOS/WorkBuddy" in Terminal and send the text to HR.',
-      'Still stuck? Delete WorkBuddy from Applications, install it again from the .dmg and tell HR which message you saw.',
+      { text: 'Pick the right file for your Mac. Click the Apple menu, then About This Mac, and read the Chip line.', tip: 'Apple M1, M2, M3 or M4: use the file with "arm64" in its name. Intel: use the file without it.' },
+      'Open the .dmg file, then drag WorkBuddy into the Applications folder.',
+      { text: 'The first time, do not double-click it. In Applications, right-click WorkBuddy, choose Open, then click Open again.', tip: 'macOS blocks apps that are not from the App Store. If it still refuses, open System Settings, Privacy & Security, scroll down and click Open Anyway next to WorkBuddy.' },
+      'WorkBuddy has no Dock icon and no window. Look for its icon in the menu bar at the top right, next to the clock. If you are not signed in, a sign-in panel opens by itself.',
+      { text: 'Allow the permissions it asks for in System Settings, Privacy & Security: Screen & System Audio Recording (without it screenshots are blank) and Microphone (only if you accepted audio monitoring).', warn: 'After you switch a permission on, quit WorkBuddy from the menu bar and open it again, otherwise macOS does not apply it.' },
+      'Sign in on this portal and click Connect when the agent asks. It starts by itself when you log in to your Mac.',
+      { tip: 'Optional: switch on Accessibility on the same Privacy & Security page if you want keyboard and mouse counts. Attendance and idle time work without it.' },
+    ],
+  },
+  {
+    id: 'agent-mac-fix',
+    title: 'Mac: WorkBuddy will not open',
+    badge: 'Mac',
+    steps: true,
+    roles: ALL,
+    body: [
+      { text: 'Open Terminal (press Cmd + Space, type Terminal, press Return). Copy each line below, one at a time, paste it and press Return. These two lines remove the "downloaded from the internet" block and re-seal the app.', cmds: ['xattr -cr /Applications/WorkBuddy.app', 'codesign --force --deep --sign - /Applications/WorkBuddy.app'] },
+      { text: 'Then open WorkBuddy again from Applications.' },
+      { text: 'Terminal said "Operation not permitted"? Terminal needs permission to change apps. Open System Settings, Privacy & Security, App Management and switch Terminal on. Quit Terminal (Cmd + Q), open it again and repeat step 1.' },
+      { text: 'Says "not responding", or nothing appears? Close any stuck copy first, then open WorkBuddy again.', cmds: ['pkill -f WorkBuddy'] },
+      { text: 'Still nothing? Run it from Terminal so it prints what is wrong, then send that text to HR.', cmds: ['/Applications/WorkBuddy.app/Contents/MacOS/WorkBuddy'] },
+      { warn: 'Last resort: delete WorkBuddy from Applications, install it again from the .dmg, and tell HR exactly which message you saw.' },
     ],
   },
   {
     id: 'agent-linux',
-    title: 'Installing the desktop agent (Linux)',
+    title: 'Install the desktop agent on Linux',
+    badge: 'Linux',
+    steps: true,
     roles: ALL,
     body: [
-      'Use an X11 session for full monitoring. On the login screen choose "Ubuntu on Xorg" (or the "X11" option for your desktop). Wayland sessions work for attendance and idle time, but screenshots, keyboard/mouse counts and the active application can be missing.',
-      'Debian or Ubuntu: install the .deb with "sudo apt install ./WorkBuddy-<version>.deb". Other distributions: make the AppImage executable ("chmod +x WorkBuddy-<version>.AppImage") and run it.',
-      'The agent needs two small system packages for the active application and input counts: on Debian or Ubuntu run "sudo apt install x11-utils libxtst6".',
-      'GNOME does not show tray icons by default. Install the "AppIndicator and KStatusNotifierItem Support" extension, then log out and in. Without it the agent still runs; open it from the applications menu to see its window.',
-      'The agent starts by itself at login. Quitting it from the tray stops capture until you open WorkBuddy again.',
+      { text: 'Use an X11 session. On the login screen click the gear icon and choose "Ubuntu on Xorg" (or the "X11" option for your desktop).', warn: 'Wayland sessions keep attendance and idle time working, but screenshots, keyboard/mouse counts and the active application can be missing.' },
+      { text: 'Ubuntu, Debian or Linux Mint: install the .deb file. Open Terminal in the folder where you saved it and run:', cmds: ['sudo apt install ./kd-tracker-agent_*.deb'] },
+      { text: 'Fedora, Arch, openSUSE or anything else: use the AppImage file instead. In Terminal, in the folder where you saved it:', cmds: ['chmod +x WorkBuddy-*.AppImage', './WorkBuddy-*.AppImage'], tip: 'If the AppImage will not start, install FUSE first: sudo apt install libfuse2 (Debian/Ubuntu) or sudo dnf install fuse (Fedora).' },
+      { text: 'Install two small helper packages so the agent can read the active application and count keyboard/mouse activity (Debian, Ubuntu, Mint):', cmds: ['sudo apt install x11-utils libxtst6'] },
+      { text: 'Sign in on this portal and click Connect when the agent asks. It starts by itself when you log in.', warn: 'GNOME (the default Ubuntu and Fedora desktop) hides tray icons. Install the "AppIndicator and KStatusNotifierItem Support" extension, then log out and in. Without it the agent still runs, open WorkBuddy from the applications menu to see its panel.' },
     ],
   },
   {
@@ -327,6 +345,115 @@ function sectionsFor(role) {
   return [...visible].sort((a, b) => rank(a) - rank(b));
 }
 
+// --- Rendering -----------------------------------------------------------------------------
+// An item in a section's `body` is a plain string, or an object with any of:
+//   text  a sentence          cmds  commands to paste into a terminal (each gets a Copy button)
+//   tip   a helpful aside      warn  something that must not be missed
+
+const NUMBER_STYLE = {
+  flex: 'none',
+  width: 26,
+  height: 26,
+  borderRadius: '50%',
+  background: 'var(--accent-gradient)',
+  color: '#fff',
+  fontWeight: 700,
+  fontSize: 13,
+  display: 'grid',
+  placeItems: 'center',
+  marginTop: 1,
+};
+
+const CALLOUT = {
+  tip: { label: 'Tip', background: 'var(--accent-soft)', color: 'var(--accent-text)' },
+  warn: { label: 'Important', background: 'var(--warn-soft)', color: '#8a5200' },
+};
+
+function Callout({ kind, children }) {
+  const c = CALLOUT[kind];
+  return (
+    <div
+      style={{
+        background: c.background,
+        color: c.color,
+        borderRadius: 10,
+        padding: '9px 12px',
+        margin: '8px 0',
+        fontSize: 13,
+        lineHeight: 1.55,
+      }}
+    >
+      <strong style={{ marginRight: 6 }}>{c.label}:</strong>
+      {children}
+    </div>
+  );
+}
+
+function ItemBody({ item }) {
+  const it = typeof item === 'string' ? { text: item } : item;
+  return (
+    <>
+      {it.text && <div style={{ lineHeight: 1.6 }}>{it.text}</div>}
+      {it.cmds && it.cmds.map((cmd) => <CopyCommand key={cmd} command={cmd} />)}
+      {it.tip && <Callout kind="tip">{it.tip}</Callout>}
+      {it.warn && <Callout kind="warn">{it.warn}</Callout>}
+    </>
+  );
+}
+
+function Steps({ items }) {
+  return (
+    <ol style={{ listStyle: 'none', margin: '14px 0 0', padding: 0, display: 'grid', gap: 14 }}>
+      {items.map((item, i) => (
+        <li key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+          <span style={NUMBER_STYLE}>{i + 1}</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <ItemBody item={item} />
+          </div>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function Bullets({ items }) {
+  return (
+    <ul style={{ margin: '12px 0 0', paddingLeft: 20, lineHeight: 1.65 }}>
+      {items.map((item, i) => (
+        <li key={i} style={{ marginBottom: 6 }}>
+          <ItemBody item={item} />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function Badge({ children }) {
+  return (
+    <span
+      style={{
+        marginLeft: 10,
+        padding: '2px 9px',
+        borderRadius: 999,
+        background: 'var(--accent-soft)',
+        color: 'var(--accent-text)',
+        fontSize: 11,
+        fontWeight: 700,
+        letterSpacing: '0.03em',
+        verticalAlign: 'middle',
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
+const INSTALL_GUIDES = [
+  { id: 'agent-install', label: 'Windows' },
+  { id: 'agent-mac', label: 'Mac' },
+  { id: 'agent-linux', label: 'Linux' },
+];
+
 export default async function HelpPage() {
   const user = await requireUser();
   const sections = sectionsFor(user.role);
@@ -336,6 +463,7 @@ export default async function HelpPage() {
 
   return (
     <>
+      <OpenOnHash />
       <div className="page-head">
         <div>
           <h1>Help</h1>
@@ -348,14 +476,28 @@ export default async function HelpPage() {
 
       <div className="stack">
         <div className="card card-pad">
-          <div style={{ fontWeight: 650, fontSize: 15, marginBottom: 8 }}>{quickStart.title}</div>
-          <ol style={{ margin: 0, paddingLeft: 20, lineHeight: 1.65 }}>
-            {quickStart.steps.map((step) => (
-              <li key={step} style={{ marginBottom: 4 }}>
-                {step}
-              </li>
+          <div style={{ fontWeight: 650, fontSize: 15 }}>{quickStart.title}</div>
+          <Steps items={quickStart.steps} />
+        </div>
+
+        <div className="card card-pad">
+          <div style={{ fontWeight: 650, fontSize: 15 }}>Install the desktop agent</div>
+          <p className="faint" style={{ margin: '4px 0 12px', fontSize: 13 }}>
+            Screenshots and activity come from a small app on your computer. Pick your system for
+            the step-by-step guide.
+          </p>
+          <div className="inline" style={{ flexWrap: 'wrap', gap: 8 }}>
+            {INSTALL_GUIDES.map((g) => (
+              <a key={g.id} href={`#${g.id}`} className="btn">
+                {g.label} guide
+              </a>
             ))}
-          </ol>
+            {agentDownloadUrl && (
+              <a className="btn btn-info" href={agentDownloadUrl} download>
+                Download for Windows
+              </a>
+            )}
+          </div>
         </div>
 
         <div className="card card-pad">
@@ -373,21 +515,11 @@ export default async function HelpPage() {
 
         {sections.map((s, i) => (
           <details key={s.id} id={s.id} className="card card-pad" open={i === 0}>
-            <summary style={{ cursor: 'pointer', fontWeight: 650, fontSize: 15 }}>{s.title}</summary>
-            <ul style={{ margin: '12px 0 0', paddingLeft: 20, lineHeight: 1.65 }}>
-              {s.body.map((line) => (
-                <li key={line} style={{ marginBottom: 6 }}>
-                  {line}
-                </li>
-              ))}
-            </ul>
-            {s.id === 'agent-install' && agentDownloadUrl && (
-              <p style={{ margin: '14px 0 0' }}>
-                <a className="btn btn-info" href={agentDownloadUrl} download>
-                  Download WorkBuddy for Windows
-                </a>
-              </p>
-            )}
+            <summary style={{ cursor: 'pointer', fontWeight: 650, fontSize: 15 }}>
+              {s.title}
+              {s.badge && <Badge>{s.badge}</Badge>}
+            </summary>
+            {s.steps ? <Steps items={s.body} /> : <Bullets items={s.body} />}
           </details>
         ))}
       </div>
