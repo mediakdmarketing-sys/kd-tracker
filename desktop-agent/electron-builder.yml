@@ -34,6 +34,12 @@ protocols:
     schemes:
       - workbuddy
 
+# Do not recompile native modules at package time. active-win and uiohook-napi are N-API
+# modules that ship prebuilt binaries (the same .node file loads in Electron and plain Node),
+# and sql.js is pure WASM. Rebuilding from source needs Visual Studio Build Tools plus a Python
+# with distutils (gone in 3.12+), and fails on machines and CI runners that lack them.
+npmRebuild: false
+
 files:
   - src/**/*
   - package.json
