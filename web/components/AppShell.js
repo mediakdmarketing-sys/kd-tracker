@@ -99,6 +99,13 @@ const Icon = {
       <circle cx="12" cy="17" r="0.6" />
     </svg>
   ),
+  download: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M12 3v12" />
+      <path d="M7 11l5 5 5-5" />
+      <path d="M4 20h16" />
+    </svg>
+  ),
   me: (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <circle cx="12" cy="8" r="4" />
@@ -175,6 +182,7 @@ const USER_GROUP = {
     { href: '/me/leave', label: 'Leave', icon: Icon.leave },
     // Same group for every role: right under the links people use every day, not after the
     // team/admin sections where it was easy to miss.
+    { href: '/download', label: 'Download', icon: Icon.download },
     { href: '/help', label: 'Help', icon: Icon.help },
   ],
 };
