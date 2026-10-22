@@ -11,10 +11,7 @@ const PLATFORMS = [
     name: 'Windows',
     requirement: 'Windows 10 or later · 64-bit',
     format: '.exe installer',
-    url:
-      process.env.AGENT_DOWNLOAD_URL_WINDOWS ||
-      process.env.AGENT_DOWNLOAD_URL ||
-      'https://pub-71e396a00e5740aea9a398af6cd25b69.r2.dev/WorkBuddy%20Setup%200.7.0.exe',
+    url: 'https://pub-71e396a00e5740aea9a398af6cd25b69.r2.dev/WorkBuddy%20Setup%200.7.0.exe',
     icon: (
       <svg width="34" height="34" viewBox="0 0 24 24" fill="#0078d4">
         <path d="M3 5.5l8-1.1v7.1H3zM12 4.3l9-1.3v8.5h-9zM3 12.5h8v7.1l-8-1.1zM12 12.5h9V21l-9-1.3z" />
