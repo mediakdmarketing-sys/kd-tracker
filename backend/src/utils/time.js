@@ -5,6 +5,10 @@
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+// The company works on New York time: new employees start in this zone and a date computed
+// without an explicit zone falls back to it. An employee's own `timezone` still wins.
+const DEFAULT_TIMEZONE = 'America/New_York';
+
 function now() {
   return Date.now();
 }
@@ -13,7 +17,7 @@ function now() {
  * Calendar date for an instant, in the given IANA timezone.
  * en-CA formats as YYYY-MM-DD, which is exactly the shape we store.
  */
-function localDate(ms = Date.now(), timezone = 'Asia/Kolkata') {
+function localDate(ms = Date.now(), timezone = DEFAULT_TIMEZONE) {
   try {
     return new Intl.DateTimeFormat('en-CA', {
       timeZone: timezone,
@@ -89,6 +93,7 @@ function isMonthString(value) {
 
 module.exports = {
   DAY_MS,
+  DEFAULT_TIMEZONE,
   now,
   localDate,
   monthOf,

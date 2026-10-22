@@ -297,7 +297,7 @@ async function createEmployee(input) {
     department: input.department || null,
     employee_code: input.employeeCode || null,
     status: 'active',
-    timezone: input.timezone || 'Asia/Kolkata',
+    timezone: input.timezone || t.DEFAULT_TIMEZONE,
     consent_monitoring: false,
     consent_audio: false,
     blur_screenshots: false,

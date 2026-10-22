@@ -4,7 +4,7 @@
 // server render and the browser render produce identical strings — otherwise React would
 // report a hydration mismatch on every timestamp on the page.
 
-export const DEFAULT_TZ = 'Asia/Kolkata';
+export const DEFAULT_TZ = 'America/New_York';
 
 // Module-level regex — compiled once, reused on every call.
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;

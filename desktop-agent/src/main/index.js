@@ -22,6 +22,7 @@ const { iconFor } = require('./trayIcon');
 const notifications = require('./notifications');
 const { startUpdater } = require('./updater');
 const linux = require('./linux');
+const { startFileLog } = require('./fileLog');
 
 const ACTIVITY_WINDOW_SECONDS = 60;
 // The portal normally nudges the agent (workbuddy://sync) the moment something changes there;
@@ -123,9 +124,18 @@ if (!app.requestSingleInstanceLock()) {
 
 async function start() {
   const dataDir = app.getPath('userData');
+  const logFile = startFileLog(dataDir);
+  logger.info('Agent starting', {
+    version: app.getVersion(),
+    platform: process.platform,
+    arch: process.arch,
+    packaged: app.isPackaged,
+    logFile,
+  });
   const settings = loadSettings(dataDir);
 
   outbox = await Outbox.open(dataDir);
+  logger.info('Outbox ready');
 
   const tokenStore = new FileTokenStore(path.join(dataDir, 'session.bin'), {
     available: () => safeStorage.isEncryptionAvailable(),

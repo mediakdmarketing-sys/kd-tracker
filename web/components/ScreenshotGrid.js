@@ -51,7 +51,7 @@ export default function ScreenshotGrid({ items, timezone, from, to, fileUrlBase,
   const timeFmt = useMemo(
     () =>
       new Intl.DateTimeFormat('en-GB', {
-        timeZone: timezone || 'Asia/Kolkata',
+        timeZone: timezone || 'America/New_York',
         ...(multiDay ? { month: 'short', day: '2-digit' } : {}),
         hour: '2-digit',
         minute: '2-digit',

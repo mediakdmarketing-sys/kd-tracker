@@ -14,7 +14,7 @@ const { storage, buildKey } = require('../../storage');
 // Lives outside the seeds directory on purpose: Knex treats every file in there as a seed.
 const { makePlaceholderPng } = require('../support/placeholderImage');
 
-const TZ = 'Asia/Kolkata';
+const TZ = 'America/New_York';
 const PASSWORD = 'Password123!';
 
 // Five real PNGs that render as mock application windows, cycled across captures. Generated
