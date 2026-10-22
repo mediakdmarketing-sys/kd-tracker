@@ -25,13 +25,12 @@ export default async function LeaderMemberDetailPage({ params, searchParams }) {
   const to = query.to || query.date || today;
   const isRange = from !== to;
 
-  const [attendance, screenshots, audio, activity, agentConfig, projectTime] = await Promise.all([
+  const [attendance, screenshots, audio, activity, agentConfig] = await Promise.all([
     api(`/api/leader/members/${id}/attendance?from=${from}&to=${to}`),
     api(`/api/leader/members/${id}/screenshots?from=${from}&to=${to}&limit=200`),
     api(`/api/leader/members/${id}/audio?from=${from}&to=${to}&limit=60`),
     api(`/api/leader/members/${id}/activity?from=${from}&to=${to}&limit=200`),
     api('/api/config'),
-    isRange ? Promise.resolve([]) : api(`/api/leader/members/${id}/projects?date=${from}`),
   ]);
 
   const shift = isRange ? null : attendance.data[0];
@@ -165,32 +164,6 @@ export default async function LeaderMemberDetailPage({ params, searchParams }) {
                         {b.end ? timeSec(b.end, member.timezone) : 'running'}
                       </td>
                       <td className="num">{duration(b.durationSeconds)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {projectTime.length > 0 && (
-          <div className="card">
-            <div className="card-head">
-              <h2>Time by project</h2>
-            </div>
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Project</th>
-                    <th>Time</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {projectTime.map((row) => (
-                    <tr key={row.projectId || 'unassigned'}>
-                      <td className={row.projectId ? undefined : 'muted'}>{row.projectName}</td>
-                      <td className="num">{duration(row.seconds)}</td>
                     </tr>
                   ))}
                 </tbody>

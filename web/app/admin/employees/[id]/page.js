@@ -59,9 +59,7 @@ export default async function EmployeeDetailPage({ params, searchParams }) {
   // real rows, not just the pagination total. A 9h shift tops out around 540 one-minute
   // windows in principle, but idle windows send no row at all, so 200 comfortably covers a
   // realistically active day; pagination.total still reflects the true count either way.
-  // Project-time summary stays single-day (the backend endpoint isn't range-aware yet) —
-  // fetched only when it can actually be shown, rather than a call whose result is discarded.
-  const [attendance, screenshots, audio, activity, allDepts, leaderAssignments, agentConfig, projectTime] =
+  const [attendance, screenshots, audio, activity, allDepts, leaderAssignments, agentConfig] =
     await Promise.all([
       api(`/api/attendance/${id}?from=${from}&to=${to}`),
       api(`/api/screenshots/${id}?from=${from}&to=${to}&limit=200`),
@@ -70,7 +68,6 @@ export default async function EmployeeDetailPage({ params, searchParams }) {
       api('/api/admin/departments'),
       api('/api/admin/department-leaders'),
       api('/api/config'),
-      isRange ? Promise.resolve([]) : api(`/api/attendance/${id}/projects?date=${from}`),
     ]);
 
   // Departments this employee currently leads.
@@ -233,32 +230,6 @@ export default async function EmployeeDetailPage({ params, searchParams }) {
                         {b.end ? timeSec(b.end, employee.timezone) : 'running'}
                       </td>
                       <td className="num">{duration(b.durationSeconds)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {projectTime.length > 0 && (
-          <div className="card">
-            <div className="card-head">
-              <h2>Time by project</h2>
-            </div>
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Project</th>
-                    <th>Time</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {projectTime.map((row) => (
-                    <tr key={row.projectId || 'unassigned'}>
-                      <td className={row.projectId ? undefined : 'muted'}>{row.projectName}</td>
-                      <td className="num">{duration(row.seconds)}</td>
                     </tr>
                   ))}
                 </tbody>

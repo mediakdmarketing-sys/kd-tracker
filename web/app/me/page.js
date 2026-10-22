@@ -7,10 +7,9 @@ import { duration, time, timeSec, breakSecondsOf, isOpenShift } from '@/lib/form
 export const metadata = { title: 'My shift · WorkBuddy' };
 
 export default async function MyShiftPage() {
-  const [user, status, projects] = await Promise.all([
+  const [user, status] = await Promise.all([
     requireUser(),
     api('/api/attendance/status'),
-    api('/api/projects'),
   ]);
 
   const agentDownloadUrl = process.env.AGENT_DOWNLOAD_URL || '';
@@ -46,7 +45,7 @@ export default async function MyShiftPage() {
         )}
 
         {/* Live punch controls + ticking clock */}
-        <ShiftPanel initial={status} timezone={user.timezone} projects={projects} />
+        <ShiftPanel initial={status} timezone={user.timezone} />
 
         {/* Today's at-a-glance stats */}
         {/* Shares ShiftPanel's live status, so the tiles and the clock above never disagree. */}

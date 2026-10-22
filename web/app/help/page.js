@@ -141,7 +141,7 @@ const SECTIONS = [
     roles: LEADERS,
     body: [
       'My team lists the departments you lead and how many members are working now. Live board shows who is working, on a break or out.',
-      'Click a member to see their attendance, screenshots, audio samples, activity counts and project time for a date or date range.',
+      'Click a member to see their attendance, screenshots, audio samples, and activity counts for a date or date range.',
       'Leave requests → Pending, Approved, Rejected or All. Open a request, check the dates, reason and proof, then Approve or Reject.',
       'Captured media is sensitive. Open it only when you need to.',
       'If My team says you do not lead a department yet, ask HR to assign you.',
@@ -162,7 +162,7 @@ const SECTIONS = [
     title: 'For leaders: reading a team member’s day',
     roles: LEADERS,
     body: [
-      'Open a member from My team or the Live board. For the day or range you pick you see worked time, breaks, idle time, activity counts, screenshots, audio samples and project time.',
+      'Open a member from My team or the Live board. For the day or range you pick you see worked time, breaks, idle time, activity counts, screenshots and audio samples.',
       'Worked time is the total for the whole day, so an employee who punched out and back in (for example after a power cut) is counted once, not twice.',
       'Over the shift target is shown as overtime. It is information for you, not an approval.',
     ],
@@ -193,10 +193,9 @@ const SECTIONS = [
     title: 'For admins: people and structure',
     roles: ADMIN,
     body: [
-      'Suggested set-up order: Settings → Departments → Employees → leaders → Projects (only if you track project time).',
+      'Suggested set-up order: Settings → Departments → Employees → leaders.',
       'Employees → add an employee with name, work email, starting password, role, department and employee code.',
       'On an employee page you can edit role and department, reset the password, turn on Blur screenshots, deactivate the account (it signs them out everywhere) and assign or remove them as a department leader.',
-      'Projects: create and archive projects. The "Working on" picker only appears for employees once at least one project exists.',
     ],
   },
   {

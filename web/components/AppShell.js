@@ -69,11 +69,6 @@ const Icon = {
       <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
     </svg>
   ),
-  projects: (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
-    </svg>
-  ),
   payroll: (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <rect x="2" y="5" width="20" height="14" rx="2" />
@@ -149,7 +144,6 @@ const ADMIN_GROUPS = [
     links: [
       { href: '/admin/employees', label: 'Employees', icon: Icon.employees },
       { href: '/admin/departments', label: 'Departments', icon: Icon.departments },
-      { href: '/admin/projects', label: 'Projects', icon: Icon.projects },
     ],
   },
   {
