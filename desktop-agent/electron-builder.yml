@@ -68,6 +68,11 @@ mac:
       arch: [x64, arm64]
   category: public.app-category.business
   icon: build/icon.png
+  # The text macOS shows in its permission prompts. Without a usage description for the
+  # microphone, macOS can terminate the app the moment it asks for access.
+  extendInfo:
+    NSMicrophoneUsageDescription: WorkBuddy records short audio samples during your shift, only if you accepted audio monitoring.
+    NSScreenCaptureUsageDescription: WorkBuddy takes screenshots during your shift so your attendance can be reviewed.
   # No Developer ID configured. Without this, an unsigned build on some electron-builder
   # versions still attempts ad-hoc signing and can fail confusingly on a CI box with no
   # keychain at all.

@@ -101,6 +101,25 @@ unless you have proper cross-compilation toolchains set up. `npm run rebuild:nat
 succeed on the build machine before `npm run build:*` will produce something that actually
 runs.
 
+## Platform support
+
+| | Windows | macOS | Linux (X11) | Linux (Wayland) |
+|---|---|---|---|---|
+| Punch, breaks, offline queue | yes | yes | yes | yes |
+| Idle detection | yes | yes | yes | yes (desktop idle timer) |
+| Screenshots | yes | needs Screen Recording permission | yes | limited: portal prompt or blank |
+| Keyboard/mouse counts | yes | needs Accessibility/Input Monitoring | needs `libxtst6` | no |
+| Active application name | yes | needs Screen Recording | needs `x11-utils` | no |
+| Start at login | yes | yes | yes (`~/.config/autostart`) | yes |
+| Auto-update | yes | needs a signed app | AppImage only | AppImage only |
+| Tested | yes | **not yet** | **not yet** | **not yet** |
+
+Linux builds (`npm run build:linux`, on a Linux machine) produce an AppImage and a `.deb`.
+Linux needs `x11-utils` and `libxtst6` installed. GNOME needs the AppIndicator extension to show
+a tray icon. On Wayland the agent shows a one-time notice and keeps recording attendance and idle
+time, but the richer capture needs an Xorg session. macOS and Linux have not been run on real
+hardware yet: test on one machine of each before rolling out.
+
 ## Distributing and updating
 
 > The "Native module: better-sqlite3" section above is obsolete: the outbox now uses `sql.js`

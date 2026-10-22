@@ -54,6 +54,18 @@ const SECTIONS = [
     ],
   },
   {
+    id: 'agent-linux',
+    title: 'Installing the desktop agent (Linux)',
+    roles: ALL,
+    body: [
+      'Use an X11 session for full monitoring. On the login screen choose "Ubuntu on Xorg" (or the "X11" option for your desktop). Wayland sessions work for attendance and idle time, but screenshots, keyboard/mouse counts and the active application can be missing.',
+      'Debian or Ubuntu: install the .deb with "sudo apt install ./WorkBuddy-<version>.deb". Other distributions: make the AppImage executable ("chmod +x WorkBuddy-<version>.AppImage") and run it.',
+      'The agent needs two small system packages for the active application and input counts: on Debian or Ubuntu run "sudo apt install x11-utils libxtst6".',
+      'GNOME does not show tray icons by default. Install the "AppIndicator and KStatusNotifierItem Support" extension, then log out and in. Without it the agent still runs; open it from the applications menu to see its window.',
+      'The agent starts by itself at login. Quitting it from the tray stops capture until you open WorkBuddy again.',
+    ],
+  },
+  {
     id: 'shift',
     title: 'Punching in, breaks and punching out',
     roles: ALL,

@@ -1,0 +1,77 @@
+name: Build desktop agent
+
+# Builds the WorkBuddy installers in the cloud, so nobody needs a Mac or Linux machine to make
+# a .dmg / .AppImage / .deb. Run it by hand: GitHub -> Actions -> "Build desktop agent" ->
+# Run workflow. When it finishes, download the files from the run's "Artifacts" section.
+#
+# Nothing is published or uploaded anywhere: the installers only attach to the run.
+# The builds are unsigned (see desktop-agent/README.md).
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows
+            os: windows-latest
+            script: build:win
+            artifact: workbuddy-windows
+            files: |
+              desktop-agent/dist/*.exe
+              desktop-agent/dist/*.blockmap
+              desktop-agent/dist/latest.yml
+          - name: macOS
+            os: macos-latest
+            script: build:mac
+            artifact: workbuddy-macos
+            files: |
+              desktop-agent/dist/*.dmg
+              desktop-agent/dist/*.blockmap
+              desktop-agent/dist/latest-mac.yml
+          - name: Linux
+            os: ubuntu-latest
+            script: build:linux
+            artifact: workbuddy-linux
+            files: |
+              desktop-agent/dist/*.AppImage
+              desktop-agent/dist/*.deb
+              desktop-agent/dist/latest-linux.yml
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: desktop-agent/package-lock.json
+
+      - name: Install dependencies
+        working-directory: desktop-agent
+        run: npm ci
+
+      - name: Run agent tests
+        working-directory: desktop-agent
+        run: npm test
+
+      - name: Build installer
+        working-directory: desktop-agent
+        # --publish never: electron-builder is configured with an update feed, but this job must
+        # only build, never upload.
+        run: npx electron-builder --publish never ${{ matrix.script == 'build:win' && '--win' || matrix.script == 'build:mac' && '--mac' || '--linux' }}
+        env:
+          # No signing identity exists; stop macOS looking for one in a keychain that is not there.
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.files }}
+          if-no-files-found: error
+          retention-days: 30

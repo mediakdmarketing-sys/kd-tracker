@@ -21,6 +21,7 @@ const audio = require('./audio');
 const { iconFor } = require('./trayIcon');
 const notifications = require('./notifications');
 const { startUpdater } = require('./updater');
+const linux = require('./linux');
 
 const ACTIVITY_WINDOW_SECONDS = 60;
 // The portal normally nudges the agent (workbuddy://sync) the moment something changes there;
@@ -193,6 +194,9 @@ async function start() {
   // employee remembers to open it. Packaged builds only: `npm start` in development must not
   // register the dev Electron binary as a login item.
   if (app.isPackaged) app.setLoginItemSettings({ openAtLogin: true });
+  // Electron's login item does nothing on Linux; these two are the Linux equivalents.
+  linux.enableAutostart();
+  linux.noteWaylandLimits(settings);
 
   // New builds arrive on their own. A restart is only allowed while the employee is punched out
   // (or the app is quit), never mid-shift. A no-op in development or with no update URL set.

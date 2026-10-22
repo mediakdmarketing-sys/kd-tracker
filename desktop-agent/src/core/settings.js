@@ -38,6 +38,8 @@ function loadSettings(dataDir) {
     drainIntervalMs: stored.drainIntervalMs || 15_000,
     activityIntervalMs: stored.activityIntervalMs || 60_000,
     screenshotQuality: stored.screenshotQuality ?? 70,
+    // The Linux/Wayland explanation is shown once per machine, then never again.
+    waylandNoticeShown: Boolean(stored.waylandNoticeShown),
     save(patch) {
       const next = { ...stored, ...patch };
       fs.mkdirSync(dataDir, { recursive: true });

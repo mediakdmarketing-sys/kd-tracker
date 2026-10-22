@@ -20,6 +20,9 @@ uploads/
 # Build output
 dist/
 build/
+# The agent's build/ holds the app icon and its generator, which electron-builder needs; a
+# fresh clone (or CI) cannot package the installer without them.
+!desktop-agent/build/
 .next/
 out/
 coverage/
