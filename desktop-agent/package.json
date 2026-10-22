@@ -3,6 +3,8 @@
   "version": "0.7.0",
   "private": true,
   "description": "Desktop monitoring agent for Windows, macOS and Linux",
+  "homepage": "https://kd-tracker-three.vercel.app",
+  "author": "KD Marketing",
   "main": "src/main/index.js",
   "scripts": {
     "start": "electron .",
