@@ -41,12 +41,7 @@ export default async function LeaderIndexPage() {
                       : ''}
                   </span>
                 </div>
-                <Link
-                  href={`/leader/members?department=${encodeURIComponent(dept.department)}`}
-                  className="btn"
-                >
-                  View live →
-                </Link>
+                
               </div>
 
               <div className="table-wrap">
