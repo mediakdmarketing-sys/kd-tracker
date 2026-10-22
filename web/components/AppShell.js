@@ -159,7 +159,7 @@ const ADMIN_GROUPS = [
       { href: '/admin/leave', label: 'Leave requests', icon: Icon.leave },
       { href: '/admin/audit', label: 'Audit log', icon: Icon.audit },
       { href: '/admin/settings', label: 'Settings', icon: Icon.settings },
-       { href: 'admin/help', label: 'Help', icon: Icon.help },
+      
     ],
   },
 ];
@@ -171,7 +171,7 @@ const LEADER_GROUPS = [
       { href: '/leader', label: 'My team', icon: Icon.team },
       { href: '/leader/members', label: 'Live board', icon: Icon.board },
       { href: '/leader/leave', label: 'Leave requests', icon: Icon.leave },
-       { href: 'leader/help', label: 'Help', icon: Icon.help },
+      
     ],
   },
 ];
