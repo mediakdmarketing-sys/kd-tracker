@@ -54,6 +54,20 @@ function score({ workedSeconds, idleSeconds, samples }) {
   return Math.round(100 * (ACTIVE_WEIGHT * activeRatio + APP_WEIGHT * appScore));
 }
 
+/** Per-department overrides as Map(`${department}|${appKey}` -> category). */
+async function loadDepartmentOverrides() {
+  const rows = await db()('app_department_categories').select('app_key', 'department', 'category');
+  return new Map(rows.map((r) => [`${r.department}|${r.app_key}`, r.category]));
+}
+
+/**
+ * Category of an app for someone in `department`: that department's own setting first, then the
+ * company-wide override, then the built-in default. No department -> company-wide only.
+ */
+function categoryIn(appKey, department, overrides, deptOverrides) {
+  return (department && deptOverrides.get(`${department}|${appKey}`)) || categoryFor(appKey, overrides);
+}
+
 const emptySamples = () => ({ productive: 0, neutral: 0, distracting: 0 });
 
 async function overview({ from, to, department } = {}) {
@@ -61,6 +75,7 @@ async function overview({ from, to, department } = {}) {
   if (from > to) throw badRequest('`from` must not be after `to`');
 
   const overrides = await loadOverrides();
+  const deptOverrides = await loadDepartmentOverrides();
 
   const attendanceQuery = db()('attendance as a')
     .join('employees as e', 'e.id', 'a.employee_id')
@@ -80,8 +95,8 @@ async function overview({ from, to, department } = {}) {
   if (department) activityQuery.andWhere('e.department', department);
 
   const activity = await activityQuery
-    .groupBy('l.employee_id', 'l.window_title')
-    .select('l.employee_id', 'l.window_title')
+    .groupBy('l.employee_id', 'e.department', 'l.window_title')
+    .select('l.employee_id', 'e.department', 'l.window_title')
     .count({ c: 'l.id' });
 
   // One pass: per-employee samples, per-employee top app, and the team-wide app table.
@@ -91,14 +106,18 @@ async function overview({ from, to, department } = {}) {
     const key = normaliseApp(row.window_title);
     if (!key) continue;
     const count = Number(row.c) || 0;
-    const category = categoryFor(key, overrides);
+    // Each person's samples are scored with their own department's categories.
+    const category = categoryIn(key, row.department, overrides, deptOverrides);
 
     const emp = byEmployee.get(row.employee_id) || { samples: emptySamples(), apps: new Map() };
     emp.samples[category] += count;
     emp.apps.set(key, (emp.apps.get(key) || 0) + count);
     byEmployee.set(row.employee_id, emp);
 
-    const team = teamApps.get(key) || { app: row.window_title, category, count: 0 };
+    // Top apps: a department view shows that department's category; "All departments" shows the
+    // company-wide one, so one team's setting never leaks into the overall picture.
+    const shown = categoryIn(key, department, overrides, deptOverrides);
+    const team = teamApps.get(key) || { app: row.window_title, category: shown, count: 0 };
     team.count += count;
     teamApps.set(key, team);
   }
@@ -199,18 +218,24 @@ async function overview({ from, to, department } = {}) {
   };
 }
 
-/** Every app seen in the last `days` days, plus any override, with its effective category. */
-async function listApps({ days = 30 } = {}) {
+/**
+ * Every app seen in the last `days` days, plus any override, with its effective category.
+ * With a `department`, only apps that department's members used are listed, with the category
+ * that applies to that department. Without one, the company-wide category is shown.
+ */
+async function listApps({ days = 30, department } = {}) {
   const overrideRows = await db()('app_categories').select('app_key', 'app_name', 'category');
   const overrides = new Map(overrideRows.map((r) => [r.app_key, r]));
+  const categoryMap = new Map([...overrides].map(([k, v]) => [k, v.category]));
+  const deptOverrides = await loadDepartmentOverrides();
 
   const since = new Date(t.now() - days * 86400 * 1000).toISOString().slice(0, 10);
-  const seen = await db()('activity_logs')
-    .where('date', '>=', since)
-    .whereNotNull('window_title')
-    .groupBy('window_title')
-    .select('window_title')
-    .count({ c: 'id' });
+  const seenQuery = db()('activity_logs as l')
+    .join('employees as e', 'e.id', 'l.employee_id')
+    .where('l.date', '>=', since)
+    .whereNotNull('l.window_title');
+  if (department) seenQuery.andWhere('e.department', department);
+  const seen = await seenQuery.groupBy('l.window_title').select('l.window_title').count({ c: 'l.id' });
 
   const apps = new Map();
   for (const row of seen) {
@@ -220,25 +245,70 @@ async function listApps({ days = 30 } = {}) {
     entry.samples += Number(row.c) || 0;
     apps.set(key, entry);
   }
-  for (const [key, o] of overrides) {
-    if (!apps.has(key)) apps.set(key, { appKey: key, appName: o.app_name, samples: 0 });
+  // Apps an admin added by hand stay listed even with no samples. A department view lists only
+  // that department's own additions, so the table stays that team's apps.
+  if (!department) {
+    for (const [key, o] of overrides) {
+      if (!apps.has(key)) apps.set(key, { appKey: key, appName: o.app_name, samples: 0 });
+    }
+  } else {
+    const own = await db()('app_department_categories')
+      .where({ department })
+      .select('app_key', 'app_name');
+    for (const r of own) {
+      if (!apps.has(r.app_key)) apps.set(r.app_key, { appKey: r.app_key, appName: r.app_name, samples: 0 });
+    }
   }
 
   return [...apps.values()]
-    .map((a) => ({
-      ...a,
-      category: categoryFor(a.appKey, new Map([...overrides].map(([k, v]) => [k, v.category]))),
-      overridden: overrides.has(a.appKey),
-    }))
+    .map((a) => {
+      const own = department ? deptOverrides.get(`${department}|${a.appKey}`) : undefined;
+      return {
+        ...a,
+        category: own || categoryFor(a.appKey, categoryMap),
+        // Set specifically for this department / company-wide (so "Reset" has something to undo).
+        overridden: department ? Boolean(own) : overrides.has(a.appKey),
+      };
+    })
     .sort((a, b) => b.samples - a.samples || a.appName.localeCompare(b.appName));
 }
 
-async function setCategory({ appName, category, updatedBy }) {
+/**
+ * With a `department`, sets the category for that department only. Without one it applies to
+ * every department, so any department-specific settings for the app are cleared.
+ */
+async function setCategory({ appName, category, department, updatedBy }) {
   const key = normaliseApp(appName);
   if (!key) throw badRequest('appName is required');
   if (!CATEGORIES.includes(category)) throw badRequest('Unknown category');
-
+  const scope = (department || '').trim();
   const nowMs = t.now();
+  const name = String(appName).trim().slice(0, 120);
+
+  if (scope) {
+    const existing = await db()('app_department_categories')
+      .where({ app_key: key, department: scope })
+      .first();
+    if (existing) {
+      await db()('app_department_categories')
+        .where({ id: existing.id })
+        .update({ category, updated_by: updatedBy || null, updated_at: nowMs });
+    } else {
+      await db()('app_department_categories').insert({
+        id: uuid(),
+        app_key: key,
+        app_name: name,
+        department: scope,
+        category,
+        updated_by: updatedBy || null,
+        created_at: nowMs,
+        updated_at: nowMs,
+      });
+    }
+    return { appKey: key, category, department: scope };
+  }
+
+  await db()('app_department_categories').where({ app_key: key }).del();
   const existing = await db()('app_categories').where({ app_key: key }).first();
   if (existing) {
     await db()('app_categories')
@@ -248,7 +318,7 @@ async function setCategory({ appName, category, updatedBy }) {
     await db()('app_categories').insert({
       id: uuid(),
       app_key: key,
-      app_name: String(appName).trim().slice(0, 120),
+      app_name: name,
       category,
       updated_by: updatedBy || null,
       created_at: nowMs,
@@ -258,10 +328,19 @@ async function setCategory({ appName, category, updatedBy }) {
   return { appKey: key, category };
 }
 
-/** Drops the override so the app falls back to the built-in default (or neutral). */
-async function resetCategory(appName) {
+/**
+ * Drops the override so the app falls back to the next level: a department view removes that
+ * department's setting (back to company-wide / default); the All view removes the company-wide
+ * one and every department's.
+ */
+async function resetCategory(appName, department) {
   const key = normaliseApp(appName);
-  await db()('app_categories').where({ app_key: key }).del();
+  if (department) {
+    await db()('app_department_categories').where({ app_key: key, department }).del();
+  } else {
+    await db()('app_categories').where({ app_key: key }).del();
+    await db()('app_department_categories').where({ app_key: key }).del();
+  }
   return { appKey: key, reset: true };
 }
 

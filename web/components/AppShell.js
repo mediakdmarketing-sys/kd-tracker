@@ -34,6 +34,13 @@ function PanelToggleIcon({ collapsed }) {
 
 // Small inline icon set — one file, no icon-library dependency for a dozen glyphs.
 const Icon = {
+  dashboard: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M3 3v18h18" />
+      <path d="M7 16l4-5 3 3 5-7" />
+      <circle cx="19" cy="7" r="1" />
+    </svg>
+  ),
   board: (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <rect x="3" y="3" width="7" height="9" rx="2" />
@@ -78,12 +85,6 @@ const Icon = {
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <rect x="2" y="5" width="20" height="14" rx="2" />
       <line x1="2" y1="10" x2="22" y2="10" />
-    </svg>
-  ),
-  audit: (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M9 11l3 3L22 4" />
-      <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
     </svg>
   ),
   settings: (
@@ -139,6 +140,7 @@ const ADMIN_GROUPS = [
   {
     label: 'Overview',
     links: [
+      { href: '/admin/dashboard', label: 'Dashboard', icon: Icon.dashboard },
       { href: '/admin', label: 'Live board', icon: Icon.board },
       { href: '/admin/productivity', label: 'Productivity', icon: Icon.productivity },
       { href: '/admin/reports', label: 'Reports', icon: Icon.reports },
@@ -157,7 +159,6 @@ const ADMIN_GROUPS = [
     links: [
       { href: '/admin/payroll', label: 'Payroll', icon: Icon.payroll },
       { href: '/admin/leave', label: 'Leave requests', icon: Icon.leave },
-      { href: '/admin/audit', label: 'Audit log', icon: Icon.audit },
       { href: '/admin/settings', label: 'Settings', icon: Icon.settings },
       
     ],
