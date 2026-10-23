@@ -32,3 +32,8 @@ coverage/
 Thumbs.db
 .vscode/
 .idea/
+
+# Android build output
+.gradle/
+local.properties
+*.apk

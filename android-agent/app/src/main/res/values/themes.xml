@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.WorkBuddy" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <item name="colorPrimary">#6D5EF0</item>
+        <item name="colorPrimaryVariant">#5B3FD6</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorSecondary">#9333EA</item>
+        <item name="android:windowBackground">#F5F4FC</item>
+        <item name="android:statusBarColor">#F5F4FC</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>

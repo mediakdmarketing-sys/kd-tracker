@@ -1,0 +1,41 @@
+name: Build Android app
+
+# Builds the WorkBuddy Android app (android-agent/) into an APK in the cloud, so nobody needs
+# Android Studio. Run it by hand: GitHub -> Actions -> "Build Android app" -> Run workflow, then
+# download the APK from the run's "Artifacts" section.
+#
+# The APK is a debug build, signed with the standard debug key: fine for installing directly on
+# employees' phones ("install unknown apps"), not for the Play Store.
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'android-agent/**'
+      - '.github/workflows/build-android.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.9
+
+      - name: Build debug APK
+        working-directory: android-agent
+        run: gradle --no-daemon assembleDebug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: workbuddy-android
+          path: android-agent/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30

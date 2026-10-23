@@ -14,7 +14,7 @@ const router = express.Router();
 const loginSchema = z.object({
   email: z.string().trim().toLowerCase().email('A valid work email is required'),
   password: z.string().min(1, 'Password is required'),
-  client: z.enum(['web', 'desktop', 'chromeos']).optional(),
+  client: z.enum(['web', 'desktop', 'chromeos', 'android']).optional(),
 });
 
 const refreshSchema = z.object({
