@@ -88,6 +88,22 @@ const SECTIONS = [
     ],
   },
   {
+    id: 'agent-android',
+    title: 'Install the WorkBuddy app on an Android phone',
+    badge: 'Android',
+    steps: true,
+    roles: ALL,
+    body: [
+      { text: 'Download the WorkBuddy app (a file ending in .apk) from the Download button above, or ask HR to send it to you. You need Android 10 or newer.' },
+      { text: 'Open the downloaded file. Android asks to allow installs from this source: tap Settings, switch Allow from this source on, go back and tap Install.', tip: 'This is needed because the app is installed directly and not from the Play Store. If Play Protect asks to scan it, choose Scan or Install anyway.' },
+      'Open WorkBuddy and sign in with your work email. Allow notifications when asked.',
+      'Read the notice about what is recorded and tap I understand and accept. The audio box is optional.',
+      { text: 'Tap Punch in. Then tap Start now on the Android box that asks to start capturing your screen. If the app asks for the microphone, allow it only if you accepted audio.', warn: 'Android shows a WorkBuddy notification for as long as capture runs. That is how your phone tells you it is recording, it cannot be hidden.' },
+      { text: 'Keep WorkBuddy running during your shift. Tap Start break to pause capture, and Punch out when you finish.', tip: 'If the phone restarts or you force-close the app, open it and tap Start capture again. Android asks for your permission every time.' },
+      { text: 'Capture stops by itself when your phone kills the app to save battery. To prevent this, open Settings, Apps, WorkBuddy, Battery and choose Unrestricted.' },
+    ],
+  },
+  {
     id: 'agent-linux',
     title: 'Install the desktop agent on Linux',
     badge: 'Linux',
@@ -451,6 +467,7 @@ const INSTALL_GUIDES = [
   { id: 'agent-install', label: 'Windows' },
   { id: 'agent-mac', label: 'Mac' },
   { id: 'agent-linux', label: 'Linux' },
+  { id: 'agent-android', label: 'Android' },
 ];
 
 export default async function HelpPage() {
@@ -459,6 +476,7 @@ export default async function HelpPage() {
   const quickStart = QUICK_START[user.role] || QUICK_START.user;
   // Read at request time on the server, so changing the installer link needs no code change.
   const agentDownloadUrl = process.env.AGENT_DOWNLOAD_URL || '';
+  const androidDownloadUrl = process.env.ANDROID_DOWNLOAD_URL || '';
 
   return (
     <>
@@ -482,8 +500,8 @@ export default async function HelpPage() {
         <div className="card card-pad">
           <div style={{ fontWeight: 650, fontSize: 15 }}>Install the desktop agent</div>
           <p className="faint" style={{ margin: '4px 0 12px', fontSize: 13 }}>
-            Screenshots and activity come from a small app on your computer. Pick your system for
-            the step-by-step guide.
+            Screenshots and activity come from a small app on your computer or phone. Pick your
+            system for the step-by-step guide.
           </p>
           <div className="inline" style={{ flexWrap: 'wrap', gap: 8 }}>
             {INSTALL_GUIDES.map((g) => (
@@ -494,6 +512,11 @@ export default async function HelpPage() {
             {agentDownloadUrl && (
               <a className="btn btn-info" href={agentDownloadUrl} download>
                 Download for Windows
+              </a>
+            )}
+            {androidDownloadUrl && (
+              <a className="btn btn-info" href={androidDownloadUrl} download>
+                Download for Android
               </a>
             )}
           </div>
