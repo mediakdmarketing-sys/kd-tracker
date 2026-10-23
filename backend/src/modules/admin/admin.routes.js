@@ -151,6 +151,7 @@ const createEmployeeSchema = z.object({
 
 const updateEmployeeSchema = z.object({
   name: z.string().trim().min(1).max(200).optional(),
+  email: z.string().trim().toLowerCase().email().optional(),
   password: z.string().min(8).max(200).optional(),
   role: z.enum(['admin', 'leader', 'user']).optional(),
   status: z.enum(['active', 'inactive']).optional(),
@@ -422,8 +423,25 @@ const productivityQuery = z.object({
 
 const appCategorySchema = z.object({
   appName: z.string().trim().min(1).max(120),
+  // With a department the category applies to that department only; omitted = every department.
   category: z.enum(['productive', 'neutral', 'distracting']),
+  department: z.string().trim().max(120).optional(),
 });
+
+const appListQuery = z.object({ department: z.string().max(120).optional() });
+
+const attendanceSummaryQuery = z.object({
+  from: z.string().regex(/^\d{4}-\d{2}$/, 'must be YYYY-MM'),
+  to: z.string().regex(/^\d{4}-\d{2}$/, 'must be YYYY-MM'),
+});
+
+router.get(
+  '/attendance-summary',
+  validate(attendanceSummaryQuery, 'query'),
+  asyncHandler(async (req, res) => {
+    res.json(await service.attendanceSummary(q(req)));
+  })
+);
 
 router.get(
   '/productivity',
@@ -435,8 +453,9 @@ router.get(
 
 router.get(
   '/app-categories',
+  validate(appListQuery, 'query'),
   asyncHandler(async (req, res) => {
-    res.json(await productivityService.listApps());
+    res.json(await productivityService.listApps({ department: q(req).department }));
   })
 );
 
@@ -448,7 +467,7 @@ router.patch(
     await audit.record(req, {
       action: audit.ACTIONS.UPDATED_SETTINGS,
       targetType: 'app_category',
-      details: { app: req.body.appName, category: req.body.category },
+      details: { app: req.body.appName, category: req.body.category, department: req.body.department || null },
     });
     res.json(result);
   })
@@ -456,10 +475,10 @@ router.patch(
 
 router.delete(
   '/app-categories',
-  validate(z.object({ appName: z.string().trim().min(1).max(120) }), 'query'),
+  validate(z.object({ appName: z.string().trim().min(1).max(120), department: z.string().max(120).optional() }), 'query'),
   asyncHandler(async (req, res) => {
-    const { appName } = q(req);
-    const result = await productivityService.resetCategory(appName);
+    const { appName, department } = q(req);
+    const result = await productivityService.resetCategory(appName, department);
     await audit.record(req, {
       action: audit.ACTIONS.UPDATED_SETTINGS,
       targetType: 'app_category',

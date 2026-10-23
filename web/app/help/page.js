@@ -148,7 +148,7 @@ const SECTIONS = [
       'Activity counts are the number of keystrokes and mouse actions and the name of the active app. What you type is never captured.',
       'Audio samples are optional and off unless you accept them. You can turn them off at any time.',
       'Screenshots and audio are deleted automatically after 31 days by default. Only the fact that a capture happened is kept.',
-      'Only HR/Admin and, for their own team, a leader can view captured media. Admin access is recorded in an audit log.',
+      'Only HR/Admin and, for their own team, a leader can view captured media. Admin access is recorded.',
     ],
   },
   {
@@ -199,7 +199,7 @@ const SECTIONS = [
     title: 'For leaders: privacy rules',
     roles: LEADERS,
     body: [
-      'A team leader can only open people in the departments they lead. Every time anyone opens someone’s screenshots, audio or attendance history it is written to the audit log.',
+      'A team leader can only open people in the departments they lead. Every time anyone opens someone’s screenshots, audio or attendance history it is recorded.',
       'Open captured media only when you have a reason. Do not copy, share or forward it outside the company.',
       'If a screenshot shows something private (a bank page, a personal message), do not act on it and tell HR so it can be reviewed.',
     ],
@@ -263,11 +263,10 @@ const SECTIONS = [
   },
   {
     id: 'admin-settings',
-    title: 'For admins: settings and audit log',
+    title: 'For admins: settings',
     roles: ADMIN,
     body: [
       'Settings control screenshot and audio timing, target shift length, break allowance, idle threshold, auto-close time, retention days and whether idle time is deducted from payroll. Changes apply to everyone, and agents pick them up with no reinstall.',
-      'The Audit log records who viewed whose screenshots, audio or attendance history and when. It cannot be edited or deleted.',
     ],
   },
   {

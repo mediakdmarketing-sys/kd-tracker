@@ -14,7 +14,7 @@ const OPTIONS = [
  * Lets an admin decide how each app counts towards the score. Rows show the effective category
  * (a built-in default unless overridden); "Reset" drops the override.
  */
-export default function CategoryEditor({ apps }) {
+export default function CategoryEditor({ apps, department = '' }) {
   const router = useRouter();
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState(null);
@@ -36,12 +36,14 @@ export default function CategoryEditor({ apps }) {
 
   const setCategory = (appName, category) =>
     run(appName, () =>
-      call('/api/admin/app-categories', { method: 'PATCH', body: { appName, category } })
+      call('/api/admin/app-categories', { method: 'PATCH', body: { appName, category, ...(department ? { department } : {}) } })
     );
 
   const reset = (appName) =>
     run(appName, () =>
-      call(`/api/admin/app-categories?${new URLSearchParams({ appName })}`, { method: 'DELETE' })
+      call(`/api/admin/app-categories?${new URLSearchParams({ appName, ...(department ? { department } : {}) })}`, {
+        method: 'DELETE',
+      })
     );
 
   async function add(e) {
@@ -51,7 +53,7 @@ export default function CategoryEditor({ apps }) {
     await run('new', async () => {
       await call('/api/admin/app-categories', {
         method: 'PATCH',
-        body: { appName: name, category: newCategory },
+        body: { appName: name, category: newCategory, ...(department ? { department } : {}) },
       });
       setNewApp('');
     });
@@ -61,10 +63,19 @@ export default function CategoryEditor({ apps }) {
     <div className="card">
       <div className="card-head">
         <h2>App categories</h2>
-        <span className="faint">decides how each app counts towards the score</span>
+        <span className="faint">
+          {department ? `apps used by ${department}` : 'apps used across all departments'}
+        </span>
       </div>
       <div className="card-pad" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {error && <div className="notice notice-danger" role="alert">{error}</div>}
+
+        <p className="faint" style={{ margin: 0, fontSize: 12.5 }}>
+          Decides how each app counts towards the score.{' '}
+          {department
+            ? `Changes here apply to ${department} only.`
+            : 'Changes here apply to every department; pick a department to change it for that team only.'}
+        </p>
 
         <form onSubmit={add} className="inline" style={{ gap: 8, flexWrap: 'wrap' }}>
           <input

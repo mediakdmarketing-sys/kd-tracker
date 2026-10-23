@@ -98,6 +98,8 @@ export default function EmployeeActions({ employee, departments = [] }) {
 
   // Role + department edit
   const [showEdit, setShowEdit] = useState(false);
+  const [editName, setEditName] = useState(employee.name);
+  const [editEmail, setEditEmail] = useState(employee.email);
   const [editRole, setEditRole] = useState(employee.role);
   const [editDept, setEditDept] = useState(employee.department || '');
   const [editError, setEditError] = useState(null);
@@ -242,13 +244,15 @@ export default function EmployeeActions({ employee, departments = [] }) {
             className="btn"
             disabled={busy !== null}
             onClick={() => {
+              setEditName(employee.name);
+              setEditEmail(employee.email);
               setEditRole(employee.role);
               setEditDept(employee.department || '');
               setEditError(null);
               setShowEdit((v) => !v);
             }}
           >
-            {showEdit ? 'Cancel edit' : 'Edit role / dept'}
+            {showEdit ? 'Cancel edit' : 'Edit details'}
           </button>
 
           {employee.consent.audio ? (
@@ -356,6 +360,8 @@ export default function EmployeeActions({ employee, departments = [] }) {
               setEditError(null);
               try {
                 await patch(`/api/admin/employees/${employee.id}`, {
+                  name: editName.trim(),
+                  email: editEmail.trim(),
                   role: editRole,
                   department: editDept || null,
                 });
@@ -380,7 +386,31 @@ export default function EmployeeActions({ employee, departments = [] }) {
             }}
           >
             <div style={{ fontSize: 13, fontWeight: 650, color: 'var(--text)' }}>
-              Edit role &amp; department
+              Edit details
+            </div>
+
+            <div className="field" style={{ margin: 0 }}>
+              <label htmlFor="ea-name">Name</label>
+              <input
+                id="ea-name"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                required
+                maxLength={200}
+                disabled={busy === 'edit'}
+              />
+            </div>
+
+            <div className="field" style={{ margin: 0 }}>
+              <label htmlFor="ea-email">Work email</label>
+              <input
+                id="ea-email"
+                type="email"
+                value={editEmail}
+                onChange={(e) => setEditEmail(e.target.value)}
+                required
+                disabled={busy === 'edit'}
+              />
             </div>
 
             <div className="field" style={{ margin: 0 }}>

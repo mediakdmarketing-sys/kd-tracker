@@ -41,12 +41,30 @@ const PLATFORMS = [
       process.env.AGENT_DOWNLOAD_URL_LINUX ||
       'https://github.com/mediakdmarketing-sys/kd-tracker/actions/runs/39795415880/artifacts/12432703255',
     icon: (
-      <svg width="34" height="34" viewBox="0 0 24 24" fill="#222">
-        <ellipse cx="12" cy="14" rx="6" ry="7.500" />
-        <ellipse cx="12" cy="15.500" rx="3.500" ry="5" fill="#fff" />
-        <circle cx="10" cy="8" r="1" fill="#fff" />
-        <circle cx="14" cy="8" r="1" fill="#fff" />
-        <path d="M10.500 10l1.500 1 1.500-1z" fill="#f5a623" />
+      // Tux, the Linux penguin: black body, white belly and face, yellow beak and feet.
+      <svg width="44" height="44" viewBox="0 0 64 64" aria-hidden="true">
+        <ellipse cx="14" cy="53" rx="10" ry="5" fill="#f9b900" transform="rotate(-18 14 53)" />
+        <ellipse cx="50" cy="53" rx="10" ry="5" fill="#f9b900" transform="rotate(18 50 53)" />
+        <path d="M32 3C21 3 17 12 17 22c0 5-2 8-5 14-3 6-3 13 2 17 4 3 10 3 18 3s14 0 18-3c5-4 5-11 2-17-3-6-5-9-5-14C47 12 43 3 32 3z" fill="#111" />
+        <path d="M32 24c-8 0-12 8-12 17 0 8 4 14 12 14s12-6 12-14c0-9-4-17-12-17z" fill="#fff" />
+        <ellipse cx="26.500" cy="15" rx="4" ry="4.500" fill="#fff" />
+        <ellipse cx="37.500" cy="15" rx="4" ry="4.500" fill="#fff" />
+        <circle cx="27.500" cy="15.500" r="2" fill="#111" />
+        <circle cx="36.500" cy="15.500" r="2" fill="#111" />
+        <path d="M24 21c2-2.500 5-3 8-3s6 .5 8 3c-1 3-4.500 5-8 5s-7-2-8-5z" fill="#f9b900" />
+      </svg>
+    ),
+  },
+  {
+    id: 'android',
+    name: 'Android',
+    requirement: 'Android 8.0 or later',
+    format: '.apk installer',
+    url: process.env.AGENT_DOWNLOAD_URL_APK || 'https://pub-71e396a00e5740aea9a398af6cd25b69.r2.dev/WorkBuddy.apk',
+    note: 'Allow “Install unknown apps” for your browser when Android asks.',
+    icon: (
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="#3ddc84">
+        <path d="M6 9h12v8.500a1.500 1.500 0 0 1-1.500 1.500H15v2.500a1 1 0 0 1-2 0V19h-2v2.500a1 1 0 0 1-2 0V19H7.500A1.500 1.500 0 0 1 6 17.500zM3.500 9.500a1 1 0 0 1 2 0V15a1 1 0 0 1-2 0zM18.500 9.500a1 1 0 0 1 2 0V15a1 1 0 0 1-2 0zM15.800 3.300l1.100-1.600-.5-.3-1.200 1.700A6 6 0 0 0 12 2.500c-1 0-1.900.2-2.800.6L8 1.400l-.5.300 1.100 1.600A5.400 5.400 0 0 0 6 8h12a5.400 5.400 0 0 0-2.200-4.700zM9.500 6.200a.7.7 0 1 1 0-1.400.7.7 0 0 1 0 1.400zm5 0a.7.7 0 1 1 0-1.400.7.7 0 0 1 0 1.400z" />
       </svg>
     ),
   },
@@ -99,9 +117,20 @@ export default function DownloadPage() {
                 <span className="pill pill-working">{VERSION}</span>{' '}
                 <span className="faint">{p.format}</span>
               </p>
-              <a className="btn btn-primary btn-lg" href={p.url} download style={{ width: '100%' }}>
-                Download for {p.name}
-              </a>
+              {p.url ? (
+                <a className="btn btn-primary btn-lg" href={p.url} download style={{ width: '100%' }}>
+                  Download for {p.name}
+                </a>
+              ) : (
+                <button type="button" className="btn btn-primary btn-lg" disabled style={{ width: '100%' }}>
+                  {p.name} download coming soon
+                </button>
+              )}
+              {p.note && (
+                <p className="faint" style={{ margin: '10px 0 0', fontSize: 12 }}>
+                  {p.note}
+                </p>
+              )}
             </div>
           ))}
         </div>

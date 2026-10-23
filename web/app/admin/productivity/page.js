@@ -76,7 +76,7 @@ export default async function ProductivityPage({ searchParams }) {
   const [departments, data, apps] = await Promise.all([
     api('/api/admin/departments'),
     api(`/api/admin/productivity?${query}`),
-    api('/api/admin/app-categories'),
+    api(`/api/admin/app-categories${department ? `?${new URLSearchParams({ department })}` : ''}`),
   ]);
 
   const { summary } = data;
@@ -202,7 +202,7 @@ export default async function ProductivityPage({ searchParams }) {
           <div className="card">
             <div className="card-head">
               <h2>Top apps</h2>
-              <span className="faint">team-wide</span>
+              <span className="faint">{department || 'all departments'}</span>
             </div>
             <div className="card-pad">
               {data.apps.length === 0 ? (
@@ -278,7 +278,7 @@ export default async function ProductivityPage({ searchParams }) {
           </div>
         </div>
 
-        <CategoryEditor apps={apps} />
+        <CategoryEditor key={department} apps={apps} department={department} />
       </div>
     </>
   );

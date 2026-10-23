@@ -326,6 +326,14 @@ async function updateEmployee(id, input) {
 
   const patch = { updated_at: t.now() };
   if (input.name !== undefined) patch.name = input.name;
+  if (input.email !== undefined && input.email.toLowerCase() !== row.email.toLowerCase()) {
+    const taken = await db()('employees')
+      .whereRaw('LOWER(email) = ?', [input.email.toLowerCase()])
+      .whereNot({ id })
+      .first();
+    if (taken) throw conflict('An employee with that work email already exists');
+    patch.email = input.email.toLowerCase();
+  }
   if (input.department !== undefined) patch.department = input.department;
   if (input.employeeCode !== undefined) patch.employee_code = input.employeeCode;
   if (input.role !== undefined) patch.role = input.role;
@@ -340,7 +348,12 @@ async function updateEmployee(id, input) {
   // Screenshot blur is a display preference, not consent — HR may set it either way.
   if (input.blurScreenshots !== undefined) patch.blur_screenshots = input.blurScreenshots;
 
-  await db()('employees').where({ id }).update(patch);
+  try {
+    await db()('employees').where({ id }).update(patch);
+  } catch (err) {
+    if (!isUniqueViolation(err)) throw err;
+    throw conflict('An employee with that work email already exists');
+  }
 
   if (input.status === 'inactive' || input.password) {
     // Deactivating or resetting a password must end existing sessions immediately — reason
@@ -353,6 +366,69 @@ async function updateEmployee(id, input) {
 
   // Construct the response from known state rather than doing a post-update re-read.
   return publicEmployee({ ...row, ...patch });
+}
+
+/**
+ * Dashboard line chart: for each month in [from, to] and each department, the average number of
+ * days an active employee punched in. Averaged per person so a big department is comparable
+ * with a small one; the y-axis is "days in the month" (capped by working days, ~26).
+ */
+async function attendanceSummary({ from, to }) {
+  if (from > to) throw badRequest('`from` must not be after `to`');
+
+  const months = [];
+  let [y, m] = from.split('-').map(Number);
+  const [ty, tm] = to.split('-').map(Number);
+  while (y < ty || (y === ty && m <= tm)) {
+    months.push(`${y}-${String(m).padStart(2, '0')}`);
+    m += 1;
+    if (m > 12) { m = 1; y += 1; }
+    if (months.length > 12) throw badRequest('Pick a range of 12 months or fewer');
+  }
+
+  // The departments table plus any department an active employee carries (seed data and older
+  // accounts can name one that was never created), so no team silently drops off the chart.
+  const named = await db()('departments').pluck('name');
+  const inUse = await db()('employees')
+    .where({ status: 'active' })
+    .whereNotNull('department')
+    .distinct('department')
+    .pluck('department');
+  const departments = [...new Set([...named, ...inUse])].filter(Boolean).sort((a, b) => a.localeCompare(b));
+  const headcountRows = await db()('employees')
+    .where({ status: 'active' })
+    .whereNotNull('department')
+    .groupBy('department')
+    .select('department')
+    .count({ n: 'id' });
+  const headcount = new Map(headcountRows.map((r) => [r.department, Number(r.n)]));
+
+  // Distinct (employee, date) pairs so two punches on one day still count as one day.
+  const rows = await db()('attendance as a')
+    .join('employees as e', 'e.id', 'a.employee_id')
+    .where('e.status', 'active')
+    .whereNotNull('e.department')
+    .where('a.date', '>=', `${months[0]}-01`)
+    .where('a.date', '<=', `${months[months.length - 1]}-31`)
+    .distinct('a.employee_id', 'a.date', 'e.department');
+
+  const days = new Map(); // `${month}|${department}` -> attendance-days
+  for (const r of rows) {
+    const key = `${r.date.slice(0, 7)}|${r.department}`;
+    days.set(key, (days.get(key) || 0) + 1);
+  }
+
+  return {
+    departments,
+    months: months.map((month) => ({
+      month,
+      values: departments.map((d) => {
+        const people = headcount.get(d) || 0;
+        const total = days.get(`${month}|${d}`) || 0;
+        return people ? Math.round((total / people) * 10) / 10 : 0;
+      }),
+    })),
+  };
 }
 
 async function listAuditLogs({ adminId, targetEmployeeId, action, from, to, limit, offset }) {
@@ -518,6 +594,7 @@ module.exports = {
   getEmployee,
   createEmployee,
   updateEmployee,
+  attendanceSummary,
   listAuditLogs,
   listDepartments,
   listDepartmentsFull,
