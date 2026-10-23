@@ -476,7 +476,9 @@ export default async function HelpPage() {
   const quickStart = QUICK_START[user.role] || QUICK_START.user;
   // Read at request time on the server, so changing the installer link needs no code change.
   const agentDownloadUrl = process.env.AGENT_DOWNLOAD_URL || '';
-  const androidDownloadUrl = process.env.ANDROID_DOWNLOAD_URL || '';
+  // The APK is served from this portal itself (web/public/downloads), so installing needs no
+  // account anywhere else. Set ANDROID_DOWNLOAD_URL to host it elsewhere instead.
+  const androidDownloadUrl = process.env.ANDROID_DOWNLOAD_URL || '/downloads/WorkBuddy.apk';
 
   return (
     <>
