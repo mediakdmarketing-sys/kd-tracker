@@ -304,6 +304,16 @@ class CaptureService : Service() {
                     recordSample()
                 } catch (e: Exception) {
                     lastError = e.message
+                    // The microphone could not be started (switched off, in use, blocked). There
+                    // is no sample to carry that news, so tell the server directly.
+                    api.request(
+                        "POST",
+                        "/api/audio/mic-status",
+                        JSONObject()
+                            .put("state", "unavailable")
+                            .put("at", Instant.now().toString())
+                            .put("reason", (e.message ?: "The microphone could not be started").take(200)),
+                    )
                 }
             }
             delay(audioGap * 1000L)

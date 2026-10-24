@@ -50,9 +50,12 @@ export default function MicLogTable({ periods, timezone, showEmployee = false, e
                 <td className="num">{day}</td>
                 <td className="num">{time(p.start, timezone)}</td>
                 <td className="num">{stamp(p.end, timezone, day)}</td>
-                <td className="num">{duration(p.durationSeconds)}</td>
+                <td className="num">{p.unavailable && !p.durationSeconds ? '—' : duration(p.durationSeconds)}</td>
                 <td className="num">{p.samples}</td>
-                <td className="muted">{ENDED[p.endedBy]?.(p, timezone) || '—'}</td>
+                <td className="muted">
+                  {p.unavailable && <div>Microphone could not be started (off, blocked or disconnected)</div>}
+                  {ENDED[p.endedBy]?.(p, timezone) || '—'}
+                </td>
               </tr>
             );
           })}

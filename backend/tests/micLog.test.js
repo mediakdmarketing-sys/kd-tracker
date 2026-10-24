@@ -69,6 +69,49 @@ describe('periodsFromSamples', () => {
   });
 });
 
+describe('a microphone that could not be started', () => {
+  async function ready() {
+    const employee = await createEmployee({ name: 'Eve Employee', department: 'Sales', consent_audio: true });
+    const leader = await createEmployee({ name: 'Lena Leader', department: 'Sales', role: 'leader' });
+    const hr = await createEmployee({ name: 'Hana HR', department: 'HR', role: 'admin' });
+    await db()('department_leaders').insert({ department: 'Sales', employee_id: leader.id, assigned_at: t.now() });
+    const token = await login(employee);
+    expect((await as(token).post('/api/attendance/punch-in')).status).toBe(201);
+    return { employee, leader, hr, token };
+  }
+
+  const report = (token) =>
+    as(token).post('/api/audio/mic-status').send({ state: 'unavailable', reason: 'Could not start audio source' });
+
+  it('alerts HR and the leader, and shows up in the mic log', async () => {
+    const { token, hr, leader, employee } = await ready();
+    expect((await report(token)).status).toBe(201);
+
+    for (const person of [hr, leader]) {
+      const inbox = await as(await login(person)).get('/api/notifications');
+      const alert = inbox.body.items.find((i) => i.type === 'mic_inactive');
+      expect(alert.title).toBe('Mic not active: Eve Employee');
+      expect(alert.body).toContain('could not be started');
+    }
+
+    const log = await as(await login(hr)).get(`/api/audio/${employee.id}/mic-log`);
+    expect(log.body.periods).toHaveLength(1);
+    expect(log.body.periods[0].unavailable).toBe(true);
+  });
+
+  it('is refused without audio consent', async () => {
+    const employee = await createEmployee({ consent_audio: false });
+    const token = await login(employee);
+    await as(token).post('/api/attendance/punch-in');
+    expect((await report(token)).status).toBe(403);
+  });
+
+  it('is refused while not punched in', async () => {
+    const employee = await createEmployee({ consent_audio: true });
+    expect((await report(await login(employee))).status).toBe(409);
+  });
+});
+
 describe('the microphone log API', () => {
   async function addSample(employee, startedAgoMin, micMuted) {
     const at = t.now() - startedAgoMin * MIN;

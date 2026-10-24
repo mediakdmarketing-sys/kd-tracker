@@ -194,7 +194,7 @@ const MIC_ALERT_COOLDOWN_MS = 60 * 60 * 1000;
  * blocks the upload, and a quiet room is told apart from a dead mic by the sample's noise floor
  * (see the agent's recorder), so this is a prompt to ask, not proof of anything.
  */
-async function announceMicInactive(employee) {
+async function announceMicInactive(employee, unavailable = false) {
   try {
     if (await notifications.recentlyNotified('mic_inactive', employee.id, MIC_ALERT_COOLDOWN_MS)) {
       return;
@@ -203,7 +203,9 @@ async function announceMicInactive(employee) {
     const note = {
       type: 'mic_inactive',
       title: `Mic not active: ${employee.name}`,
-      body: `${employee.name}'s microphone looks muted or disconnected. The latest audio sample had no sound.`,
+      body: unavailable
+        ? `${employee.name}'s microphone could not be started. It looks switched off, blocked or disconnected.`
+        : `${employee.name}'s microphone looks muted or disconnected. The latest audio sample had no sound.`,
       refId: employee.id,
     };
     await notifications.notify(admins, { ...note, link: `/admin/employees/${employee.id}` });
@@ -211,6 +213,31 @@ async function announceMicInactive(employee) {
   } catch (err) {
     logger.error('Mic alert failed', { message: err.message });
   }
+}
+
+/**
+ * The agent could not open the microphone at all, so there is no sample to upload. Records the
+ * moment (for the mic log) and raises the same alert as a silent sample. Held to the same rules
+ * as an audio upload: only with audio consent, and only while capture is allowed.
+ */
+async function recordMicUnavailable({ employee, at, reason }) {
+  if (!employee.consentAudio) {
+    throw forbidden('Audio consent has not been given for this employee.');
+  }
+  const when = resolveCaptureTime(at, 'at');
+  await requireCapturableShift(employee, when);
+
+  await db()('mic_events').insert({
+    id: uuid(),
+    employee_id: employee.id,
+    at: when,
+    date: t.localDate(when),
+    state: 'unavailable',
+    reason: reason ? String(reason).slice(0, 200) : null,
+    created_at: t.now(),
+  });
+  await announceMicInactive(employee, true);
+  return { recorded: true };
 }
 
 async function uploadAudio({
@@ -504,6 +531,7 @@ async function listActivity({ employeeId, date, from, to, limit, offset }) {
 module.exports = {
   uploadScreenshot,
   uploadAudio,
+  recordMicUnavailable,
   logActivity,
   listScreenshots,
   listAudio,

@@ -401,9 +401,24 @@ class Agent {
     const recordedAt = new Date(this.now()).toISOString();
     const sample = await this.capture.audioSample(durationSeconds);
 
-    if (!sample) {
-      // recordSample() returned null — permission denied or recorder window timed out.
+    if (!sample || sample.unavailable) {
+      // The microphone could not be used: permission denied, a mute key or privacy switch that
+      // disables the device, unplugged, or the recorder window never answered.
       this.#notify('audioDisabled');
+      // There is no sample to carry the news, so tell the server directly. Best effort: if the
+      // network is down this one report is lost, the next attempt reports again.
+      try {
+        await this.api.request('/api/audio/mic-status', {
+          method: 'POST',
+          body: {
+            state: 'unavailable',
+            at: new Date(this.now()).toISOString(),
+            reason: sample?.reason || 'The microphone did not respond',
+          },
+        });
+      } catch (err) {
+        logger.warn('Could not report the unavailable microphone', { message: err.message });
+      }
       return false;
     }
 

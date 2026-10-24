@@ -57,7 +57,7 @@ async function recordSample(durationSeconds) {
 
   if (!(await ensureMicrophonePermission())) {
     logger.warn('Microphone permission not granted; no audio recorded');
-    return null;
+    return { unavailable: true, reason: 'Microphone permission was not granted' };
   }
 
   const win = ensureWindow();
@@ -86,8 +86,11 @@ function registerHandlers() {
     if (!pending) return;
 
     if (error) {
+      // The device refused to start: switched off by a hardware mute key or privacy switch,
+      // blocked in the system settings, or unplugged. Tell the caller why, so the server can
+      // be told too (there is no sample to carry the news).
       logger.warn('Audio capture failed in the renderer', { error });
-      pending(null);
+      pending({ unavailable: true, reason: String(error).slice(0, 200) });
       return;
     }
 

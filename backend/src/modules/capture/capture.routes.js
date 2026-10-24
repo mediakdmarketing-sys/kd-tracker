@@ -128,6 +128,23 @@ audio.post(
   })
 );
 
+// The agent could not start the microphone at all (a mute key or privacy switch, blocked in
+// the system settings, unplugged), so it has no sample to upload.
+const micStatusSchema = z.object({
+  state: z.literal('unavailable'),
+  at: z.string().datetime({ offset: true }).optional(),
+  reason: z.string().trim().max(200).optional(),
+});
+
+audio.post(
+  '/mic-status',
+  uploadLimiter,
+  validate(micStatusSchema),
+  asyncHandler(async (req, res) => {
+    res.status(201).json(await service.recordMicUnavailable({ employee: req.user, ...req.body }));
+  })
+);
+
 audio.get(
   '/file/:id',
   requireAdmin,

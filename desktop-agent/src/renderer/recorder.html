@@ -20,6 +20,7 @@
           // level across the whole sample. A sample whose peak never rises above the
           // threshold (roughly -50 dBFS) was almost certainly recorded with the mic
           // muted or disconnected.
+          const track = stream.getAudioTracks()[0];
           const audioCtx = new AudioContext();
           const source = audioCtx.createMediaStreamSource(stream);
           const analyser = audioCtx.createAnalyser();
@@ -60,7 +61,9 @@
               mimeType: mime,
               // true  → entire sample was silence (mic muted / disconnected)
               // false → at least one window had audible signal
-              micMuted: peakRms < SILENCE_THRESHOLD,
+              // Also true when the system reports the capture source as muted (a mute key or
+              // privacy switch), which can still deliver faint noise on some hardware.
+              micMuted: peakRms < SILENCE_THRESHOLD || track.muted === true,
             });
           };
 

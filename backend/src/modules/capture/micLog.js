@@ -48,8 +48,9 @@ function periodsFromSamples(samples) {
       if (open) {
         open.end = Math.max(open.end, end);
         open.samples += 1;
+        open.unavailable = open.unavailable || Boolean(sample.unavailable);
       } else {
-        open = { start: sample.recordedAt, end, samples: 1 };
+        open = { start: sample.recordedAt, end, samples: 1, unavailable: Boolean(sample.unavailable) };
       }
     } else if (sample.micMuted === false) {
       close('live', sample.recordedAt);
@@ -68,6 +69,8 @@ function shapePeriod(p, person) {
     end: toIso(p.end),
     durationSeconds: Math.round((p.end - p.start) / 1000),
     samples: p.samples,
+    // True when the agent could not start the microphone at all (no sample, just the event).
+    unavailable: Boolean(p.unavailable),
     endedBy: p.endedBy,
     confirmedLiveAt: p.confirmedLiveAt ? toIso(p.confirmedLiveAt) : null,
   };
@@ -98,14 +101,28 @@ async function micLog({ employeeIds, from, to }) {
   const rows = await base;
 
   const byEmployee = new Map();
+  const add = (employeeId, sample) => {
+    if (!byEmployee.has(employeeId)) byEmployee.set(employeeId, []);
+    byEmployee.get(employeeId).push(sample);
+  };
   for (const r of rows) {
-    if (!byEmployee.has(r.employee_id)) byEmployee.set(r.employee_id, []);
-    byEmployee.get(r.employee_id).push({
+    add(r.employee_id, {
       recordedAt: Number(r.recorded_at),
       durationSeconds: Number(r.duration_seconds),
       micMuted: r.mic_muted === null || r.mic_muted === undefined ? null : Boolean(Number(r.mic_muted)),
     });
   }
+
+  // Moments the microphone could not be started count as silence of no length.
+  const eventQuery = db()('mic_events')
+    .andWhere('date', '>=', range.from)
+    .andWhere('date', '<=', range.to)
+    .select('employee_id', 'at');
+  if (employeeIds) eventQuery.whereIn('employee_id', employeeIds);
+  for (const e of await eventQuery) {
+    add(e.employee_id, { recordedAt: Number(e.at), durationSeconds: 0, micMuted: true, unavailable: true });
+  }
+  for (const samples of byEmployee.values()) samples.sort((a, b) => a.recordedAt - b.recordedAt);
 
   const ids = [...byEmployee.keys()];
   const people = ids.length
