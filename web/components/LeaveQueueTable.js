@@ -105,6 +105,11 @@ export default function LeaveQueueTable({ requests, reviewUrlBase }) {
                   <span className={`pill ${STATUS_CLASS[r.status]}`}>
                     {r.status[0].toUpperCase() + r.status.slice(1)}
                   </span>
+                  {r.status !== 'pending' && r.reviewedByName && (
+                    <div className="faint" style={{ fontSize: 11, marginTop: 3 }}>
+                      by {r.reviewedByName} ({r.reviewedByRole})
+                    </div>
+                  )}
                   {r.status !== 'pending' && r.reviewNote && (
                     <div className="faint" style={{ fontSize: 11, marginTop: 3 }}>
                       {r.reviewNote}

@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { api, requireUser } from '@/lib/api';
 import RangeFilter from '@/components/RangeFilter';
 import CaptureSection from '@/components/CaptureSection';
+import MicLogTable from '@/components/MicLogTable';
 import EmployeeActions from './EmployeeActions';
 import LeaderActions from './LeaderActions';
 import { duration, time, timeSec, dateLabel, todayIn, workedSecondsOf, isOpenShift } from '@/lib/format';
@@ -59,7 +60,7 @@ export default async function EmployeeDetailPage({ params, searchParams }) {
   // real rows, not just the pagination total. A 9h shift tops out around 540 one-minute
   // windows in principle, but idle windows send no row at all, so 200 comfortably covers a
   // realistically active day; pagination.total still reflects the true count either way.
-  const [attendance, screenshots, audio, activity, allDepts, leaderAssignments, agentConfig] =
+  const [attendance, screenshots, audio, activity, allDepts, leaderAssignments, agentConfig, micLog] =
     await Promise.all([
       api(`/api/attendance/${id}?from=${from}&to=${to}`),
       api(`/api/screenshots/${id}?from=${from}&to=${to}&limit=200`),
@@ -68,6 +69,7 @@ export default async function EmployeeDetailPage({ params, searchParams }) {
       api('/api/admin/departments'),
       api('/api/admin/department-leaders'),
       api('/api/config'),
+      api(`/api/audio/${id}/mic-log?from=${from}&to=${to}`),
     ]);
 
   // Departments this employee currently leads.
@@ -237,6 +239,14 @@ export default async function EmployeeDetailPage({ params, searchParams }) {
             </div>
           </div>
         )}
+
+        <div className="card">
+          <div className="card-head">
+            <h2>Microphone log</h2>
+            <span className="faint">When the mic was found muted (from the audio samples)</span>
+          </div>
+          <MicLogTable periods={micLog.periods} timezone={employee.timezone} />
+        </div>
 
         <CaptureSection
           screenshots={screenshots.data}

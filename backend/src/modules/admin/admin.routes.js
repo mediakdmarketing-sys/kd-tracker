@@ -6,6 +6,8 @@ const service = require('./admin.service');
 const settings = require('../../services/settings');
 const projectService = require('../projects/project.service');
 const leaveService = require('../leave/leave.service');
+const { micLog } = require('../capture/micLog');
+const { db } = require('../../db');
 const productivityService = require('../productivity/productivity.service');
 const { authenticate } = require('../../middleware/auth');
 const { requireAdmin } = require('../../middleware/rbac');
@@ -33,6 +35,33 @@ const reportQuery = z.object({
   format: z.enum(['json', 'csv']).optional(),
   detail: z.enum(['summary', 'daily']).optional(),
 });
+
+const micLogQuery = z.object({
+  from: DATE.optional(),
+  to: DATE.optional(),
+  department: z.string().trim().max(120).optional(),
+});
+
+// Company-wide microphone log: who had a muted mic, from what time to what time.
+router.get(
+  '/mic-log',
+  validate(micLogQuery, 'query'),
+  asyncHandler(async (req, res) => {
+    const query = q(req);
+    let employeeIds = null;
+    if (query.department) {
+      const rows = await db()('employees').where({ department: query.department }).select('id');
+      employeeIds = rows.map((r) => r.id);
+    }
+    const log = await micLog({ employeeIds, from: query.from, to: query.to });
+    await audit.record(req, {
+      action: audit.ACTIONS.LISTED_AUDIO,
+      targetType: 'audio',
+      details: { kind: 'mic-log', from: log.from, to: log.to, department: query.department || null, periods: log.periods.length },
+    });
+    res.json(log);
+  })
+);
 
 router.get(
   '/dashboard',

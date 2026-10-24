@@ -37,14 +37,17 @@ function CountdownDisplay({ pollMs, onExpire }) {
   const [secsLeft, setSecsLeft] = useState(pollMs / 1000);
 
   useEffect(() => {
+    // The remaining time lives in a plain variable, not read back out of state. Calling
+    // onExpire() from inside a setState updater ran the parent's setState while React was
+    // rendering this component ("Cannot update a component while rendering a different one").
+    let left = pollMs / 1000;
     const tick = setInterval(() => {
-      setSecsLeft((s) => {
-        if (s <= 1) {
-          onExpire();
-          return pollMs / 1000;
-        }
-        return s - 1;
-      });
+      left -= 1;
+      if (left <= 0) {
+        left = pollMs / 1000;
+        onExpire();
+      }
+      setSecsLeft(left);
     }, 1000);
     return () => clearInterval(tick);
   }, [pollMs, onExpire]);

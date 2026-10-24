@@ -34,6 +34,8 @@ const PEOPLE = [
   ['Suresh Babu', 'suresh.babu@kdmarketing.in', 'user', 'Sales'],
   ['Fathima Noor', 'fathima.noor@kdmarketing.in', 'user', 'Operations'],
   ['Nikhil Joshi', 'nikhil.joshi@kdmarketing.in', 'user', 'Operations'],
+  // Last on purpose: the closing message below refers to employees[1] as the sample user.
+  ['Ravi Kumar', 'ravi.kumar@kdmarketing.in', 'leader', 'Engineering'],
 ];
 
 /** Small deterministic PRNG, so a reseed produces the same demo numbers. */
@@ -50,6 +52,14 @@ const MINUTE = 60 * 1000;
 
 exports.seed = async function seed(knex) {
   if (config.isProd) throw new Error('Refusing to seed demo data with NODE_ENV=production');
+  // A developer's .env can point at the hosted Postgres while NODE_ENV says "development". The
+  // seed deletes every employee first, so it must not run there by accident.
+  if (config.db.client === 'pg' && process.env.ALLOW_PG_SEED !== '1') {
+    throw new Error(
+      'Refusing to seed a Postgres database (it deletes all employees first). ' +
+        'For local demo data use SQLite: set DB_CLIENT=sqlite. To really seed Postgres, set ALLOW_PG_SEED=1.'
+    );
+  }
 
   // Child rows first — foreign keys are enforced.
   await knex('job_runs').del();
@@ -61,6 +71,9 @@ exports.seed = async function seed(knex) {
   await knex('breaks').del();
   await knex('attendance').del();
   await knex('refresh_tokens').del();
+  await knex('notifications').del();
+  await knex('leave_requests').del();
+  await knex('department_leaders').del();
   await knex('employees').del();
 
   const nowMs = t.now();
@@ -87,6 +100,16 @@ exports.seed = async function seed(knex) {
   }));
 
   await knex('employees').insert(employees);
+
+  // The team leader leads Engineering, so their department's leave requests reach them.
+  const leader = employees.find((e) => e.role === 'leader');
+  const hr = employees.find((e) => e.role === 'admin');
+  await knex('department_leaders').insert({
+    department: leader.department,
+    employee_id: leader.id,
+    assigned_at: nowMs,
+    assigned_by: hr.id,
+  });
 
   const attendance = [];
   const breaks = [];
@@ -313,8 +336,9 @@ exports.seed = async function seed(knex) {
 Seeded ${employees.length} employees, ${attendance.length} shifts, ${activity.length} activity logs,
 ${screenshots.length} screenshots (${files.length} with real files), ${audio.length} audio records.
 
-  Admin login : ${admin.email} / ${PASSWORD}
-  User login  : ${employees[1].email} / ${PASSWORD}
+  Admin login  : ${admin.email} / ${PASSWORD}
+  Leader login : ${leader.email} / ${PASSWORD}   (leads Engineering)
+  User login   : ${employees[1].email} / ${PASSWORD}   (Engineering)
   No audio consent (403 demo): sneha.iyer@kdmarketing.in / ${PASSWORD}
 `);
 };

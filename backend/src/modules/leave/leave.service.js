@@ -11,6 +11,8 @@ const t = require('../../utils/time');
 const { toIso, toBool } = require('../../utils/http');
 const { conflict, notFound, badRequest, forbidden, payloadTooLarge } = require('../../utils/errors');
 const { storage, buildKey, extensionFor } = require('../../storage');
+const notifications = require('../../services/notifications');
+const logger = require('../../utils/logger');
 
 // Same set the storage layer knows an extension for, minus audio types a leave proof would
 // never realistically be — a photo of a document, a scan, or a PDF.
@@ -47,7 +49,9 @@ const PROOF_REQUIRED_TYPES = ['sick', 'bereavement', 'emergency'];
 
 const DAY_PART_LABEL = { full: 'Full day', half_am: 'Half day (AM)', half_pm: 'Half day (PM)' };
 
-function shape(row, employee) {
+const ROLE_LABEL = { admin: 'HR / Admin', leader: 'Team leader', user: 'Employee' };
+
+function shape(row, employee, reviewer) {
   return {
     id: row.id,
     employeeId: row.employee_id,
@@ -65,6 +69,9 @@ function shape(row, employee) {
     reason: row.reason,
     status: row.status,
     reviewedBy: row.reviewed_by,
+    // Who made the decision, so a team leader can see that HR decided and the other way round.
+    reviewedByName: reviewer?.name || null,
+    reviewedByRole: reviewer ? ROLE_LABEL[reviewer.role] || reviewer.role : null,
     reviewedAt: toIso(row.reviewed_at),
     reviewNote: row.review_note,
     createdAt: toIso(row.created_at),
@@ -74,10 +81,83 @@ function shape(row, employee) {
 /** Attaches employee name/department to a page of rows in one extra query, not N+1. */
 async function withEmployees(rows) {
   if (!rows.length) return [];
-  const ids = [...new Set(rows.map((r) => r.employee_id))];
-  const employees = await db()('employees').whereIn('id', ids).select('id', 'name', 'department');
-  const byId = Object.fromEntries(employees.map((e) => [e.id, e]));
-  return rows.map((r) => shape(r, byId[r.employee_id]));
+  const ids = [...new Set(rows.flatMap((r) => [r.employee_id, r.reviewed_by]).filter(Boolean))];
+  const people = await db()('employees').whereIn('id', ids).select('id', 'name', 'department', 'role');
+  const byId = Object.fromEntries(people.map((e) => [e.id, e]));
+  return rows.map((r) => shape(r, byId[r.employee_id], byId[r.reviewed_by]));
+}
+
+// --- Notifications ---------------------------------------------------------------------------
+//
+// Who hears about what:
+//  - a new request or a cancellation: HR (admins) and, for a regular employee, the leaders of
+//    their department. A leader's own request goes to HR only, because leaders never decide on
+//    other leaders (see resolveLeaveMemberIds in leader.service.js).
+//  - a decision: the employee, plus the *other* side of the review. If HR decided, the
+//    department's leaders are told; if a leader decided, HR and the other leaders are told.
+// All of it is best effort: a failure to notify never blocks the leave action itself.
+
+function spanOf(row) {
+  return row.start_date === row.end_date ? row.start_date : `${row.start_date} to ${row.end_date}`;
+}
+
+const reviewerAudience = notifications.reviewerAudience;
+
+async function announceRequest(row, kind) {
+  try {
+    const employee = await db()('employees').where({ id: row.employee_id }).first();
+    if (!employee) return;
+    const { admins, leaders } = await reviewerAudience(employee, [employee.id]);
+    const label = TYPE_LABEL[row.type] || row.type;
+    const cancelled = kind === 'cancelled';
+    const note = {
+      type: cancelled ? 'leave_cancelled' : 'leave_requested',
+      title: cancelled ? 'Leave request cancelled' : 'New leave request',
+      body: cancelled
+        ? `${employee.name} cancelled their ${label} request for ${spanOf(row)}.`
+        : `${employee.name} requested ${label} for ${spanOf(row)}.`,
+      refId: row.id,
+    };
+    await notifications.notify(admins, { ...note, link: '/admin/leave' });
+    await notifications.notify(leaders, { ...note, link: '/leader/leave' });
+  } catch (err) {
+    logger.error('Leave notification failed', { message: err.message });
+  }
+}
+
+async function announceDecision(row, reviewerId) {
+  try {
+    const [employee, reviewer] = await Promise.all([
+      db()('employees').where({ id: row.employee_id }).first(),
+      db()('employees').where({ id: reviewerId }).first(),
+    ]);
+    if (!employee || !reviewer) return;
+    const verdict = row.status === 'approved' ? 'approved' : 'rejected';
+    const by = `${reviewer.name} (${ROLE_LABEL[reviewer.role] || reviewer.role})`;
+    const label = TYPE_LABEL[row.type] || row.type;
+
+    // The employee always hears the outcome.
+    await notifications.notify([employee.id], {
+      type: `leave_${verdict}`,
+      title: `Leave ${verdict}`,
+      body: `${by} ${verdict} your ${label} request for ${spanOf(row)}.${row.review_note ? ` Note: ${row.review_note}` : ''}`,
+      link: '/me/leave',
+      refId: row.id,
+    });
+
+    // The other side of the review hears it too, so nobody decides twice or wonders.
+    const { admins, leaders } = await reviewerAudience(employee, [employee.id, reviewer.id]);
+    const note = {
+      type: `leave_${verdict}_by_reviewer`,
+      title: `Leave ${verdict} by ${reviewer.role === 'admin' ? 'HR' : 'the team leader'}`,
+      body: `${by} ${verdict} ${employee.name}'s ${label} request for ${spanOf(row)}.`,
+      refId: row.id,
+    };
+    await notifications.notify(admins, { ...note, link: '/admin/leave' });
+    await notifications.notify(leaders, { ...note, link: '/leader/leave' });
+  } catch (err) {
+    logger.error('Leave notification failed', { message: err.message });
+  }
 }
 
 async function createRequest({
@@ -124,6 +204,7 @@ async function createRequest({
   }
 
   await db()('leave_requests').insert(row);
+  await announceRequest(row, 'requested');
   return shape(row);
 }
 
@@ -158,6 +239,7 @@ async function cancelRequest(id, employeeId) {
   if (row.status !== 'pending') throw conflict('Only a pending request can be cancelled');
 
   await db()('leave_requests').where({ id }).update({ status: 'cancelled', updated_at: t.now() });
+  await announceRequest({ ...row, status: 'cancelled' }, 'cancelled');
   return shape({ ...row, status: 'cancelled' });
 }
 
@@ -182,7 +264,10 @@ async function review(id, { status, reviewedBy, reviewNote, memberIds }) {
     updated_at: t.now(),
   };
   await db()('leave_requests').where({ id }).update(patch);
-  return shape({ ...row, ...patch });
+  const decided = { ...row, ...patch };
+  await announceDecision(decided, reviewedBy);
+  const reviewer = await db()('employees').where({ id: reviewedBy }).select('id', 'name', 'role').first();
+  return shape(decided, undefined, reviewer);
 }
 
 /**

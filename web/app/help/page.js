@@ -137,6 +137,7 @@ const SECTIONS = [
       'Open Leave and fill in the form: type (Sick, Bereavement, Personal, Emergency or Company Vacation), full or half day, dates and an optional reason.',
       'Sick, Bereavement and Emergency leave need proof: a photo or PDF up to 5 MB. A half day is always a single date.',
       'The request shows as Pending until your leader or HR approves or rejects it. You can cancel it while it is still pending.',
+      'When you send a request, your team leader and HR are notified. When one of them decides, you get a notification (the red number next to Notifications in the menu) and the Leave page shows who decided.',
     ],
   },
   {
@@ -171,6 +172,7 @@ const SECTIONS = [
       'Open Leave requests and filter by Pending. Each request shows the type, dates, full or half day, the reason and any proof file.',
       'Sick, Bereavement and Emergency leave need proof. If none is attached, say so in your decision: leave taken without proof is treated as No Pay Leave.',
       'Approve or Reject. The employee sees the new status straight away.',
+      'You are notified of new requests from your department (the red number next to Notifications). If HR decides one first, you are told and the request shows "by <name> (HR / Admin)". When you decide, HR and any other leader of the department are told the same way. A request is decided once, by whoever gets to it first.',
     ],
   },
   {

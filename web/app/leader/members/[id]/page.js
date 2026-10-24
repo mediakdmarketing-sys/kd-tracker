@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { api, requireUser } from '@/lib/api';
 import RangeFilter from '@/components/RangeFilter';
 import CaptureSection from '@/components/CaptureSection';
+import MicLogTable from '@/components/MicLogTable';
 import { duration, time, timeSec, dateLabel, todayIn, workedSecondsOf, isOpenShift } from '@/lib/format';
 import { averageActivity } from '@/lib/activity';
 
@@ -25,12 +26,13 @@ export default async function LeaderMemberDetailPage({ params, searchParams }) {
   const to = query.to || query.date || today;
   const isRange = from !== to;
 
-  const [attendance, screenshots, audio, activity, agentConfig] = await Promise.all([
+  const [attendance, screenshots, audio, activity, agentConfig, micLog] = await Promise.all([
     api(`/api/leader/members/${id}/attendance?from=${from}&to=${to}`),
     api(`/api/leader/members/${id}/screenshots?from=${from}&to=${to}&limit=200`),
     api(`/api/leader/members/${id}/audio?from=${from}&to=${to}&limit=60`),
     api(`/api/leader/members/${id}/activity?from=${from}&to=${to}&limit=200`),
     api('/api/config'),
+    api(`/api/leader/members/${id}/mic-log?from=${from}&to=${to}`),
   ]);
 
   const shift = isRange ? null : attendance.data[0];
@@ -171,6 +173,14 @@ export default async function LeaderMemberDetailPage({ params, searchParams }) {
             </div>
           </div>
         )}
+
+        <div className="card">
+          <div className="card-head">
+            <h2>Microphone log</h2>
+            <span className="faint">When the mic was found muted (from the audio samples)</span>
+          </div>
+          <MicLogTable periods={micLog.periods} timezone={member.timezone} />
+        </div>
 
         <CaptureSection
           screenshots={screenshots.data}

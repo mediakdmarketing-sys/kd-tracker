@@ -18,6 +18,9 @@ async function migrate() {
 /** Wipes rows between tests without paying for a full migrate cycle. */
 async function truncate() {
   for (const table of [
+    'notifications',
+    'leave_requests',
+    'department_leaders',
     'app_categories',
     'agent_connect_codes',
     'job_runs',

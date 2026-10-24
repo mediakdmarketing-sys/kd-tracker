@@ -75,6 +75,11 @@ export default async function MyLeavePage() {
                         <span className={`pill ${STATUS_CLASS[r.status]}`}>
                           {r.status[0].toUpperCase() + r.status.slice(1)}
                         </span>
+                        {r.reviewedByName && (
+                          <div className="faint" style={{ fontSize: 11, marginTop: 3 }}>
+                            by {r.reviewedByName} ({r.reviewedByRole})
+                          </div>
+                        )}
                       </td>
                       <td className="muted">
                         {r.reviewNote || (r.status === 'pending' ? '—' : '')}

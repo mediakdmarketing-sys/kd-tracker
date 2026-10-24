@@ -325,10 +325,14 @@ class CaptureService : Service() {
             recorder.start()
             val recordedAt = Instant.now().toString()
             var elapsed = 0
+            var peak = 0
             // One second at a time, so a break or a punch-out ends the sample straight away.
+            // The loudest moment is kept: if it never rises above the noise floor the mic was
+            // almost certainly muted or switched off, and HR and the team leader are told.
             while (scope.isActive && elapsed < audioSeconds && captureAllowed && audioAllowed) {
                 delay(1_000)
                 elapsed += 1
+                peak = maxOf(peak, recorder.maxAmplitude)
             }
             recorder.stop()
             completed = elapsed >= 5
@@ -338,6 +342,7 @@ class CaptureService : Service() {
                     .put("durationSeconds", elapsed)
                     .put("contentType", "audio/ogg")
                     .put("recordedAt", recordedAt)
+                    .put("micMuted", peak < SILENCE_PEAK)
                 outbox.enqueue("/api/audio/upload", "audioBase64", payload, file.readBytes())
             }
         } finally {
@@ -447,6 +452,9 @@ class CaptureService : Service() {
         private const val CHANNEL_ID = "capture"
         private const val NOTIFICATION_ID = 1
         private const val MAX_EDGE = 1280
+
+        /** Peak amplitude (of 32767) under which a sample counts as silence: about -50 dBFS. */
+        private const val SILENCE_PEAK = 100
         private const val JPEG_QUALITY = 65
         private const val STATUS_EVERY_MS = 45_000L
         private const val UPLOAD_EVERY_MS = 15_000L

@@ -9,6 +9,8 @@ const { toBool, toIso } = require('../../utils/http');
 const { resolveCaptureTime } = require('../../utils/eventTime');
 const { storage, buildKey, extensionFor } = require('../../storage');
 const attendanceService = require('../attendance/attendance.service');
+const notifications = require('../../services/notifications');
+const logger = require('../../utils/logger');
 const { forbidden, conflict, notFound, payloadTooLarge, badRequest } = require('../../utils/errors');
 
 /**
@@ -182,6 +184,35 @@ async function uploadScreenshot({
   };
 }
 
+// A sample is taken every ~13 minutes, so a muted mic would otherwise raise an alert that often.
+// One alert per employee per hour is enough to act on without burying HR.
+const MIC_ALERT_COOLDOWN_MS = 60 * 60 * 1000;
+
+/**
+ * Tells HR and the employee's team leaders, by name, that the latest audio sample was silent,
+ * which is what a muted, unplugged or switched-off microphone sounds like. Best effort: it never
+ * blocks the upload, and a quiet room is told apart from a dead mic by the sample's noise floor
+ * (see the agent's recorder), so this is a prompt to ask, not proof of anything.
+ */
+async function announceMicInactive(employee) {
+  try {
+    if (await notifications.recentlyNotified('mic_inactive', employee.id, MIC_ALERT_COOLDOWN_MS)) {
+      return;
+    }
+    const { admins, leaders } = await notifications.reviewerAudience(employee, [employee.id]);
+    const note = {
+      type: 'mic_inactive',
+      title: `Mic not active: ${employee.name}`,
+      body: `${employee.name}'s microphone looks muted or disconnected. The latest audio sample had no sound.`,
+      refId: employee.id,
+    };
+    await notifications.notify(admins, { ...note, link: `/admin/employees/${employee.id}` });
+    await notifications.notify(leaders, { ...note, link: `/leader/members/${employee.id}` });
+  } catch (err) {
+    logger.error('Mic alert failed', { message: err.message });
+  }
+}
+
 async function uploadAudio({
   employee,
   audioBase64,
@@ -273,6 +304,8 @@ async function uploadAudio({
       duplicate: true,
     };
   }
+
+  if (micMuted === true) await announceMicInactive(employee);
 
   return {
     id,

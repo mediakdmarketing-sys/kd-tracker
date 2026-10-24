@@ -3,6 +3,7 @@
 const express = require('express');
 const { z } = require('zod');
 const service = require('./capture.service');
+const { micLog } = require('./micLog');
 const { authenticate } = require('../../middleware/auth');
 const { requireAdmin, requireSelfOrAdmin } = require('../../middleware/rbac');
 const { validate, q } = require('../../middleware/validate');
@@ -140,6 +141,27 @@ audio.get(
       details: { recordedAt: new Date(Number(row.recorded_at)).toISOString() },
     });
     sendWithRange(req, res, buffer, contentType);
+  })
+);
+
+// When the employee's microphone was found muted, from what time to what time.
+audio.get(
+  '/:employeeId/mic-log',
+  requireSelfOrAdmin('employeeId'),
+  validate(listQuerySchema, 'query'),
+  asyncHandler(async (req, res) => {
+    const query = q(req);
+    const log = await micLog({ employeeIds: [req.params.employeeId], from: query.from, to: query.to });
+
+    if (req.user.role === 'admin' && req.user.id !== req.params.employeeId) {
+      await audit.record(req, {
+        action: audit.ACTIONS.LISTED_AUDIO,
+        targetEmployeeId: req.params.employeeId,
+        targetType: 'audio',
+        details: { kind: 'mic-log', from: log.from, to: log.to, periods: log.periods.length },
+      });
+    }
+    res.json(log);
   })
 );
 

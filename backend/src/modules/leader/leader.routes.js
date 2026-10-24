@@ -8,6 +8,7 @@ const { requireAdminOrLeader, requireSelfOrAdminOrLeader, loadLeaderDepts } = re
 const { validate, q } = require('../../middleware/validate');
 const { asyncHandler, pagination, paged, sendWithRange } = require('../../utils/http');
 const captureService = require('../capture/capture.service');
+const { micLog } = require('../capture/micLog');
 const attendanceService = require('../attendance/attendance.service');
 const projectService = require('../projects/project.service');
 const leaveService = require('../leave/leave.service');
@@ -184,6 +185,24 @@ router.get(
     });
 
     res.json(paged(rows, total, page));
+  })
+);
+
+// When a member's microphone was found muted, from what time to what time.
+router.get(
+  '/members/:employeeId/mic-log',
+  requireSelfOrAdminOrLeader('employeeId'),
+  validate(listQuerySchema, 'query'),
+  asyncHandler(async (req, res) => {
+    const query = q(req);
+    const log = await micLog({ employeeIds: [req.params.employeeId], from: query.from, to: query.to });
+    await audit.record(req, {
+      action: audit.ACTIONS.LISTED_AUDIO,
+      targetEmployeeId: req.params.employeeId,
+      targetType: 'audio',
+      details: { kind: 'mic-log', from: log.from, to: log.to, periods: log.periods.length, via: 'leader' },
+    });
+    res.json(log);
   })
 );
 
