@@ -9,6 +9,44 @@
       // Hidden window. Records one short sample on request, then releases the microphone.
       // The stream is stopped explicitly at the end of every sample — leaving it open would
       // keep the OS microphone indicator lit and turn sampling into continuous recording.
+      // Mic check. Opens the microphone for about a second and a half, measures how loud it is
+      // and lets go of it again. Nothing is recorded, encoded or sent: the only thing that leaves
+      // this page is a verdict (the system says it is muted / no signal / signal present). It
+      // exists so a muted microphone is noticed within a minute rather than at the next sample.
+      window.recorder.onCheck(async () => {
+        let stream = null;
+        let audioCtx = null;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          const track = stream.getAudioTracks()[0];
+          audioCtx = new AudioContext();
+          const analyser = audioCtx.createAnalyser();
+          analyser.fftSize = 2048;
+          audioCtx.createMediaStreamSource(stream).connect(analyser);
+
+          const pcm = new Float32Array(analyser.fftSize);
+          let peak = 0;
+          for (let i = 0; i < 15; i++) {
+            await new Promise((r) => setTimeout(r, 100));
+            analyser.getFloatTimeDomainData(pcm);
+            let sum = 0;
+            for (let j = 0; j < pcm.length; j++) sum += pcm[j] * pcm[j];
+            peak = Math.max(peak, Math.sqrt(sum / pcm.length));
+          }
+          window.recorder.checked({
+            // The operating system reports the capture device as muted (a mute key).
+            osMuted: track.muted === true,
+            // No signal at all over the check (muted, unplugged, or just a very quiet room).
+            silent: peak < 0.002,
+          });
+        } catch (err) {
+          window.recorder.checked({ error: String(err && err.message ? err.message : err) });
+        } finally {
+          stream?.getTracks().forEach((t) => t.stop());
+          audioCtx?.close();
+        }
+      });
+
       window.recorder.onStart(async ({ durationSeconds }) => {
         let stream = null;
 

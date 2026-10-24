@@ -170,6 +170,7 @@ async function start() {
     capture: {
       screenshots: () => capture.captureAllDisplays({ quality: settings.screenshotQuality }),
       audioSample: (seconds) => audio.recordSample(seconds),
+      micCheck: () => audio.checkMic(),
     },
     onState: () => {
       refreshTray();

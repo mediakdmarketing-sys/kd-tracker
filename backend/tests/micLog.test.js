@@ -62,6 +62,16 @@ describe('periodsFromSamples', () => {
     expect(periods[0].endedBy).toBe('ongoing');
   });
 
+  it('runs a period to the exact moment the agent saw the mic come back', () => {
+    const muted = { recordedAt: 1_000_000_000_000, durationSeconds: 0, micMuted: true, event: true };
+    const back = { recordedAt: 1_000_000_000_000 + 9 * MIN, durationSeconds: 0, micMuted: false, event: true };
+    const periods = periodsFromSamples([muted, back]);
+    expect(periods).toHaveLength(1);
+    expect(periods[0].start).toBe(muted.recordedAt);
+    expect(periods[0].end).toBe(back.recordedAt);
+    expect(periods[0].endedBy).toBe('live');
+  });
+
   it('ignores samples whose state is unknown', () => {
     const periods = periodsFromSamples([sample(0, true), sample(13, null), sample(26, false)]);
     expect(periods).toHaveLength(1);
@@ -97,6 +107,26 @@ describe('a microphone that could not be started', () => {
     const log = await as(await login(hr)).get(`/api/audio/${employee.id}/mic-log`);
     expect(log.body.periods).toHaveLength(1);
     expect(log.body.periods[0].unavailable).toBe(true);
+  });
+
+  it('treats "muted" like a silent sample, and "live" closes it in the mic log', async () => {
+    const { token, hr, leader, employee } = await ready();
+    const send = (state) => as(token).post('/api/audio/mic-status').send({ state });
+
+    expect((await send('muted')).status).toBe(201);
+    const alert = (await as(await login(leader)).get('/api/notifications')).body.items.find(
+      (i) => i.type === 'mic_inactive'
+    );
+    expect(alert.body).toContain('muted');
+
+    expect((await send('live')).status).toBe(201);
+    const log = await as(await login(hr)).get(`/api/audio/${employee.id}/mic-log`);
+    expect(log.body.periods).toHaveLength(1);
+    expect(log.body.periods[0].endedBy).toBe('live');
+    expect(log.body.periods[0].unavailable).toBe(false);
+    // Coming back raises no second alert.
+    const inbox = await as(await login(hr)).get('/api/notifications');
+    expect(inbox.body.items.filter((i) => i.type === 'mic_inactive')).toHaveLength(1);
   });
 
   it('is refused without audio consent', async () => {

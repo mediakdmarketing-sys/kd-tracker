@@ -35,10 +35,74 @@ function makeAgent({ api, capture = {}, now = () => 1_000_000 } = {}) {
     capture: {
       screenshots: capture.screenshots || (async () => []),
       audioSample: capture.audioSample || (async () => null),
+      micCheck: capture.micCheck,
     },
     now,
   });
 }
+
+describe('microphone watch', () => {
+  /** An agent with audio on, whose mic check answers from `results`, one per minute. */
+  async function watched(results, { audioAllowed = true } = {}) {
+    let clock = 1_000_000;
+    const queue = [...results];
+    let checks = 0;
+    const api = fakeApi(statusResponse({ audioAllowed }));
+    const agent = makeAgent({
+      api,
+      now: () => clock,
+      capture: {
+        micCheck: async () => {
+          checks += 1;
+          return queue.shift() ?? { status: 'live' };
+        },
+      },
+    });
+    await agent.syncStatus();
+    // Punching in starts an audio sample at once; these tests are about the checks between
+    // samples, so start from the normal gap instead.
+    agent.audioScheduler.arm(clock);
+    return {
+      // Stays well inside the 8-minute gap before the first audio sample.
+      minute: async () => {
+        clock += 61_000;
+        await agent.tick();
+      },
+      reported: () => api.calls.filter((c) => c.path === '/api/audio/mic-status').map((c) => c.body.state),
+      checks: () => checks,
+    };
+  }
+
+  it('reports a mute at once, only once, and again when the mic is back', async () => {
+    const w = await watched([{ status: 'muted' }, { status: 'muted' }, { status: 'live' }, { status: 'live' }]);
+    for (let i = 0; i < 4; i += 1) await w.minute();
+    expect(w.reported()).toEqual(['muted', 'live']);
+  });
+
+  it('waits for a second silent check before calling a quiet room muted', async () => {
+    const w = await watched([{ status: 'silent' }, { status: 'live' }, { status: 'silent' }, { status: 'silent' }]);
+    await w.minute();
+    await w.minute();
+    await w.minute();
+    expect(w.reported()).toEqual([]);
+    await w.minute();
+    expect(w.reported()).toEqual(['muted']);
+  });
+
+  it('reports a microphone that cannot be started at once', async () => {
+    const w = await watched([{ status: 'unavailable', reason: 'Could not start audio source' }]);
+    await w.minute();
+    expect(w.reported()).toEqual(['unavailable']);
+  });
+
+  it('does not touch the microphone without audio consent', async () => {
+    const w = await watched([{ status: 'muted' }], { audioAllowed: false });
+    await w.minute();
+    await w.minute();
+    expect(w.checks()).toBe(0);
+    expect(w.reported()).toEqual([]);
+  });
+});
 
 describe('capture gating', () => {
   it('arms capture only when the server says it is allowed', async () => {

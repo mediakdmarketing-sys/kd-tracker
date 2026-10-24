@@ -194,7 +194,15 @@ const MIC_ALERT_COOLDOWN_MS = 60 * 60 * 1000;
  * blocks the upload, and a quiet room is told apart from a dead mic by the sample's noise floor
  * (see the agent's recorder), so this is a prompt to ask, not proof of anything.
  */
-async function announceMicInactive(employee, unavailable = false) {
+const MIC_ALERT_TEXT = {
+  sample: (name) => `${name}'s microphone looks muted or disconnected. The latest audio sample had no sound.`,
+  muted: (name) => `${name}'s microphone is muted or has no signal. The agent's check found it switched off.`,
+  unavailable: (name) =>
+    `${name}'s microphone could not be started. It looks switched off, blocked or disconnected.`,
+};
+
+/** @param {'sample'|'muted'|'unavailable'} kind  what the agent found */
+async function announceMicInactive(employee, kind = 'sample') {
   try {
     if (await notifications.recentlyNotified('mic_inactive', employee.id, MIC_ALERT_COOLDOWN_MS)) {
       return;
@@ -203,9 +211,7 @@ async function announceMicInactive(employee, unavailable = false) {
     const note = {
       type: 'mic_inactive',
       title: `Mic not active: ${employee.name}`,
-      body: unavailable
-        ? `${employee.name}'s microphone could not be started. It looks switched off, blocked or disconnected.`
-        : `${employee.name}'s microphone looks muted or disconnected. The latest audio sample had no sound.`,
+      body: MIC_ALERT_TEXT[kind](employee.name),
       refId: employee.id,
     };
     await notifications.notify(admins, { ...note, link: `/admin/employees/${employee.id}` });
@@ -216,11 +222,14 @@ async function announceMicInactive(employee, unavailable = false) {
 }
 
 /**
- * The agent could not open the microphone at all, so there is no sample to upload. Records the
- * moment (for the mic log) and raises the same alert as a silent sample. Held to the same rules
- * as an audio upload: only with audio consent, and only while capture is allowed.
+ * The agent's quick microphone check (about once a minute while audio is on) found a change:
+ *   'muted'        the system says the mic is muted (a mute key), or nothing is coming through
+ *   'unavailable'  the microphone could not be started at all
+ *   'live'         it is working again, which closes the period in the mic log
+ * There is no audio in any of these, only the verdict and the time. 'muted' and 'unavailable'
+ * raise the alert; held to the same rules as an audio upload (audio consent, capture allowed).
  */
-async function recordMicUnavailable({ employee, at, reason }) {
+async function recordMicEvent({ employee, state, at, reason }) {
   if (!employee.consentAudio) {
     throw forbidden('Audio consent has not been given for this employee.');
   }
@@ -232,11 +241,11 @@ async function recordMicUnavailable({ employee, at, reason }) {
     employee_id: employee.id,
     at: when,
     date: t.localDate(when),
-    state: 'unavailable',
+    state,
     reason: reason ? String(reason).slice(0, 200) : null,
     created_at: t.now(),
   });
-  await announceMicInactive(employee, true);
+  if (state !== 'live') await announceMicInactive(employee, state);
   return { recorded: true };
 }
 
@@ -531,7 +540,7 @@ async function listActivity({ employeeId, date, from, to, limit, offset }) {
 module.exports = {
   uploadScreenshot,
   uploadAudio,
-  recordMicUnavailable,
+  recordMicEvent,
   logActivity,
   listScreenshots,
   listAudio,

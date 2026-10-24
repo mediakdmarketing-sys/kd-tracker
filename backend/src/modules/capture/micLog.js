@@ -53,6 +53,9 @@ function periodsFromSamples(samples) {
         open = { start: sample.recordedAt, end, samples: 1, unavailable: Boolean(sample.unavailable) };
       }
     } else if (sample.micMuted === false) {
+      // The agent's own check saw the mic come back at this exact moment, so the period ran
+      // until then. A live audio sample only shows it was working from when that sample began.
+      if (open && sample.event) open.end = Math.max(open.end, sample.recordedAt);
       close('live', sample.recordedAt);
     }
     // null means the agent could not tell (an old build): it neither starts nor ends a period.
@@ -113,14 +116,21 @@ async function micLog({ employeeIds, from, to }) {
     });
   }
 
-  // Moments the microphone could not be started count as silence of no length.
+  // The agent's own checks: a mic found muted or unable to start, and the moment it came back.
+  // They have no length, so they mark exact moments rather than stretches.
   const eventQuery = db()('mic_events')
     .andWhere('date', '>=', range.from)
     .andWhere('date', '<=', range.to)
-    .select('employee_id', 'at');
+    .select('employee_id', 'at', 'state');
   if (employeeIds) eventQuery.whereIn('employee_id', employeeIds);
   for (const e of await eventQuery) {
-    add(e.employee_id, { recordedAt: Number(e.at), durationSeconds: 0, micMuted: true, unavailable: true });
+    add(e.employee_id, {
+      recordedAt: Number(e.at),
+      durationSeconds: 0,
+      micMuted: e.state !== 'live',
+      unavailable: e.state === 'unavailable',
+      event: true,
+    });
   }
   for (const samples of byEmployee.values()) samples.sort((a, b) => a.recordedAt - b.recordedAt);
 

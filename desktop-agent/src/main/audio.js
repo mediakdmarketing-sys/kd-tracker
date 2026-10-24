@@ -30,6 +30,12 @@ function ensureWindow() {
   return recorderWindow;
 }
 
+/** Resolves once the recorder page has loaded, so a message sent to it is not lost. */
+function whenLoaded(win) {
+  if (!win.webContents.isLoading()) return Promise.resolve();
+  return new Promise((resolve) => win.webContents.once('did-finish-load', resolve));
+}
+
 /** macOS gates the microphone behind TCC; ask once, and report honestly if refused. */
 async function ensureMicrophonePermission() {
   if (process.platform !== 'darwin') return true;
@@ -61,6 +67,7 @@ async function recordSample(durationSeconds) {
   }
 
   const win = ensureWindow();
+  await whenLoaded(win);
 
   return new Promise((resolve) => {
     const timeout = setTimeout(() => {
@@ -81,7 +88,55 @@ async function recordSample(durationSeconds) {
   });
 }
 
+let checkPending = null;
+
+/**
+ * A quick look at whether the microphone is switched on, without recording anything.
+ *
+ * @returns {Promise<{status: 'live'|'silent'|'muted'|'unavailable', reason?: string}|null>}
+ *   'muted'       the operating system says the device is muted (a mute key)
+ *   'silent'      the device is open but nothing came through
+ *   'unavailable' it could not be opened at all
+ *   null          skipped: a sample or another check is already running
+ */
+async function checkMic() {
+  if (pending || checkPending) return null; // a sample is using the mic and will report itself
+
+  if (!(await ensureMicrophonePermission())) {
+    return { status: 'unavailable', reason: 'Microphone permission was not granted' };
+  }
+
+  const win = ensureWindow();
+  await whenLoaded(win);
+
+  return new Promise((resolve) => {
+    const timeout = setTimeout(() => {
+      checkPending = null;
+      resolve(null);
+    }, 15_000);
+
+    checkPending = (result) => {
+      clearTimeout(timeout);
+      checkPending = null;
+      resolve(result);
+    };
+
+    win.webContents.send('recorder:check');
+  });
+}
+
 function registerHandlers() {
+  ipcMain.on('recorder:checked', (_event, { osMuted, silent, error }) => {
+    if (!checkPending) return;
+    if (error) {
+      checkPending({ status: 'unavailable', reason: String(error).slice(0, 200) });
+    } else if (osMuted) {
+      checkPending({ status: 'muted' });
+    } else {
+      checkPending({ status: silent ? 'silent' : 'live' });
+    }
+  });
+
   ipcMain.on('recorder:done', (_event, { data, durationSeconds, mimeType, micMuted, error }) => {
     if (!pending) return;
 
@@ -110,4 +165,4 @@ function destroy() {
   recorderWindow = null;
 }
 
-module.exports = { recordSample, registerHandlers, destroy };
+module.exports = { recordSample, checkMic, registerHandlers, destroy };

@@ -148,6 +148,7 @@ const SECTIONS = [
       'Screenshots are taken at random times, every 5–10 minutes by default, only while you are punched in and not on a break.',
       'Activity counts are the number of keystrokes and mouse actions and the name of the active app. What you type is never captured.',
       'Audio samples are optional and off unless you accept them. You can turn them off at any time.',
+      'While audio is on, the agent also looks about once a minute (for roughly two seconds) whether your microphone is switched on. It only measures if there is a signal: nothing is recorded or sent except "muted" or "working again". If your microphone is muted or cannot start, HR and your team leader are told, with your name, and the Mic log shows from when to when.',
       'Screenshots and audio are deleted automatically after 31 days by default. Only the fact that a capture happened is kept.',
       'Only HR/Admin and, for their own team, a leader can view captured media. Admin access is recorded.',
     ],

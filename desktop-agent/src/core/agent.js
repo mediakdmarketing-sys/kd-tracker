@@ -18,6 +18,7 @@ const PUNCH_ENDPOINTS = {
 
 // How often to repeat the "break is over" nudge while the employee is still on the break.
 const BREAK_REMINDER_MS = 5 * 60_000;
+const MIC_CHECK_EVERY_MS = 60_000;
 
 class Agent {
   /**
@@ -48,6 +49,11 @@ class Agent {
     // True while punch() waits for its own follow-up status sync, so that sync does not announce
     // a change the agent has just announced itself.
     this.selfPunchPending = false;
+    // Microphone watch: a quick check about once a minute while audio is on, so a muted mic is
+    // noticed within a minute or two rather than at the next 5-minute sample.
+    this.nextMicCheckAt = 0;
+    this.silentChecks = 0; // consecutive level-only silences (the system did not say "muted")
+    this.micReportedBad = false; // the server has been told the mic is off, until it recovers
     this.state = {
       signedIn: api.isSignedIn(),
       employee: null,
@@ -240,6 +246,59 @@ class Agent {
     this.#notify('breakOverdue', Math.round((now - this.breakDeadline) / 1000));
   }
 
+  /** Tells the server how the microphone is: 'muted', 'unavailable' or back to 'live'. */
+  async #reportMic(state, reason) {
+    try {
+      await this.api.request('/api/audio/mic-status', {
+        method: 'POST',
+        body: { state, at: new Date(this.now()).toISOString(), ...(reason && { reason }) },
+      });
+    } catch (err) {
+      logger.warn('Could not report the microphone state', { state, message: err.message });
+    }
+  }
+
+  /**
+   * Runs from tick(). Reports only changes: the first time the mic is found off, and again when
+   * it comes back, so the server's mic log gets exact start and end times and nobody is
+   * notified every minute. A level-only silence has to repeat once before it counts, because a
+   * very quiet room sounds the same as a muted mic; a mute reported by the system, or a device
+   * that will not open, counts straight away.
+   */
+  async #watchMic(now) {
+    if (!this.capture.micCheck) return;
+    if (!this.state.audioAllowed || !this.state.captureAllowed) return;
+    if (now < this.nextMicCheckAt) return;
+    this.nextMicCheckAt = now + MIC_CHECK_EVERY_MS;
+    // A sample is running; it uses the microphone itself and reports its own result.
+    if (this.audioScheduler.isRecording(now)) return;
+
+    const result = await this.capture.micCheck();
+    if (!result) return;
+
+    if (result.status === 'live') {
+      this.silentChecks = 0;
+      if (this.micReportedBad) {
+        this.micReportedBad = false;
+        await this.#reportMic('live');
+      }
+      return;
+    }
+
+    if (result.status === 'silent') {
+      this.silentChecks += 1;
+      if (this.silentChecks < 2) return;
+    }
+
+    if (this.micReportedBad) return;
+    this.micReportedBad = true;
+    this.#notify('micMuted');
+    await this.#reportMic(
+      result.status === 'unavailable' ? 'unavailable' : 'muted',
+      result.reason
+    );
+  }
+
   #startCapture(audioAllowed) {
     if (this.screenshotScheduler.nextAt === null) this.screenshotScheduler.arm(this.now());
     if (audioAllowed) {
@@ -252,6 +311,9 @@ class Agent {
   #stopCapture() {
     this.screenshotScheduler.disarm();
     this.audioScheduler.disarm();
+    // A new shift starts with a clean slate: the next muted mic is reported afresh.
+    this.silentChecks = 0;
+    this.micReportedBad = false;
   }
 
   // --- Punch actions -------------------------------------------------------------------
@@ -350,6 +412,9 @@ class Agent {
           logger.error('Audio capture failed', { message: err.message })
         );
       }
+      await this.#watchMic(now).catch((err) =>
+        logger.error('Microphone check failed', { message: err.message })
+      );
     }
   }
 
@@ -407,24 +472,21 @@ class Agent {
       this.#notify('audioDisabled');
       // There is no sample to carry the news, so tell the server directly. Best effort: if the
       // network is down this one report is lost, the next attempt reports again.
-      try {
-        await this.api.request('/api/audio/mic-status', {
-          method: 'POST',
-          body: {
-            state: 'unavailable',
-            at: new Date(this.now()).toISOString(),
-            reason: sample?.reason || 'The microphone did not respond',
-          },
-        });
-      } catch (err) {
-        logger.warn('Could not report the unavailable microphone', { message: err.message });
+      if (!this.micReportedBad) {
+        this.micReportedBad = true;
+        await this.#reportMic('unavailable', sample?.reason || 'The microphone did not respond');
       }
       return false;
     }
 
-    // micMuted === true means the renderer detected silence for the whole sample.
+    // micMuted === true means the renderer detected silence for the whole sample. The upload
+    // itself tells the server (and starts the mic-log period); a live sample ends it again.
     if (sample.micMuted === true) {
       this.#notify('micMuted');
+      this.micReportedBad = true;
+    } else if (sample.micMuted === false) {
+      this.micReportedBad = false;
+      this.silentChecks = 0;
     }
 
     this.outbox.enqueue({
