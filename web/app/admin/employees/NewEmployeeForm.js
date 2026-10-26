@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { post, call } from '@/lib/client';
+import InviteCard from '@/components/InviteCard';
 
 const EMPTY = { name: '', email: '', password: '', department: '', role: 'user' };
 
@@ -18,6 +19,8 @@ export default function NewEmployeeForm({ departments = [] }) {
   const [leaderDepts, setLeaderDepts] = useState([]);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
+  // Set once the employee exists: the invitation to hand them (name, email, temporary password).
+  const [invite, setInvite] = useState(null);
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
@@ -43,7 +46,8 @@ export default function NewEmployeeForm({ departments = [] }) {
       const created = await post('/api/admin/employees', {
         name: form.name,
         email: form.email,
-        password: form.password,
+        // Empty means "make one": the server generates a temporary password and returns it.
+        password: form.password || undefined,
         role: form.role,
         department: form.department || undefined,
       });
@@ -60,7 +64,7 @@ export default function NewEmployeeForm({ departments = [] }) {
         );
       }
 
-      close();
+      setInvite({ name: created.name, email: created.email, password: created.temporaryPassword });
       router.refresh();
     } catch (err) {
       setError(err.message);
@@ -70,6 +74,22 @@ export default function NewEmployeeForm({ departments = [] }) {
   }
 
   const isLeader = form.role === 'leader';
+
+  // Created: hand over the invitation before anything else.
+  if (invite) {
+    return (
+      <InviteCard
+        name={invite.name}
+        email={invite.email}
+        password={invite.password}
+        title={`${invite.name} was added: send the invitation`}
+        onDone={() => {
+          setInvite(null);
+          close();
+        }}
+      />
+    );
+  }
 
   if (!open) {
     return (
@@ -122,15 +142,14 @@ export default function NewEmployeeForm({ departments = [] }) {
             </div>
 
             <div className="field">
-              <label htmlFor="ne-password">Temporary password</label>
+              <label htmlFor="ne-password">Temporary password (optional)</label>
               <input
                 id="ne-password"
                 type="text"
                 minLength={8}
-                required
                 value={form.password}
                 onChange={set('password')}
-                placeholder="At least 8 characters"
+                placeholder="Leave empty to generate one"
                 disabled={busy}
               />
             </div>
@@ -274,9 +293,9 @@ export default function NewEmployeeForm({ departments = [] }) {
             <button
               type="submit"
               className="btn btn-primary"
-              disabled={busy || !form.name || !form.email || !form.password}
+              disabled={busy || !form.name || !form.email}
             >
-              {busy ? 'Creating…' : 'Create'}
+              {busy ? 'Creating…' : 'Create and get invitation'}
             </button>
             <button type="button" className="btn" onClick={close} disabled={busy}>
               Cancel
@@ -285,7 +304,10 @@ export default function NewEmployeeForm({ departments = [] }) {
         </form>
 
         <p className="faint" style={{ marginTop: 12, fontSize: 12 }}>
-          The employee accepts the monitoring notice at first sign-in. Consent cannot be set on their behalf.
+          After you create the account you get a ready-made invitation (web link, username and
+          temporary password) to copy, send on WhatsApp or open in your email app. The employee
+          chooses their own password at first sign-in and accepts the monitoring notice then.
+          Consent cannot be set on their behalf.
         </p>
       </div>
     </div>

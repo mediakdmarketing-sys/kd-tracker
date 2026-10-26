@@ -40,6 +40,12 @@ export async function api(path, { method = 'GET', body, cache = 'no-store' } = {
     redirect('/login');
   }
 
+  // A temporary password has to be replaced before anything else works. Several calls run in
+  // parallel on most pages, so whichever is refused first sends the person to choose one.
+  if (payload?.error?.code === 'PASSWORD_CHANGE_REQUIRED') {
+    redirect('/change-password');
+  }
+
   if (!res.ok) {
     const error = new Error(payload?.error?.message || `Request failed (${res.status})`);
     error.status = res.status;
@@ -70,6 +76,7 @@ export async function getSessionUser() {
 export async function requireUser({ adminOnly = false } = {}) {
   const user = await getSessionUser();
 
+  if (user.mustChangePassword) redirect('/change-password');
   if (user.consent.required) redirect('/consent');
   if (adminOnly && user.role !== 'admin') redirect('/me');
 

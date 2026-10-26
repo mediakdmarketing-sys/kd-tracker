@@ -290,6 +290,14 @@ export default function AppShell({ user, children }) {
                 </div>
               </div>
             </div>
+            {!collapsed && (
+              <Link
+                href="/change-password"
+                style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center' }}
+              >
+                Change password
+              </Link>
+            )}
             <LogoutButton />
           </div>
         </aside>

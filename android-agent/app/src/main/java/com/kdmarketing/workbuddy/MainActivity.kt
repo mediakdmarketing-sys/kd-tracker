@@ -133,6 +133,11 @@ class MainActivity : AppCompatActivity() {
                 if (message?.startsWith("Could not reach") == true) message = null
             } else if (s.status == 0) {
                 message = "Could not reach the server. Showing the last known state."
+            } else if (s.body?.optJSONObject("error")?.optString("code") == "PASSWORD_CHANGE_REQUIRED") {
+                // A temporary password from HR has to be replaced on the web portal first.
+                status = null
+                message = "Choose your own password first: sign in on the web portal " +
+                    "(use the button below), then come back here and sign in again."
             }
             if (me.ok) {
                 val employee = me.body?.optJSONObject("employee") ?: me.body

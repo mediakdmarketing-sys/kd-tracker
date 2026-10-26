@@ -3,7 +3,16 @@
 const jwt = require('jsonwebtoken');
 const config = require('../config');
 const { db } = require('../db');
-const { unauthorized, accountDeactivated } = require('../utils/errors');
+const { unauthorized, accountDeactivated, passwordChangeRequired } = require('../utils/errors');
+
+// The only calls a person with a temporary password may make: see who they are, set a new
+// password, and sign out. Everything else waits until the password has been changed.
+const ALLOWED_WHILE_PASSWORD_PENDING = new Set([
+  '/api/auth/me',
+  '/api/auth/change-password',
+  '/api/auth/logout',
+  '/api/auth/logout-all',
+]);
 const { toBool } = require('../utils/http');
 
 function extractToken(req) {
@@ -56,12 +65,17 @@ async function authenticate(req, res, next) {
         department: row.department,
         timezone: config.timezone,
         status: row.status,
+        mustChangePassword: toBool(row.must_change_password),
         consentMonitoring: toBool(row.consent_monitoring),
         consentAudio: toBool(row.consent_audio),
       };
     }
 
     req.user = req[cacheKey];
+
+    if (req.user.mustChangePassword && !ALLOWED_WHILE_PASSWORD_PENDING.has(req.originalUrl.split('?')[0])) {
+      throw passwordChangeRequired();
+    }
     next();
   } catch (err) {
     next(err);

@@ -83,6 +83,25 @@ router.post(
   })
 );
 
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, 'Enter the current password'),
+  newPassword: z
+    .string()
+    .min(8, 'The new password must be at least 8 characters')
+    .max(200),
+});
+
+// Rate limited like sign-in: this checks a password too, so it must not be a way around that.
+router.post(
+  '/change-password',
+  loginLimiter,
+  authenticate,
+  validate(changePasswordSchema),
+  asyncHandler(async (req, res) => {
+    res.json(await service.changePassword(req.user.id, req.body));
+  })
+);
+
 router.get(
   '/me',
   authenticate,

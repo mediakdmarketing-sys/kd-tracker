@@ -91,6 +91,9 @@ function publicEmployee(row) {
     employeeCode: row.employee_code,
     timezone: config.timezone,
     status: row.status,
+    // True while the password is a temporary one from HR; the portal sends the person to
+    // choose their own before anything else.
+    mustChangePassword: toBool(row.must_change_password),
     blurScreenshots: toBool(row.blur_screenshots),
     consent: {
       monitoring: toBool(row.consent_monitoring),
@@ -208,6 +211,33 @@ async function logoutEverywhere(employeeId) {
   return { revoked };
 }
 
+/**
+ * The person chooses their own password. Works whether or not the current one is temporary.
+ * Every session is ended afterwards (this browser's included), so a temporary password that
+ * was shared through a chat app cannot leave a signed-in session behind it; they sign in again
+ * with the new one.
+ */
+async function changePassword(employeeId, { currentPassword, newPassword }) {
+  const row = await db()('employees').where({ id: employeeId }).first();
+  if (!row) throw notFound('Employee not found');
+
+  const ok = row.password_hash && (await bcrypt.compare(currentPassword, row.password_hash));
+  if (!ok) throw badRequest('The current password is not correct.');
+  if (currentPassword === newPassword) {
+    throw badRequest('Choose a password that is different from the current one.');
+  }
+
+  await db()('employees')
+    .where({ id: employeeId })
+    .update({
+      password_hash: await bcrypt.hash(newPassword, config.auth.bcryptRounds),
+      must_change_password: false,
+      updated_at: now(),
+    });
+  await logoutEverywhere(employeeId);
+  return { changed: true };
+}
+
 async function me(employeeId) {
   const row = await db()('employees').where({ id: employeeId }).first();
   if (!row) throw notFound('Employee not found');
@@ -307,6 +337,7 @@ module.exports = {
   refresh,
   logout,
   logoutEverywhere,
+  changePassword,
   me,
   recordConsent,
   publicEmployee,

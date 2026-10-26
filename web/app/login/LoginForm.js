@@ -33,6 +33,11 @@ export default function LoginForm() {
 
   return (
     <form onSubmit={submit}>
+      {params.get('changed') ? (
+        <div className="notice notice-info" style={{ marginBottom: 14 }} role="status">
+          Your password was changed. Sign in with the new one.
+        </div>
+      ) : null}
       {error ? (
         <div className="notice notice-danger" style={{ marginBottom: 14 }} role="alert">
           {error}

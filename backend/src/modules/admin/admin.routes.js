@@ -182,6 +182,8 @@ const updateEmployeeSchema = z.object({
   name: z.string().trim().min(1).max(200).optional(),
   email: z.string().trim().toLowerCase().email().optional(),
   password: z.string().min(8).max(200).optional(),
+  // Make a random temporary password instead of typing one; it comes back once in the response.
+  generatePassword: z.boolean().optional(),
   role: z.enum(['admin', 'leader', 'user']).optional(),
   status: z.enum(['active', 'inactive']).optional(),
   department: z.string().max(120).nullable().optional(),
@@ -245,7 +247,11 @@ router.patch(
       targetType: 'employee',
       targetId: updated.id,
       // Never log the password itself, only that one was set.
-      details: { fields: Object.keys(req.body).map((k) => (k === 'password' ? 'password:reset' : k)) },
+      details: {
+        fields: Object.keys(req.body).map((k) =>
+          k === 'password' || k === 'generatePassword' ? 'password:reset' : k
+        ),
+      },
     });
     res.json(updated);
   })

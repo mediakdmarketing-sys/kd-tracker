@@ -57,6 +57,11 @@ export async function call(path, { method = 'GET', body } = {}) {
     return new Promise(() => {});
   }
 
+  if (isJson && payload?.error?.code === 'PASSWORD_CHANGE_REQUIRED') {
+    window.location.href = '/change-password';
+    return new Promise(() => {});
+  }
+
   if (!res.ok) {
     const error = new Error(payload?.error?.message || `Request failed (${res.status})`);
     error.status = res.status;

@@ -52,7 +52,14 @@ async function main() {
     if (resetting) {
       console.log(`Password reset for: ${await resetPassword(email, password)}`);
     } else {
-      const admin = await adminService.createEmployee({ name, email, password, role: 'admin' });
+      // The person running this script picked the password themselves: no forced change.
+      const admin = await adminService.createEmployee({
+        name,
+        email,
+        password,
+        role: 'admin',
+        mustChangePassword: false,
+      });
       console.log(`Admin created: ${admin.email}`);
     }
     await destroy();

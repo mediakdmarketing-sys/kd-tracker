@@ -26,7 +26,8 @@ const SECTIONS = [
     title: 'Getting started',
     roles: ALL,
     body: [
-      'Sign in with your work email and password. Forgot it? Ask HR to reset it from your employee page.',
+      'New here? HR sends you a message with the web link, your username (your work email) and a temporary password. The first time you sign in you are asked to choose your own password. You can change it again any time with Change password at the bottom of the menu.',
+      'Sign in with your work email and password. Forgot it? Ask HR to send you a new invitation from your employee page.',
       'The first time, you read and accept the monitoring notice. You cannot punch in until the monitoring box is ticked. The audio box is optional.',
       'Use Sign out at the bottom of the menu on a shared computer.',
     ],
@@ -213,7 +214,8 @@ const SECTIONS = [
     roles: ADMIN,
     body: [
       'Suggested set-up order: Settings → Departments → Employees → leaders.',
-      'Employees → add an employee with name, work email, starting password, role, department and employee code.',
+      'Employees → Add employee with name, work email, role and department. Leave the password empty and the system makes a temporary one. After you create the account you get a ready invitation (web link, username, temporary password) to copy, send on WhatsApp or open in your email app. The password is shown only then.',
+      'Lost or never received it? Open the employee and click Send invitation: it makes a new temporary password and a new message, and signs them out everywhere. They choose their own password at the next sign-in.',
       'On an employee page you can edit role and department, reset the password, turn on Blur screenshots, deactivate the account (it signs them out everywhere) and assign or remove them as a department leader.',
     ],
   },

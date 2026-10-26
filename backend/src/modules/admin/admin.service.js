@@ -10,6 +10,7 @@ const t = require('../../utils/time');
 const { toBool, toIso } = require('../../utils/http');
 const { conflict, notFound, badRequest } = require('../../utils/errors');
 const { publicEmployee } = require('../auth/auth.service');
+const { generateTemporaryPassword } = require('../../utils/password');
 
 /**
  * Story D-1 — "who is working right now".
@@ -286,13 +287,17 @@ async function createEmployee(input) {
   if (existing) throw conflict('An employee with that work email already exists');
 
   const nowMs = t.now();
+  // No password given: make one, so every invitation has something to send. It is temporary
+  // either way (unless the caller, such as the first-admin script, says otherwise): the
+  // person chooses their own the first time they sign in.
+  const temporaryPassword = input.password || generateTemporaryPassword();
+  const mustChange = input.mustChangePassword !== false;
   const row = {
     id: uuid(),
     name: input.name,
     email: input.email.toLowerCase(),
-    password_hash: input.password
-      ? await bcrypt.hash(input.password, config.auth.bcryptRounds)
-      : null,
+    password_hash: await bcrypt.hash(temporaryPassword, config.auth.bcryptRounds),
+    must_change_password: mustChange,
     role: input.role || 'user',
     department: input.department || null,
     employee_code: input.employeeCode || null,
@@ -317,7 +322,9 @@ async function createEmployee(input) {
     if (!isUniqueViolation(err)) throw err;
     throw conflict('An employee with that work email already exists');
   }
-  return publicEmployee(row);
+  // The temporary password is returned this once, for the invitation. It is never stored in
+  // the clear and no later call can read it back.
+  return { ...publicEmployee(row), ...(mustChange && { temporaryPassword }) };
 }
 
 async function updateEmployee(id, input) {
@@ -339,7 +346,12 @@ async function updateEmployee(id, input) {
   if (input.role !== undefined) patch.role = input.role;
   if (input.status !== undefined) patch.status = input.status;
   if (input.timezone !== undefined) patch.timezone = input.timezone;
-  if (input.password) patch.password_hash = await bcrypt.hash(input.password, config.auth.bcryptRounds);
+  // A new password from HR (typed, or generated for an invitation) is a temporary one.
+  const temporaryPassword = input.generatePassword ? generateTemporaryPassword() : input.password;
+  if (temporaryPassword) {
+    patch.password_hash = await bcrypt.hash(temporaryPassword, config.auth.bcryptRounds);
+    patch.must_change_password = true;
+  }
 
   // Audio consent belongs to the employee. HR may turn it off (e.g. on a written request),
   // but must never be able to turn it on for someone.
@@ -355,7 +367,7 @@ async function updateEmployee(id, input) {
     throw conflict('An employee with that work email already exists');
   }
 
-  if (input.status === 'inactive' || input.password) {
+  if (input.status === 'inactive' || temporaryPassword) {
     // Deactivating or resetting a password must end existing sessions immediately — reason
     // 'admin' so the rotation grace window does not keep them alive for another two minutes.
     await db()('refresh_tokens')
@@ -364,8 +376,9 @@ async function updateEmployee(id, input) {
       .update({ revoked_at: t.now(), revoked_reason: 'admin' });
   }
 
-  // Construct the response from known state rather than doing a post-update re-read.
-  return publicEmployee({ ...row, ...patch });
+  // Construct the response from known state rather than doing a post-update re-read. A password
+  // set in this call is returned once, for the invitation.
+  return { ...publicEmployee({ ...row, ...patch }), ...(temporaryPassword && { temporaryPassword }) };
 }
 
 /**

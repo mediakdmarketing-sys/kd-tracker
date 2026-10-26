@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { patch } from '@/lib/client';
 import PasswordField from '@/components/PasswordField';
+import InviteCard from '@/components/InviteCard';
 
 // ---------------------------------------------------------------------------
 // Custom confirmation dialog — rendered in a portal so it is never part of
@@ -91,6 +92,9 @@ export default function EmployeeActions({ employee, departments = [] }) {
 
   const [dialog, setDialog] = useState(null);
 
+  // The invitation (name, email, temporary password) after a reset, until HR is done with it.
+  const [invite, setInvite] = useState(null);
+
   const [showReset, setShowReset] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -173,11 +177,37 @@ export default function EmployeeActions({ employee, departments = [] }) {
     setBusy('reset');
     setResetError(null);
     try {
-      await patch(`/api/admin/employees/${employee.id}`, { password: newPassword });
+      const updated = await patch(`/api/admin/employees/${employee.id}`, { password: newPassword });
       closeReset();
+      setInvite({ password: updated.temporaryPassword });
       router.refresh();
     } catch (err) {
       setResetError(err.message);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  // A new random temporary password and a ready invitation, for someone who never got one or
+  // lost it. Signs them out everywhere, like any reset.
+  async function sendInvitation() {
+    const ok = await confirm({
+      title: 'Send a new invitation?',
+      message: `${employee.name} gets a new temporary password and is signed out everywhere. Their old password stops working, and they choose their own at the next sign-in.`,
+      confirmLabel: 'Create invitation',
+      danger: false,
+    });
+    if (!ok) return;
+
+    setBusy('invite');
+    setError(null);
+    try {
+      const updated = await patch(`/api/admin/employees/${employee.id}`, { generatePassword: true });
+      closeReset();
+      setInvite({ password: updated.temporaryPassword });
+      router.refresh();
+    } catch (err) {
+      setError(err.message);
     } finally {
       setBusy(null);
     }
@@ -229,6 +259,10 @@ export default function EmployeeActions({ employee, departments = [] }) {
               {busy === 'activate' ? 'Reactivating…' : 'Reactivate'}
             </button>
           )}
+
+          <button type="button" className="btn" disabled={busy !== null} onClick={sendInvitation}>
+            {busy === 'invite' ? 'Creating…' : 'Send invitation'}
+          </button>
 
           <button
             type="button"
@@ -291,6 +325,18 @@ export default function EmployeeActions({ employee, departments = [] }) {
           </button>
         </div>
 
+        {invite ? (
+          <div style={{ marginTop: 14 }}>
+            <InviteCard
+              name={employee.name}
+              email={employee.email}
+              password={invite.password}
+              title="Invitation ready"
+              onDone={() => setInvite(null)}
+            />
+          </div>
+        ) : null}
+
         {/* Inline password reset form */}
         {showReset ? (
           <form
@@ -337,7 +383,8 @@ export default function EmployeeActions({ employee, departments = [] }) {
             ) : null}
 
             <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 14, lineHeight: 1.5 }}>
-              The employee will be signed out everywhere immediately.
+              The employee will be signed out everywhere immediately, and chooses their own
+              password at the next sign-in.
             </div>
 
             <div className="inline">

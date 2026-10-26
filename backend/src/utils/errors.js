@@ -29,6 +29,13 @@ const forbidden = (message = 'You do not have access to this resource') =>
  */
 const accountDeactivated = (message = 'Account is deactivated') =>
   new ApiError(403, 'ACCOUNT_DEACTIVATED', message);
+/**
+ * The account is fine but its password is a temporary one (an invitation or a reset), and it must
+ * be replaced before anything else works. Its own code so each client can send the person to the
+ * change-password screen instead of showing a generic "forbidden".
+ */
+const passwordChangeRequired = () =>
+  new ApiError(403, 'PASSWORD_CHANGE_REQUIRED', 'You must choose a new password before you continue.');
 const notFound = (message = 'Not found') => new ApiError(404, 'NOT_FOUND', message);
 /** 409: the request was well-formed but the current state does not allow it. */
 const conflict = (message, details) => new ApiError(409, 'CONFLICT', message, details);
@@ -41,6 +48,7 @@ module.exports = {
   unauthorized,
   forbidden,
   accountDeactivated,
+  passwordChangeRequired,
   notFound,
   conflict,
   payloadTooLarge,
