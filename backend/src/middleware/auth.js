@@ -3,7 +3,14 @@
 const jwt = require('jsonwebtoken');
 const config = require('../config');
 const { db } = require('../db');
-const { unauthorized, accountDeactivated, passwordChangeRequired } = require('../utils/errors');
+const {
+  unauthorized,
+  accountDeactivated,
+  passwordChangeRequired,
+  companySuspended,
+} = require('../utils/errors');
+const companies = require('../services/companies');
+const settings = require('../services/settings');
 
 // The only calls a person with a temporary password may make: see who they are, set a new
 // password, and sign out. Everything else waits until the password has been changed.
@@ -57,13 +64,24 @@ async function authenticate(req, res, next) {
       if (!row) throw unauthorized('Account no longer exists');
       if (row.status !== 'active') throw accountDeactivated();
 
+      // The person's company decides whether they may use the service at all, and which
+      // features it has. Its settings are loaded here so handlers can read them synchronously.
+      const company = await companies.get(row.company_id);
+      if (!company) throw unauthorized('Account no longer exists');
+      if (company.status !== 'active') throw companySuspended();
+      await settings.ensure(company.id);
+
       req[cacheKey] = {
         id: row.id,
         email: row.email,
         name: row.name,
         role: row.role,
         department: row.department,
-        timezone: config.timezone,
+        companyId: company.id,
+        companyName: company.name,
+        features: company.features,
+        isSuperAdmin: toBool(row.is_super_admin),
+        timezone: company.timezone || config.timezone,
         status: row.status,
         mustChangePassword: toBool(row.must_change_password),
         consentMonitoring: toBool(row.consent_monitoring),

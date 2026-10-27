@@ -6,6 +6,10 @@ const { uuid } = require('../../utils/ids');
 const t = require('../../utils/time');
 const { toBool, toIso } = require('../../utils/http');
 const { badRequest, notImplemented } = require('../../utils/errors');
+const { DEFAULT_COMPANY_ID } = require('../../services/companies');
+
+/** Subquery: the ids of one company's employees. */
+const inCompany = (companyId) => db()('employees').where({ company_id: companyId }).select('id');
 
 /**
  * Story P-1 — aggregate a month into `payroll_summary`.
@@ -16,13 +20,14 @@ const { badRequest, notImplemented } = require('../../utils/errors');
  *
  * Open question for the PO (backlog): idle seconds are reported but not deducted from pay.
  */
-async function generate({ month }) {
+async function generateForCompany({ month, companyId }) {
   if (!t.isMonthString(month)) throw badRequest('month must be YYYY-MM');
 
   const { start, end } = t.monthBounds(month);
   const generatedOn = t.now();
 
   const aggregates = await db()('attendance')
+    .whereIn('employee_id', inCompany(companyId))
     .whereBetween('date', [start, end])
     .andWhere({ status: 'closed' })
     .groupBy('employee_id')
@@ -34,6 +39,7 @@ async function generate({ month }) {
 
   // Boolean SUM is not portable, so flagged days are counted with a second query (ADR-0001).
   const flagged = await db()('attendance')
+    .whereIn('employee_id', inCompany(companyId))
     .whereBetween('date', [start, end])
     .andWhere({ status: 'closed' })
     .andWhere((b) => b.where('needs_review', true).orWhere('over_break', true))
@@ -49,7 +55,7 @@ async function generate({ month }) {
   const records = aggregates.map((row) => {
     const workedSeconds = Number(row.worked) || 0;
     const idleSeconds   = Number(row.idle)   || 0;
-    const billableSeconds = settings.get().payroll.deductIdle
+    const billableSeconds = settings.get(companyId).payroll.deductIdle
       ? Math.max(0, workedSeconds - idleSeconds)
       : workedSeconds;
     return {
@@ -60,7 +66,7 @@ async function generate({ month }) {
       total_worked_seconds: workedSeconds,
       total_break_seconds: Number(row.breaks) || 0,
       total_idle_seconds: idleSeconds,
-      idle_deducted: settings.get().payroll.deductIdle,
+      idle_deducted: settings.get(companyId).payroll.deductIdle,
       days_present: Number(row.days) || 0,
       days_flagged: flaggedBy[row.employee_id] || 0,
       generated_on: generatedOn,
@@ -101,6 +107,7 @@ async function generate({ month }) {
   // Warn about employees who have open (not yet closed) shifts in this month — their worked
   // time is incomplete and they will appear with zero hours until those shifts are closed.
   const openShifts = await db()('attendance')
+    .whereIn('employee_id', inCompany(companyId))
     .whereBetween('date', [start, end])
     .whereIn('status', ['open', 'on_break'])
     .select('employee_id', 'id', 'date', 'punch_in');
@@ -118,6 +125,30 @@ async function generate({ month }) {
       date: s.date,
       punchIn: toIso(s.punch_in),
     })),
+  };
+}
+
+/**
+ * Payroll for one company, or (no companyId, as the monthly job calls it) for every active
+ * company that has payroll switched on, with the results added together.
+ */
+async function generate({ month, companyId }) {
+  if (companyId) return generateForCompany({ month, companyId });
+  if (!t.isMonthString(month)) throw badRequest('month must be YYYY-MM');
+
+  const rows = await db()('companies').where({ status: 'active', feature_payroll: true }).select('id');
+  const parts = [];
+  for (const row of rows) parts.push(await generateForCompany({ month, companyId: row.id }));
+
+  const { start, end } = t.monthBounds(month);
+  return {
+    month,
+    range: { from: start, to: end },
+    companies: parts.length,
+    employeesProcessed: parts.reduce((n, p) => n + p.employeesProcessed, 0),
+    generatedAt: toIso(t.now()),
+    openShiftsExcluded: parts.reduce((n, p) => n + p.openShiftsExcluded, 0),
+    openShiftWarnings: parts.flatMap((p) => p.openShiftWarnings),
   };
 }
 
@@ -143,11 +174,12 @@ function shape(row) {
   };
 }
 
-async function list({ month, department }) {
+async function list({ month, department, companyId = DEFAULT_COMPANY_ID }) {
   if (!t.isMonthString(month)) throw badRequest('month must be YYYY-MM');
 
   const query = db()('payroll_summary as p')
     .join('employees as e', 'e.id', 'p.employee_id')
+    .where('e.company_id', companyId)
     .where('p.month', month);
   if (department) query.andWhere('e.department', department);
 
@@ -163,7 +195,7 @@ async function list({ month, department }) {
  * tenant. CSV export is the agreed interim path. `synced_to_payroll` is flipped by whoever
  * confirms the upload, so the column is honest about what actually happened.
  */
-async function markSynced({ month, employeeIds }) {
+async function markSynced({ month, employeeIds, companyId = DEFAULT_COMPANY_ID }) {
   if (!t.isMonthString(month)) throw badRequest('month must be YYYY-MM');
 
   // `undefined` means "mark the whole month synced". An explicit `[]` means "these zero
@@ -173,7 +205,7 @@ async function markSynced({ month, employeeIds }) {
     return { month, updated: 0 };
   }
 
-  const query = db()('payroll_summary').where({ month });
+  const query = db()('payroll_summary').where({ month }).whereIn('employee_id', inCompany(companyId));
   if (employeeIds) query.whereIn('employee_id', employeeIds);
   const updated = await query.update({ synced_to_payroll: true, synced_at: t.now() });
   return { month, updated };

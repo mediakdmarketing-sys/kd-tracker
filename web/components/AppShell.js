@@ -151,7 +151,7 @@ const ADMIN_GROUPS = [
     links: [
       { href: '/admin/dashboard', label: 'Dashboard', icon: Icon.dashboard },
       { href: '/admin', label: 'Live board', icon: Icon.board },
-      { href: '/admin/productivity', label: 'Productivity', icon: Icon.productivity },
+      { href: '/admin/productivity', label: 'Productivity', icon: Icon.productivity, feature: 'idleTracking' },
       { href: '/admin/reports', label: 'Reports', icon: Icon.reports },
     ],
   },
@@ -165,9 +165,9 @@ const ADMIN_GROUPS = [
   {
     label: 'Operations',
     links: [
-      { href: '/admin/payroll', label: 'Payroll', icon: Icon.payroll },
-      { href: '/admin/leave', label: 'Leave requests', icon: Icon.leave },
-      { href: '/admin/mic-log', label: 'Mic log', icon: Icon.mic },
+      { href: '/admin/payroll', label: 'Payroll', icon: Icon.payroll, feature: 'payroll' },
+      { href: '/admin/leave', label: 'Leave requests', icon: Icon.leave, feature: 'leave' },
+      { href: '/admin/mic-log', label: 'Mic log', icon: Icon.mic, feature: 'audioCapture' },
       { href: '/admin/settings', label: 'Settings', icon: Icon.settings },
 
     ],
@@ -180,18 +180,24 @@ const LEADER_GROUPS = [
     links: [
       { href: '/leader', label: 'My team', icon: Icon.team },
       { href: '/leader/members', label: 'Live board', icon: Icon.board },
-      { href: '/leader/leave', label: 'Leave requests', icon: Icon.leave },
+      { href: '/leader/leave', label: 'Leave requests', icon: Icon.leave, feature: 'leave' },
       
     ],
   },
 ];
+
+// The platform owner's own section: companies and what each may use.
+const SUPER_GROUP = {
+  label: 'Platform',
+  links: [{ href: '/super', label: 'Companies', icon: Icon.departments }],
+};
 
 const USER_GROUP = {
   label: 'Me',
   links: [
     { href: '/me', label: 'My shift', icon: Icon.me },
     { href: '/me/history', label: 'My history', icon: Icon.history },
-    { href: '/me/leave', label: 'Leave', icon: Icon.leave },
+    { href: '/me/leave', label: 'Leave', icon: Icon.leave, feature: 'leave' },
     { href: '/notifications', label: 'Notifications', icon: Icon.bell },
     // Same group for every role: right under the links people use every day, not after the
     // team/admin sections where it was easy to miss.
@@ -235,12 +241,18 @@ export default function AppShell({ user, children }) {
   // "Me" leads for every role, with "Team" sitting right after it for a Leader — the
   // account's own shift/leave links are what a person reaches for first when they open
   // the app, ahead of the department- or company-wide sections below them.
-  const groups =
+  const baseGroups =
     user.role === 'admin'
       ? [USER_GROUP, ...ADMIN_GROUPS]
       : user.role === 'leader'
       ? [USER_GROUP, ...LEADER_GROUPS]
       : [{ ...USER_GROUP, label: null }];
+
+  // A feature the company does not have disappears from the menu, along with its page.
+  const features = user.company?.features || {};
+  const groups = (user.isSuperAdmin ? [SUPER_GROUP, ...baseGroups] : baseGroups)
+    .map((g) => ({ ...g, links: g.links.filter((l) => !l.feature || features[l.feature] !== false) }))
+    .filter((g) => g.links.length > 0);
 
   const initials = (user.name || '?')
     .split(' ')
@@ -254,7 +266,7 @@ export default function AppShell({ user, children }) {
       <div className="sidebar-rail">
         <aside className={`sidebar${collapsed ? ' collapsed' : ''}`}>
           <div className="brand-row">
-            <Link href={user.role === 'admin' ? '/admin' : user.role === 'leader' ? '/leader' : '/me'} className="brand">
+            <Link href={user.isSuperAdmin ? '/super' : user.role === 'admin' ? '/admin' : user.role === 'leader' ? '/leader' : '/me'} className="brand">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/icons/icon-192.png" alt="" className="brand-mark" />
               <span className="brand-word">WorkBuddy</span>
@@ -282,6 +294,7 @@ export default function AppShell({ user, children }) {
               <div className="whoami">
                 <div className="name">{user.name}</div>
                 <div className="role">
+                  {user.company?.name ? `${user.company.name} ? ` : ''}
                   {user.role === 'admin'
                     ? 'HR / Admin'
                     : user.role === 'leader'

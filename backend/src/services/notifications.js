@@ -35,18 +35,21 @@ async function notify(recipientIds, { type, title, body, link, refId }) {
   }
 }
 
-/** Every active administrator (HR). */
-async function adminIds() {
-  const rows = await db()('employees').where({ role: 'admin', status: 'active' }).select('id');
+/** Every active administrator (HR) of one company. */
+async function adminIds(companyId) {
+  const rows = await db()('employees')
+    .where({ role: 'admin', status: 'active', company_id: companyId })
+    .select('id');
   return rows.map((r) => r.id);
 }
 
-/** Active leaders of one department. */
-async function leaderIdsOf(department) {
+/** Active leaders of one department of one company. */
+async function leaderIdsOf(department, companyId) {
   if (!department) return [];
   const rows = await db()('department_leaders as dl')
     .join('employees as e', 'e.id', 'dl.employee_id')
     .where('dl.department', department)
+    .andWhere('e.company_id', companyId)
     .andWhere('e.status', 'active')
     .select('e.id');
   return rows.map((r) => r.id);
@@ -59,10 +62,16 @@ async function leaderIdsOf(department) {
  */
 async function reviewerAudience(employee, exclude = []) {
   const skip = new Set(exclude.filter(Boolean));
-  const admins = (await adminIds()).filter((id) => !skip.has(id));
+  // Only people of the employee's own company are ever told about them.
+  let companyId = employee.company_id || employee.companyId;
+  if (!companyId) {
+    const row = await db()('employees').where({ id: employee.id }).select('company_id').first();
+    companyId = row && row.company_id;
+  }
+  const admins = (await adminIds(companyId)).filter((id) => !skip.has(id));
   const taken = new Set([...skip, ...admins]);
   const leaders = employee.role === 'user'
-    ? (await leaderIdsOf(employee.department)).filter((id) => !taken.has(id))
+    ? (await leaderIdsOf(employee.department, companyId)).filter((id) => !taken.has(id))
     : [];
   return { admins, leaders };
 }

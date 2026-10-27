@@ -10,6 +10,7 @@ const { validate, q } = require('../../middleware/validate');
 const { uploadLimiter } = require('../../middleware/rateLimit');
 const { asyncHandler, pagination, paged, sendWithRange } = require('../../utils/http');
 const audit = require('../../services/audit');
+const { requireFeature, ignoreWhenDisabled } = require('../../middleware/features');
 
 const listQuerySchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
@@ -50,6 +51,7 @@ const screenshotUploadSchema = z
 
 screenshots.post(
   '/upload',
+  ignoreWhenDisabled('screenCapture'),
   uploadLimiter,
   validate(screenshotUploadSchema),
   asyncHandler(async (req, res) => {
@@ -60,9 +62,10 @@ screenshots.post(
 /** Streams the image. Every single view is audited (story D-4). */
 screenshots.get(
   '/file/:id',
+  requireFeature('screenCapture'),
   requireAdmin,
   asyncHandler(async (req, res) => {
-    const { buffer, contentType, row } = await service.readFile('screenshots', req.params.id);
+    const { buffer, contentType, row } = await service.readFile('screenshots', req.params.id, req.user.companyId);
     await audit.record(req, {
       action: audit.ACTIONS.VIEWED_SCREENSHOT,
       targetEmployeeId: row.employee_id,
@@ -76,6 +79,7 @@ screenshots.get(
 
 screenshots.get(
   '/:employeeId',
+  requireFeature('screenCapture'),
   requireSelfOrAdmin('employeeId'),
   validate(listQuerySchema, 'query'),
   asyncHandler(async (req, res) => {
@@ -121,6 +125,7 @@ const audioUploadSchema = z.object({
 
 audio.post(
   '/upload',
+  ignoreWhenDisabled('audioCapture'),
   uploadLimiter,
   validate(audioUploadSchema),
   asyncHandler(async (req, res) => {
@@ -138,6 +143,7 @@ const micStatusSchema = z.object({
 
 audio.post(
   '/mic-status',
+  ignoreWhenDisabled('audioCapture'),
   uploadLimiter,
   validate(micStatusSchema),
   asyncHandler(async (req, res) => {
@@ -147,9 +153,10 @@ audio.post(
 
 audio.get(
   '/file/:id',
+  requireFeature('audioCapture'),
   requireAdmin,
   asyncHandler(async (req, res) => {
-    const { buffer, contentType, row } = await service.readFile('audio_recordings', req.params.id);
+    const { buffer, contentType, row } = await service.readFile('audio_recordings', req.params.id, req.user.companyId);
     await audit.record(req, {
       action: audit.ACTIONS.VIEWED_AUDIO,
       targetEmployeeId: row.employee_id,
@@ -164,11 +171,17 @@ audio.get(
 // When the employee's microphone was found muted, from what time to what time.
 audio.get(
   '/:employeeId/mic-log',
+  requireFeature('audioCapture'),
   requireSelfOrAdmin('employeeId'),
   validate(listQuerySchema, 'query'),
   asyncHandler(async (req, res) => {
     const query = q(req);
-    const log = await micLog({ employeeIds: [req.params.employeeId], from: query.from, to: query.to });
+    const log = await micLog({
+      employeeIds: [req.params.employeeId],
+      from: query.from,
+      to: query.to,
+      timezone: req.user.timezone,
+    });
 
     if (req.user.role === 'admin' && req.user.id !== req.params.employeeId) {
       await audit.record(req, {
@@ -184,6 +197,7 @@ audio.get(
 
 audio.get(
   '/:employeeId',
+  requireFeature('audioCapture'),
   requireSelfOrAdmin('employeeId'),
   validate(listQuerySchema, 'query'),
   asyncHandler(async (req, res) => {
@@ -233,6 +247,7 @@ const activityLogSchema = z.union([
 
 activity.post(
   '/log',
+  ignoreWhenDisabled('idleTracking'),
   uploadLimiter,
   validate(activityLogSchema),
   asyncHandler(async (req, res) => {
@@ -243,6 +258,7 @@ activity.post(
 
 activity.get(
   '/:employeeId',
+  requireFeature('idleTracking'),
   requireSelfOrAdmin('employeeId'),
   validate(listQuerySchema, 'query'),
   asyncHandler(async (req, res) => {

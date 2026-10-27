@@ -4,7 +4,6 @@ const express = require('express');
 const { z } = require('zod');
 const service = require('./admin.service');
 const settings = require('../../services/settings');
-const projectService = require('../projects/project.service');
 const leaveService = require('../leave/leave.service');
 const { micLog } = require('../capture/micLog');
 const { db } = require('../../db');
@@ -16,6 +15,8 @@ const { asyncHandler, pagination, paged, sendWithRange } = require('../../utils/
 const { sendCsv } = require('../../utils/csv');
 const { badRequest } = require('../../utils/errors');
 const audit = require('../../services/audit');
+const companies = require('../../services/companies');
+const { requireFeature } = require('../../middleware/features');
 
 const router = express.Router();
 
@@ -45,15 +46,20 @@ const micLogQuery = z.object({
 // Company-wide microphone log: who had a muted mic, from what time to what time.
 router.get(
   '/mic-log',
+  requireFeature('audioCapture'),
   validate(micLogQuery, 'query'),
   asyncHandler(async (req, res) => {
     const query = q(req);
     let employeeIds = null;
     if (query.department) {
-      const rows = await db()('employees').where({ department: query.department }).select('id');
+      const rows = await db()('employees')
+        .where({ department: query.department, company_id: req.user.companyId })
+        .select('id');
       employeeIds = rows.map((r) => r.id);
+    } else {
+      employeeIds = await companies.employeeIds(req.user.companyId);
     }
-    const log = await micLog({ employeeIds, from: query.from, to: query.to });
+    const log = await micLog({ employeeIds, from: query.from, to: query.to, timezone: req.user.timezone });
     await audit.record(req, {
       action: audit.ACTIONS.LISTED_AUDIO,
       targetType: 'audio',
@@ -67,7 +73,7 @@ router.get(
   '/dashboard',
   validate(dashboardQuery, 'query'),
   asyncHandler(async (req, res) => {
-    res.json(await service.dashboard(q(req)));
+    res.json(await service.dashboard({ ...q(req), companyId: req.user.companyId }));
   })
 );
 
@@ -76,8 +82,10 @@ router.get(
   validate(reportQuery, 'query'),
   asyncHandler(async (req, res) => {
     const query = q(req);
-    const daily = query.detail === 'daily' || query.format === 'csv';
-    const rows = daily ? await service.detailedReport(query) : await service.report(query);
+    // A CSV is one row per shift unless the summary (one row per person) is asked for.
+    const daily = query.detail === 'daily' || (query.format === 'csv' && query.detail !== 'summary');
+    const rows = daily ? await service.detailedReport({ ...query, companyId: req.user.companyId })
+      : await service.report({ ...query, companyId: req.user.companyId });
 
     await audit.record(req, {
       action: audit.ACTIONS.EXPORTED_REPORT,
@@ -92,6 +100,27 @@ router.get(
       },
     });
 
+    if (query.format === 'csv' && !daily) {
+      return sendCsv(
+        res,
+        `attendance_summary_${query.from}_to_${query.to}.csv`,
+        [
+          { key: 'name', label: 'Employee' },
+          { key: 'email', label: 'Email' },
+          { key: 'department', label: 'Department' },
+          { key: 'fullDays', label: 'Full days' },
+          { key: 'halfDays', label: 'Half days' },
+          { key: 'shortDays', label: 'Less than half day' },
+          { key: 'daysPresent', label: 'Shifts' },
+          { key: 'workedHours', label: 'Worked (hours)' },
+          { key: 'workedFormatted', label: 'Worked' },
+          { key: 'leaveDays', label: 'Leave days' },
+          { key: 'flaggedDays', label: 'Flagged days' },
+        ],
+        rows
+      );
+    }
+
     if (query.format === 'csv') {
       return sendCsv(
         res,
@@ -105,6 +134,8 @@ router.get(
           { key: 'punchOut', label: 'Punch Out' },
           { key: 'workedFormatted', label: 'Worked' },
           { key: 'workedHours', label: 'Worked (hours)' },
+          { key: 'dayWorkedFormatted', label: 'Day total' },
+          { key: 'dayType', label: 'Day type' },
           { key: 'breakFormatted', label: 'Break' },
           { key: 'idleFormatted', label: 'Idle' },
           { key: 'overBreak', label: 'Over Break' },
@@ -131,7 +162,7 @@ const departmentSchema = z.object({
 router.get(
   '/departments/full',
   asyncHandler(async (req, res) => {
-    res.json(await service.listDepartmentsFull());
+    res.json(await service.listDepartmentsFull(req.user.companyId));
   })
 );
 
@@ -139,7 +170,7 @@ router.get(
 router.get(
   '/departments',
   asyncHandler(async (req, res) => {
-    res.json(await service.listDepartments());
+    res.json(await service.listDepartments(req.user.companyId));
   })
 );
 
@@ -147,14 +178,14 @@ router.post(
   '/departments',
   validate(departmentSchema),
   asyncHandler(async (req, res) => {
-    res.status(201).json(await service.createDepartment(req.body));
+    res.status(201).json(await service.createDepartment({ ...req.body, companyId: req.user.companyId }));
   })
 );
 
 router.delete(
   '/departments/:id',
   asyncHandler(async (req, res) => {
-    res.json(await service.deleteDepartment(req.params.id));
+    res.json(await service.deleteDepartment(req.params.id, req.user.companyId));
   })
 );
 
@@ -203,6 +234,7 @@ router.get(
     const page = pagination(query);
     const { rows, total } = await service.listEmployees({
       ...query,
+      companyId: req.user.companyId,
       limit: page.limit,
       offset: page.offset,
     });
@@ -210,10 +242,62 @@ router.get(
   })
 );
 
+const CSV_EMPLOYEE_COLUMNS = [
+  { key: 'name', label: 'Name' },
+  { key: 'email', label: 'Email' },
+  { key: 'employeeCode', label: 'Employee code' },
+  { key: 'department', label: 'Department' },
+  { key: 'role', label: 'Role' },
+  { key: 'status', label: 'Status' },
+  { key: 'timezone', label: 'Time zone' },
+];
+
+router.get(
+  '/employees/export',
+  asyncHandler(async (req, res) => {
+    const rows = await service.exportEmployees(req.user.companyId);
+    await audit.record(req, {
+      action: audit.ACTIONS.EXPORTED_REPORT,
+      targetType: 'employees',
+      details: { kind: 'employees', rows: rows.length },
+    });
+    sendCsv(res, 'employees.csv', CSV_EMPLOYEE_COLUMNS, rows);
+  })
+);
+
+const importEmployeesSchema = z.object({
+  rows: z
+    .array(
+      z.object({
+        name: z.string().trim().min(1).max(200),
+        email: z.string().trim().toLowerCase().email(),
+        department: z.string().trim().max(120).optional(),
+        employeeCode: z.string().trim().max(50).optional(),
+        timezone: z.string().trim().max(64).optional(),
+      })
+    )
+    .min(1)
+    .max(500),
+});
+
+router.post(
+  '/employees/import',
+  validate(importEmployeesSchema),
+  asyncHandler(async (req, res) => {
+    const result = await service.importEmployees({ rows: req.body.rows, companyId: req.user.companyId });
+    await audit.record(req, {
+      action: audit.ACTIONS.CREATED_EMPLOYEE,
+      targetType: 'employee',
+      details: { import: true, created: result.created.length, skipped: result.skipped.length },
+    });
+    res.status(201).json(result);
+  })
+);
+
 router.get(
   '/employees/:id',
   asyncHandler(async (req, res) => {
-    res.json(await service.getEmployee(req.params.id));
+    res.json(await service.getEmployee(req.params.id, req.user.companyId));
   })
 );
 
@@ -221,7 +305,7 @@ router.post(
   '/employees',
   validate(createEmployeeSchema),
   asyncHandler(async (req, res) => {
-    const created = await service.createEmployee(req.body);
+    const created = await service.createEmployee({ ...req.body, companyId: req.user.companyId });
     await audit.record(req, {
       action: audit.ACTIONS.CREATED_EMPLOYEE,
       targetEmployeeId: created.id,
@@ -237,7 +321,7 @@ router.patch(
   '/employees/:id',
   validate(updateEmployeeSchema),
   asyncHandler(async (req, res) => {
-    const updated = await service.updateEmployee(req.params.id, req.body);
+    const updated = await service.updateEmployee(req.params.id, req.body, req.user.companyId);
     await audit.record(req, {
       action:
         req.body.status === 'inactive'
@@ -278,6 +362,7 @@ router.get(
     const page = pagination(query);
     const { rows, total } = await service.listAuditLogs({
       ...query,
+      companyId: req.user.companyId,
       limit: page.limit,
       offset: page.offset,
     });
@@ -297,7 +382,7 @@ router.get(
   '/department-leaders',
   asyncHandler(async (req, res) => {
     const { department } = req.query;
-    res.json(await service.listDepartmentLeaders(department));
+    res.json(await service.listDepartmentLeaders(department, req.user.companyId));
   })
 );
 
@@ -310,6 +395,7 @@ router.post(
       department: req.body.department,
       employeeId: req.body.employeeId,
       assignedBy: req.user.id,
+      companyId: req.user.companyId,
     });
     await audit.record(req, {
       action: audit.ACTIONS.ASSIGNED_LEADER,
@@ -329,6 +415,7 @@ router.delete(
     await service.removeLeader({
       department: req.body.department,
       employeeId: req.body.employeeId,
+      companyId: req.user.companyId,
     });
     await audit.record(req, {
       action: audit.ACTIONS.REMOVED_LEADER,
@@ -362,6 +449,8 @@ const settingsPatchSchema = z.object({
       breakAllowanceSeconds: z.number().int().min(0).max(14400).optional(),
       idleThresholdSeconds: z.number().int().min(60).max(3600).optional(),
       autoCloseHours: z.number().int().min(1).max(48).optional(),
+      halfDaySeconds: z.number().int().min(900).max(43200).optional(),
+      fullDaySeconds: z.number().int().min(900).max(57600).optional(),
     })
     .optional(),
   retention: z.object({ days: z.number().int().min(1).max(365).optional() }).optional(),
@@ -371,7 +460,7 @@ const settingsPatchSchema = z.object({
 router.get(
   '/settings',
   asyncHandler(async (req, res) => {
-    res.json(settings.get());
+    res.json(settings.get(req.user.companyId));
   })
 );
 
@@ -383,68 +472,27 @@ router.patch(
     // cross-field mistake) only becomes checkable once the patch is merged onto whatever is
     // NOT being changed in this request — so that check happens here, against the merged
     // result, rather than as a zod .refine() on the raw partial patch.
-    const current = settings.get();
+    const current = settings.get(req.user.companyId);
     const merged = {
       capture: { ...current.capture, ...req.body.capture },
       shift: { ...current.shift, ...req.body.shift },
       retention: { ...current.retention, ...req.body.retention },
       payroll: { ...current.payroll, ...req.body.payroll },
     };
+    if (merged.shift.halfDaySeconds > merged.shift.fullDaySeconds) {
+      throw badRequest('A half day cannot need more hours than a full day');
+    }
     if (merged.capture.screenshotMinIntervalSec > merged.capture.screenshotMaxIntervalSec) {
       throw badRequest('Screenshot minimum interval must not exceed the maximum interval');
     }
 
-    const updated = await settings.update(req.body, { updatedBy: req.user.id });
+    const updated = await settings.update(req.body, { updatedBy: req.user.id, companyId: req.user.companyId });
     await audit.record(req, {
       action: audit.ACTIONS.UPDATED_SETTINGS,
       targetType: 'settings',
       details: { fields: Object.keys(req.body) },
     });
     res.json(updated);
-  })
-);
-
-// --- Projects (project/task time tracking) ------------------------------------------------
-//
-// Employees only ever see active projects, via GET /api/projects (project.routes.js) — this
-// admin surface is where they get created, edited, and archived. Projects are never deleted:
-// archiving is the only removal, so historical time entries (project_time_entries) always
-// resolve to a real name instead of "unknown project".
-
-const createProjectSchema = z.object({
-  name: z.string().trim().min(1).max(200),
-  client: z.string().trim().max(200).optional(),
-  department: z.string().max(120).optional(),
-});
-
-const updateProjectSchema = z.object({
-  name: z.string().trim().min(1).max(200).optional(),
-  client: z.string().trim().max(200).nullable().optional(),
-  department: z.string().max(120).nullable().optional(),
-  status: z.enum(['active', 'archived']).optional(),
-});
-
-router.get(
-  '/projects',
-  asyncHandler(async (req, res) => {
-    res.json(await projectService.listProjects({ status: req.query.status }));
-  })
-);
-
-router.post(
-  '/projects',
-  validate(createProjectSchema),
-  asyncHandler(async (req, res) => {
-    const created = await projectService.createProject(req.body);
-    res.status(201).json(created);
-  })
-);
-
-router.patch(
-  '/projects/:id',
-  validate(updateProjectSchema),
-  asyncHandler(async (req, res) => {
-    res.json(await projectService.updateProject(req.params.id, req.body));
   })
 );
 
@@ -474,31 +522,38 @@ router.get(
   '/attendance-summary',
   validate(attendanceSummaryQuery, 'query'),
   asyncHandler(async (req, res) => {
-    res.json(await service.attendanceSummary(q(req)));
+    res.json(await service.attendanceSummary({ ...q(req), companyId: req.user.companyId }));
   })
 );
 
 router.get(
   '/productivity',
+  requireFeature('idleTracking'),
   validate(productivityQuery, 'query'),
   asyncHandler(async (req, res) => {
-    res.json(await productivityService.overview(q(req)));
+    res.json(await productivityService.overview({ ...q(req), companyId: req.user.companyId }));
   })
 );
 
 router.get(
   '/app-categories',
+  requireFeature('idleTracking'),
   validate(appListQuery, 'query'),
   asyncHandler(async (req, res) => {
-    res.json(await productivityService.listApps({ department: q(req).department }));
+    res.json(await productivityService.listApps({ department: q(req).department, companyId: req.user.companyId }));
   })
 );
 
 router.patch(
   '/app-categories',
+  requireFeature('idleTracking'),
   validate(appCategorySchema),
   asyncHandler(async (req, res) => {
-    const result = await productivityService.setCategory({ ...req.body, updatedBy: req.user.id });
+    const result = await productivityService.setCategory({
+      ...req.body,
+      updatedBy: req.user.id,
+      companyId: req.user.companyId,
+    });
     await audit.record(req, {
       action: audit.ACTIONS.UPDATED_SETTINGS,
       targetType: 'app_category',
@@ -510,10 +565,11 @@ router.patch(
 
 router.delete(
   '/app-categories',
+  requireFeature('idleTracking'),
   validate(z.object({ appName: z.string().trim().min(1).max(120), department: z.string().max(120).optional() }), 'query'),
   asyncHandler(async (req, res) => {
     const { appName, department } = q(req);
-    const result = await productivityService.resetCategory(appName, department);
+    const result = await productivityService.resetCategory(appName, department, req.user.companyId);
     await audit.record(req, {
       action: audit.ACTIONS.UPDATED_SETTINGS,
       targetType: 'app_category',
@@ -541,21 +597,26 @@ const leaveReviewSchema = z.object({
 
 router.get(
   '/leave',
+  requireFeature('leave'),
   validate(leaveListQuery, 'query'),
   asyncHandler(async (req, res) => {
     const query = q(req);
-    res.json(await leaveService.listForReviewer({ memberIds: null, ...query }));
+    res.json(await leaveService.listForReviewer({
+        memberIds: await companies.employeeIds(req.user.companyId),
+        ...query,
+      }));
   })
 );
 
 router.patch(
   '/leave/:id',
+  requireFeature('leave'),
   validate(leaveReviewSchema),
   asyncHandler(async (req, res) => {
     const updated = await leaveService.review(req.params.id, {
       ...req.body,
       reviewedBy: req.user.id,
-      memberIds: null,
+      memberIds: await companies.employeeIds(req.user.companyId),
     });
     await audit.record(req, {
       action: audit.ACTIONS.REVIEWED_LEAVE_REQUEST,
@@ -570,8 +631,11 @@ router.patch(
 
 router.get(
   '/leave/:id/proof',
+  requireFeature('leave'),
   asyncHandler(async (req, res) => {
-    const { buffer, contentType, row } = await leaveService.getProof(req.params.id, { isAdmin: true });
+    const { buffer, contentType, row } = await leaveService.getProof(req.params.id, {
+      memberIds: await companies.employeeIds(req.user.companyId),
+    });
     await audit.record(req, {
       action: audit.ACTIONS.VIEWED_LEAVE_PROOF,
       targetEmployeeId: row.employee_id,

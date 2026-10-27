@@ -6,6 +6,7 @@ const t = require('../../utils/time');
 const { toIso, toBool } = require('../../utils/http');
 const { publicEmployee } = require('../auth/auth.service');
 const leaveService = require('../leave/leave.service');
+const companies = require('../../services/companies');
 
 /**
  * Resolve which employee IDs a leader (or admin) may act on.
@@ -15,20 +16,22 @@ const leaveService = require('../leave/leave.service');
  *  2. Sub-leaders whose ENTIRE set of managed departments is a subset of the
  *     senior leader's departments (i.e. they manage fewer/equal departments).
  */
-async function resolveMemberIds(leaderDepts, leaderId) {
+async function resolveMemberIds(leaderDepts, leaderId, companyId) {
   if (leaderDepts === null) return null; // admin — no filter
   if (!leaderDepts.length) return [];
 
   // Regular employees in managed departments.
   const regularRows = await db()('employees')
     .whereIn('department', leaderDepts)
-    .where({ status: 'active', role: 'user' })
+    .where({ status: 'active', role: 'user', company_id: companyId })
     .select('id');
 
   // Sub-leaders: leaders whose all managed depts are within leaderDepts.
-  const allLeaderAssignments = await db()('department_leaders')
-    .whereNot({ employee_id: leaderId }) // exclude self
-    .select('employee_id', 'department');
+  const allLeaderAssignments = await db()('department_leaders as dl')
+    .join('employees as e', 'e.id', 'dl.employee_id')
+    .where('e.company_id', companyId)
+    .whereNot('dl.employee_id', leaderId) // exclude self
+    .select('dl.employee_id', 'dl.department');
 
   // Group by employee_id.
   const byLeader = allLeaderAssignments.reduce((acc, r) => {
@@ -55,13 +58,14 @@ async function resolveMemberIds(leaderDepts, leaderId) {
  * and would otherwise see that sub-leader's team in resolveMemberIds. Dropping sub-leaders here
  * guarantees that path stays closed rather than relying on self-exclusion alone.
  */
-async function resolveLeaveMemberIds(leaderDepts) {
-  if (leaderDepts === null) return null; // admin — no filter
+async function resolveLeaveMemberIds(leaderDepts, companyId) {
+  // An admin may decide on anyone in their own company, and no one outside it.
+  if (leaderDepts === null) return companies.employeeIds(companyId);
   if (!leaderDepts.length) return [];
 
   const regularRows = await db()('employees')
     .whereIn('department', leaderDepts)
-    .where({ status: 'active', role: 'user' })
+    .where({ status: 'active', role: 'user', company_id: companyId })
     .select('id');
 
   return regularRows.map((r) => r.id);
@@ -74,14 +78,18 @@ async function resolveLeaveMemberIds(leaderDepts) {
  */
 async function myDepartments(user, leaderDepts) {
   const depts = leaderDepts === null
-    ? await db()('employees').whereNotNull('department').distinct('department').pluck('department')
+    ? await db()('employees')
+        .where({ company_id: user.companyId })
+        .whereNotNull('department')
+        .distinct('department')
+        .pluck('department')
     : leaderDepts;
 
   const result = [];
 
   for (const dept of depts) {
     const members = await db()('employees')
-      .where({ department: dept, status: 'active' })
+      .where({ department: dept, status: 'active', company_id: user.companyId })
       .whereNot({ role: 'admin' })
       .select('id', 'name', 'email', 'role');
 
@@ -117,7 +125,7 @@ async function myDepartments(user, leaderDepts) {
  * Live dashboard — same shape as admin dashboard but scoped to the leader's departments.
  */
 async function memberDashboard(user, leaderDepts) {
-  const memberIds = await resolveMemberIds(leaderDepts, user.id);
+  const memberIds = await resolveMemberIds(leaderDepts, user.id, user.companyId);
 
   // No departments or no members.
   if (memberIds !== null && memberIds.length === 0) {
@@ -125,14 +133,14 @@ async function memberDashboard(user, leaderDepts) {
   }
 
   const base = db()('employees')
-    .where({ status: 'active' })
+    .where({ status: 'active', company_id: user.companyId })
     .whereNot({ role: 'admin' })  // Admins never visible to leaders
     .orderBy('name');
   if (memberIds !== null) base.whereIn('id', memberIds);
   const employees = await base.select('id', 'name', 'email', 'department', 'timezone');
 
   const nowMs = t.now();
-  const empDatesByEmployee = employees.map(() => t.localDate(nowMs, t.DEFAULT_TIMEZONE));
+  const empDatesByEmployee = employees.map(() => t.localDate(nowMs, user.timezone));
   const dates = new Set(empDatesByEmployee);
   const empIds = employees.map((e) => e.id);
 
@@ -166,7 +174,7 @@ async function memberDashboard(user, leaderDepts) {
   }, {});
 
   const rows = employees.map((emp) => {
-    const empDate = t.localDate(nowMs, t.DEFAULT_TIMEZONE);
+    const empDate = t.localDate(nowMs, user.timezone);
     const mine = byEmployee[emp.id] || [];
     const current = mine.find((s) => s.status === 'open' || s.status === 'on_break');
     const todays = mine.filter((a) => a.date === empDate);
@@ -204,10 +212,10 @@ async function memberDashboard(user, leaderDepts) {
       punchOut: !current && shifts[0] ? toIso(shifts[0].punch_out) : null,
       workedSeconds: workedToday,
       breakSeconds: liveBreak,
-      overBreak: liveBreak > settings.get().shift.breakAllowanceSeconds,
+      overBreak: liveBreak > settings.get(user.companyId).shift.breakAllowanceSeconds,
       lastActivityAt: toIso(lastSeen),
       appearsIdle:
-        state === 'working' && (!lastSeen || nowMs - lastSeen > settings.get().shift.idleThresholdSeconds * 1000),
+        user.features.idleTracking && state === 'working' && (!lastSeen || nowMs - lastSeen > settings.get(user.companyId).shift.idleThresholdSeconds * 1000),
       needsReview: toBool(current?.needs_review || shifts[0]?.needs_review),
     };
   });

@@ -2,6 +2,7 @@ import { Suspense, cache } from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { api, requireUser } from '@/lib/api';
+import { featuresOf, when, EMPTY_MIC_LOG } from '@/lib/features';
 import RangeFilter from '@/components/RangeFilter';
 import CaptureSection from '@/components/CaptureSection';
 import MicLogTable from '@/components/MicLogTable';
@@ -43,10 +44,11 @@ export default async function EmployeeDetailPage({ params, searchParams }) {
 
   // requireUser and getEmployee are independent — run in parallel.
   // getEmployee hits the React cache, so generateMetadata's call above is reused.
-  const [, employee] = await Promise.all([
+  const [me, employee] = await Promise.all([
     requireUser({ adminOnly: true }),
     getEmployee(id),
   ]);
+  const has = featuresOf(me);
 
   // Both default to today, same as the old single `date` param did — a range is opt-in, not
   // the new default. When from === to, everything below behaves exactly as it did before.
@@ -63,13 +65,13 @@ export default async function EmployeeDetailPage({ params, searchParams }) {
   const [attendance, screenshots, audio, activity, allDepts, leaderAssignments, agentConfig, micLog] =
     await Promise.all([
       api(`/api/attendance/${id}?from=${from}&to=${to}`),
-      api(`/api/screenshots/${id}?from=${from}&to=${to}&limit=200`),
-      api(`/api/audio/${id}?from=${from}&to=${to}&limit=60`),
-      api(`/api/activity/${id}?from=${from}&to=${to}&limit=200`),
+      when(has('screenCapture'), () => api(`/api/screenshots/${id}?from=${from}&to=${to}&limit=200`)),
+      when(has('audioCapture'), () => api(`/api/audio/${id}?from=${from}&to=${to}&limit=60`)),
+      when(has('idleTracking'), () => api(`/api/activity/${id}?from=${from}&to=${to}&limit=200`)),
       api('/api/admin/departments'),
       api('/api/admin/department-leaders'),
       api('/api/config'),
-      api(`/api/audio/${id}/mic-log?from=${from}&to=${to}`),
+      when(has('audioCapture'), () => api(`/api/audio/${id}/mic-log?from=${from}&to=${to}`), EMPTY_MIC_LOG),
     ]);
 
   // Departments this employee currently leads.
@@ -177,7 +179,7 @@ export default async function EmployeeDetailPage({ params, searchParams }) {
             </div>
           </div>
 
-          <div className="stat">
+          {has('idleTracking') && <div className="stat">
             <div className="label">Idle</div>
             <div className="value">
               {duration(
@@ -186,15 +188,15 @@ export default async function EmployeeDetailPage({ params, searchParams }) {
                   : shift?.idleSeconds
               )}
             </div>
-          </div>
+          </div>}
 
-          <div className="stat">
+          {has('idleTracking') && <div className="stat">
             <div className="label">Activity</div>
             <div className="value">{avgActivity === null ? '—' : `${avgActivity}%`}</div>
             <div className="sub">
               {activity.pagination.total} ping{activity.pagination.total === 1 ? '' : 's'} · counts only, never content
             </div>
-          </div>
+          </div>}
         </div>
 
         {isOvertime && (
@@ -240,15 +242,17 @@ export default async function EmployeeDetailPage({ params, searchParams }) {
           </div>
         )}
 
-        <div className="card">
+        {has('audioCapture') && <div className="card">
           <div className="card-head">
             <h2>Microphone log</h2>
             <span className="faint">When the mic was found muted (from the audio samples)</span>
           </div>
           <MicLogTable periods={micLog.periods} timezone={employee.timezone} />
-        </div>
+        </div>}
 
         <CaptureSection
+          showScreenshots={has('screenCapture')}
+          showAudio={has('audioCapture')}
           screenshots={screenshots.data}
           audio={audio.data}
           timezone={employee.timezone}

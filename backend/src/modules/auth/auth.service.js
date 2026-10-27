@@ -8,7 +8,8 @@ const { uuid, randomToken, sha256 } = require('../../utils/ids');
 const { now } = require('../../utils/time');
 const { toBool } = require('../../utils/http');
 const logger = require('../../utils/logger');
-const { unauthorized, forbidden, notFound, badRequest } = require('../../utils/errors');
+const { unauthorized, forbidden, notFound, badRequest, companySuspended } = require('../../utils/errors');
+const companies = require('../../services/companies');
 
 /** The disclosure shown before the first punch-in (story A-4). Versioned so a change re-prompts. */
 const CONSENT_VERSION = '1.0';
@@ -80,14 +81,20 @@ async function issueRefreshToken(employeeId, client) {
   return token;
 }
 
-/** Public shape of an employee. `password_hash` must never leave this function. */
-function publicEmployee(row) {
+/**
+ * Public shape of an employee. `password_hash` must never leave this function.
+ * With the person's company passed in, the shape also carries what that company may use.
+ */
+function publicEmployee(row, company) {
   return {
     id: row.id,
     name: row.name,
     email: row.email,
     role: row.role,
     department: row.department,
+    companyId: row.company_id,
+    isSuperAdmin: toBool(row.is_super_admin),
+    ...(company && { company: { id: company.id, name: company.name, features: company.features } }),
     employeeCode: row.employee_code,
     timezone: config.timezone,
     status: row.status,
@@ -119,13 +126,22 @@ async function login({ email, password, client }) {
   const ok = await bcrypt.compare(password, row.password_hash);
   if (!ok) throw unauthorized('Invalid email or password');
   if (row.status !== 'active') throw forbidden('Account is deactivated. Contact HR.');
+  const company = await activeCompanyOf(row);
 
   return {
     accessToken: signAccessToken(row),
     refreshToken: await issueRefreshToken(row.id, client),
     expiresIn: config.auth.expiresIn,
-    employee: publicEmployee(row),
+    employee: publicEmployee(row, company),
   };
+}
+
+/** The person's company, which must exist and not be suspended for them to sign in. */
+async function activeCompanyOf(row) {
+  const company = await companies.get(row.company_id);
+  if (!company) throw unauthorized('Invalid email or password');
+  if (company.status !== 'active') throw companySuspended();
+  return company;
 }
 
 async function refresh({ refreshToken }) {
@@ -172,6 +188,7 @@ async function refresh({ refreshToken }) {
   const employee = await db()('employees').where({ id: stored.employee_id }).first();
   if (!employee) throw unauthorized('Account no longer exists');
   if (employee.status !== 'active') throw forbidden('Account is deactivated');
+  const company = await activeCompanyOf(employee);
 
   // Rotate: the presented token is retired and a fresh one issued, so a stolen refresh token
   // is usable only inside the grace window before the legitimate client's next refresh.
@@ -189,7 +206,7 @@ async function refresh({ refreshToken }) {
     accessToken: signAccessToken(employee),
     refreshToken: await issueRefreshToken(employee.id, stored.client),
     expiresIn: config.auth.expiresIn,
-    employee: publicEmployee(employee),
+    employee: publicEmployee(employee, company),
   };
 }
 
@@ -241,7 +258,7 @@ async function changePassword(employeeId, { currentPassword, newPassword }) {
 async function me(employeeId) {
   const row = await db()('employees').where({ id: employeeId }).first();
   if (!row) throw notFound('Employee not found');
-  return publicEmployee(row);
+  return publicEmployee(row, await companies.get(row.company_id));
 }
 
 /**
@@ -273,7 +290,7 @@ async function recordConsent(employeeId, { monitoring, audio }) {
   await db()('employees').where({ id: employeeId }).update(patch);
 
   const updated = await db()('employees').where({ id: employeeId }).first();
-  return publicEmployee(updated);
+  return publicEmployee(updated, await companies.get(updated.company_id));
 }
 
 // --- Desktop agent hand-off ---------------------------------------------------------------
@@ -321,12 +338,13 @@ async function exchangeAgentCode({ code }) {
   const row = await db()('employees').where({ id: stored.employee_id }).first();
   if (!row) throw unauthorized('This connect link has expired. Sign in on the web portal again.');
   if (row.status !== 'active') throw forbidden('Account is deactivated. Contact HR.');
+  const company = await activeCompanyOf(row);
 
   return {
     accessToken: signAccessToken(row),
     refreshToken: await issueRefreshToken(row.id, 'desktop'),
     expiresIn: config.auth.expiresIn,
-    employee: publicEmployee(row),
+    employee: publicEmployee(row, company),
   };
 }
 

@@ -4,6 +4,8 @@
 //
 //   ADMIN_NAME="Priya" ADMIN_EMAIL=you@company.com ADMIN_PASSWORD='...' npm run db:create-admin
 //   ... same, plus ADMIN_RESET=1, to set a new password on an account that already exists.
+//   ... add ADMIN_SUPER=1 to make the account a super admin (the platform owner, who creates
+//       companies and chooses their features). With ADMIN_RESET=1 it promotes an existing account.
 //
 // Values come from the environment, not argv, so the password stays out of shell history and
 // process listings.
@@ -34,6 +36,7 @@ async function resetPassword(email, password) {
 async function main() {
   const { ADMIN_NAME: name, ADMIN_EMAIL: email, ADMIN_PASSWORD: password, ADMIN_RESET: reset } = process.env;
   const resetting = ['1', 'true', 'yes'].includes(String(reset || '').toLowerCase());
+  const makeSuper = ['1', 'true', 'yes'].includes(String(process.env.ADMIN_SUPER || '').toLowerCase());
 
   if (!email || !password || (!resetting && !name)) {
     console.error('Set ADMIN_NAME (not needed for reset), ADMIN_EMAIL and ADMIN_PASSWORD, then run again.');
@@ -61,6 +64,12 @@ async function main() {
         mustChangePassword: false,
       });
       console.log(`Admin created: ${admin.email}`);
+    }
+    if (makeSuper) {
+      await db()('employees')
+        .whereRaw('LOWER(email) = ?', [email.toLowerCase()])
+        .update({ is_super_admin: true, updated_at: t.now() });
+      console.log(`Super admin: ${email}`);
     }
     await destroy();
     process.exit(0);

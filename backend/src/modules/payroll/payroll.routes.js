@@ -5,13 +5,14 @@ const { z } = require('zod');
 const service = require('./payroll.service');
 const { authenticate } = require('../../middleware/auth');
 const { requireAdmin } = require('../../middleware/rbac');
+const { requireFeature } = require('../../middleware/features');
 const { validate, q } = require('../../middleware/validate');
 const { asyncHandler } = require('../../utils/http');
 const { sendCsv } = require('../../utils/csv');
 const audit = require('../../services/audit');
 
 const router = express.Router();
-router.use(authenticate, requireAdmin);
+router.use(authenticate, requireAdmin, requireFeature('payroll'));
 
 const MONTH = z.string().regex(/^\d{4}-\d{2}$/, 'month must be YYYY-MM');
 
@@ -19,7 +20,7 @@ router.post(
   '/generate',
   validate(z.object({ month: MONTH })),
   asyncHandler(async (req, res) => {
-    const result = await service.generate({ month: req.body.month });
+    const result = await service.generate({ month: req.body.month, companyId: req.user.companyId });
     await audit.record(req, {
       action: audit.ACTIONS.GENERATED_PAYROLL,
       targetType: 'payroll',
@@ -34,7 +35,7 @@ router.get(
   validate(z.object({ month: MONTH, department: z.string().max(120).optional() }), 'query'),
   asyncHandler(async (req, res) => {
     const query = q(req);
-    res.json({ month: query.month, rows: await service.list(query) });
+    res.json({ month: query.month, rows: await service.list({ ...query, companyId: req.user.companyId }) });
   })
 );
 
@@ -50,7 +51,7 @@ router.get(
   ),
   asyncHandler(async (req, res) => {
     const query = q(req);
-    const rows = await service.list(query);
+    const rows = await service.list({ ...query, companyId: req.user.companyId });
 
     await audit.record(req, {
       action: audit.ACTIONS.EXPORTED_PAYROLL,
@@ -86,7 +87,7 @@ router.post(
   '/mark-synced',
   validate(z.object({ month: MONTH, employeeIds: z.array(z.string().uuid()).optional() })),
   asyncHandler(async (req, res) => {
-    res.json(await service.markSynced(req.body));
+    res.json(await service.markSynced({ ...req.body, companyId: req.user.companyId }));
   })
 );
 

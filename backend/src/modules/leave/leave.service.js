@@ -12,6 +12,7 @@ const { toIso, toBool } = require('../../utils/http');
 const { conflict, notFound, badRequest, forbidden, payloadTooLarge } = require('../../utils/errors');
 const { storage, buildKey, extensionFor } = require('../../storage');
 const notifications = require('../../services/notifications');
+const companies = require('../../services/companies');
 const logger = require('../../utils/logger');
 
 // Same set the storage layer knows an extension for, minus audio types a leave proof would
@@ -189,6 +190,10 @@ async function createRequest({
 
   if (proofBase64) {
     const buffer = decodeProofBase64(proofBase64);
+    const owner = await db()('employees').where({ id: employeeId }).select('company_id').first();
+    if (!(await companies.reserveStorage(owner && owner.company_id, buffer.length))) {
+      throw conflict('Your company has used all its storage. The proof file could not be saved; ask your administrator.');
+    }
     const key = buildKey({
       type: 'leave-proof',
       employeeId,

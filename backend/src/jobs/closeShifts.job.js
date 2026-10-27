@@ -13,16 +13,28 @@ const attendanceService = require('../modules/attendance/attendance.service');
  * day is flagged for HR rather than silently accepted or silently discarded. Deciding the real
  * end of that shift is a human judgement.
  */
-async function closeStaleShifts({ at = t.now(), maxHours = settings.get().shift.autoCloseHours } = {}) {
-  const cutoff = t.hoursAgo(maxHours, at);
+async function closeStaleShifts({ at = t.now(), maxHours } = {}) {
+  // Each company sets its own cutoff; an explicit `maxHours` overrides them all.
+  const companyIds = await db()('companies').pluck('id');
+  const hoursBy = new Map();
+  for (const id of companyIds) {
+    await settings.ensure(id);
+    hoursBy.set(id, maxHours || settings.get(id).shift.autoCloseHours);
+  }
 
-  const stale = await db()('attendance')
-    .whereIn('status', ['open', 'on_break'])
-    .andWhere('punch_in', '<', cutoff);
+  const candidates = await db()('attendance as a')
+    .join('employees as e', 'e.id', 'a.employee_id')
+    .whereIn('a.status', ['open', 'on_break'])
+    .select('a.id', 'a.punch_in', 'e.company_id');
+  const stale = candidates.filter(
+    (c) => Number(c.punch_in) < t.hoursAgo(hoursBy.get(c.company_id) || settings.get().shift.autoCloseHours, at)
+  );
 
   const closed = [];
 
   for (const stub of stale) {
+    const companyId = stub.company_id;
+    const maxHours = hoursBy.get(companyId) || settings.get().shift.autoCloseHours;
     // Re-read the row rather than trusting the batch SELECT above: time has passed since
     // then (each prior iteration does several awaited queries), and the employee may have
     // punched out for real in the meantime.
@@ -65,7 +77,7 @@ async function closeStaleShifts({ at = t.now(), maxHours = settings.get().shift.
         total_break_seconds: breakSeconds,
         total_worked_seconds: worked,
         idle_seconds: idle,
-        over_break: breakSeconds > settings.get().shift.breakAllowanceSeconds,
+        over_break: breakSeconds > settings.get(companyId).shift.breakAllowanceSeconds,
         auto_closed: true,
         needs_review: true,
         review_reason: `Shift was never punched out; auto-closed ${maxHours}h after punch-in. Worked time needs HR confirmation.`,

@@ -8,13 +8,14 @@ const express = require('express');
 const { z } = require('zod');
 const service = require('./leave.service');
 const { authenticate } = require('../../middleware/auth');
+const { requireFeature } = require('../../middleware/features');
 const { validate, q } = require('../../middleware/validate');
 const { asyncHandler, sendWithRange } = require('../../utils/http');
 const { uploadLimiter } = require('../../middleware/rateLimit');
 const audit = require('../../services/audit');
 
 const router = express.Router();
-router.use(authenticate);
+router.use(authenticate, requireFeature('leave'));
 
 const DATE = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'must be YYYY-MM-DD');
 

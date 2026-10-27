@@ -4,6 +4,7 @@ import { api, requireUser } from '@/lib/api';
 import RangeFilter from '@/components/RangeFilter';
 import Pager from '@/components/Pager';
 import NewEmployeeForm from './NewEmployeeForm';
+import ImportEmployees from './ImportEmployees';
 import { dateLabel } from '@/lib/format';
 
 export const metadata = { title: 'Employees · WorkBuddy' };
@@ -56,6 +57,13 @@ export default async function EmployeesPage({ searchParams }) {
         </div>
 
         <NewEmployeeForm departments={departments} />
+
+        <div className="inline" style={{ gap: 8, flexWrap: 'wrap' }}>
+          <ImportEmployees />
+          <a className="btn" href="/bff/api/admin/employees/export">
+            Export CSV
+          </a>
+        </div>
 
         <div className="card">
           <div className="table-wrap">

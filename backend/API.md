@@ -6,16 +6,16 @@ Base URL: `http://localhost:4000`. All `/api/*` routes except `POST /api/auth/lo
 Errors are always shaped:
 
 ```json
-{ "error": { "code": "FORBIDDEN", "message": "…", "details": [] } }
+{ "error": { "code": "FORBIDDEN", "message": "â€¦", "details": [] } }
 ```
 
 | Status | Meaning here |
 |---|---|
 | 400 | Validation failed, or a rule the request violated (`details` lists the fields) |
 | 401 | Missing, expired or wrong-type token |
-| 403 | Authenticated but not allowed — including **audio consent not given** |
+| 403 | Authenticated but not allowed â€” including **audio consent not given** |
 | 404 | Not found, or the file was purged under the 31-day rule |
-| 409 | State conflict — already punched in, no open shift, capture during a break |
+| 409 | State conflict â€” already punched in, no open shift, capture during a break |
 | 413 | Upload over `MAX_UPLOAD_BYTES` |
 | 429 | Rate limited |
 | 501 | Deliberately not implemented yet (SSO, live payroll sync) |
@@ -27,21 +27,21 @@ Errors are always shaped:
 | Method | Path | Notes |
 |---|---|---|
 | GET | `/health` | Process + database reachability |
-| GET | `/health/jobs` | Last run of each scheduled job. **503** if the purge has not succeeded in 48h — this is what to alert on |
+| GET | `/health/jobs` | Last run of each scheduled job. **503** if the purge has not succeeded in 48h â€” this is what to alert on |
 
 ## Auth
 
 | Method | Path | Auth | Notes |
 |---|---|---|---|
-| POST | `/api/auth/login` | — | `{ email, password, client? }` → `{ accessToken, refreshToken, employee }` |
-| POST | `/api/auth/refresh` | — | `{ refreshToken }` → new pair. The presented token is retired (rotation) |
+| POST | `/api/auth/login` | â€” | `{ email, password, client? }` â†’ `{ accessToken, refreshToken, employee }` |
+| POST | `/api/auth/refresh` | â€” | `{ refreshToken }` â†’ new pair. The presented token is retired (rotation) |
 | | | | A rotated token still works for `REFRESH_GRACE_SECONDS` (120), so a lost response on a bad connection does not end the shift. Reuse after that revokes **every** session for the account. A token ended by sign-out or by HR gets no grace at all. |
-| POST | `/api/auth/logout` | — | `{ refreshToken }` |
+| POST | `/api/auth/logout` | â€” | `{ refreshToken }` |
 | POST | `/api/auth/logout-all` | any | Revokes every session for the caller |
 | GET | `/api/auth/me` | any | Profile, role and consent state |
 | GET | `/api/auth/consent` | any | The disclosure the consent screen must render, versioned |
 | POST | `/api/auth/consent` | any | `{ monitoringConsent?, audioConsent? }` |
-| POST | `/api/auth/sso/callback` | — | **501** — backlog I-1 |
+| POST | `/api/auth/sso/callback` | â€” | **501** â€” backlog I-1 |
 
 `employee.consent.required` is `true` when the consent screen must be shown before punch-in.
 
@@ -57,13 +57,13 @@ Audio consent can be given and revoked freely, and revocation takes effect on th
 | POST | `/api/attendance/break-start` | any | **409** if not punched in, or already on a break |
 | POST | `/api/attendance/break-end` | any | Recomputes `totalBreakSeconds` from the break rows |
 
-All four accept an optional `{ "at": "<ISO 8601>" }` — the time the event really happened, for
+All four accept an optional `{ "at": "<ISO 8601>" }` â€” the time the event really happened, for
 an agent replaying something it queued while offline. The server judges the claim (ADR-0004):
 
-- More than 120s in the future → **400** (broken clock).
-- Out of order — a punch-out before its punch-in → **400**.
-- Backdated up to **4 hours** → honoured; the shift is marked `source: "queued"`.
-- Backdated beyond 4 hours → the **server's own time** is recorded, `needsReview: true`, and
+- More than 120s in the future â†’ **400** (broken clock).
+- Out of order â€” a punch-out before its punch-in â†’ **400**.
+- Backdated up to **4 hours** â†’ honoured; the shift is marked `source: "queued"`.
+- Backdated beyond 4 hours â†’ the **server's own time** is recorded, `needsReview: true`, and
   `reviewReason` says why.
 
 `source` (`live` / `queued` / `admin`) and `punchInReceivedAt` are returned on every shift, so
@@ -74,7 +74,7 @@ from the request.
 | GET | `/api/attendance/me` | any | Own history. `?from=&to=&page=&limit=` |
 | GET | `/api/attendance/:employeeId` | self or admin | Admin reads are audit-logged |
 
-The punch endpoints take no `employeeId` — the acting employee comes from the token, so a
+The punch endpoints take no `employeeId` â€” the acting employee comes from the token, so a
 client cannot punch in as somebody else. A body containing `employeeId` is ignored.
 
 ## Capture
@@ -100,13 +100,13 @@ All three upload endpoints accept an optional `captureId` (a UUID, one per captu
 
 - A repeat returns `201` with the id already stored and `"duplicate": true`. No second file is
   written, no second row created.
-- A replay is accepted even if the shift it belonged to has since closed — otherwise the agent
+- A replay is accepted even if the shift it belonged to has since closed â€” otherwise the agent
   would retry an item it can never deliver.
 - An audio replay is still refused with **403** if consent has been withdrawn in the meantime.
 - The activity batch reports `{ accepted, duplicates }`.
 
 Capture timestamps (`capturedAt`, `recordedAt`, `timestamp`) are validated: more than 120s in
-the future → **400**; older than 7 days → **400**. A few hours late is normal and expected.
+the future â†’ **400**; older than 7 days â†’ **400**. A few hours late is normal and expected.
 
 ### Multiple displays
 
@@ -116,7 +116,7 @@ A capture at one moment is **one upload per display** (ADR-0005), tied together 
 ```json
 {
   "imageBase64": "...",
-  "captureId":      "<uuid, unique per image — the replay key>",
+  "captureId":      "<uuid, unique per image â€” the replay key>",
   "captureGroupId": "<uuid, the same for every display in this capture>",
   "displayIndex": 0,
   "displayCount": 2,
@@ -131,9 +131,9 @@ at 8. Omit them and the capture is recorded as a single-display group of one.
 `GET /api/screenshots/:employeeId` returns rows **flat**, newest moment first and primary
 display first, each carrying `captureGroupId`, `displayIndex`, `displayCount` and
 `displayLabel`. Clients group them. Ask for a large enough `limit` that a group is not split
-across a page — a full day on two monitors is about 128 rows.
+across a page â€” a full day on two monitors is about 128 rows.
 
-Upload rate limit: **240/hour per employee** — headroom for draining a full day's backlog.
+Upload rate limit: **240/hour per employee** â€” headroom for draining a full day's backlog.
 
 `GET /api/config` (any role) returns the capture intervals and shift rules the agent should
 use, so cadence is changed server-side rather than by re-releasing the agent.
@@ -144,11 +144,11 @@ All admin routes require `role=admin`, enforced server-side.
 
 | Method | Path | Notes |
 |---|---|---|
-| GET | `/api/admin/dashboard` | Live status of every active employee. `?date=` for a past day. Includes any shift still open, whatever date it started on — a night shift stays on the board past midnight, marked `overnight` with its `shiftDate` |
+| GET | `/api/admin/dashboard` | Live status of every active employee. `?date=` for a past day. Includes any shift still open, whatever date it started on â€” a night shift stays on the board past midnight, marked `overnight` with its `shiftDate` |
 | GET | `/api/admin/reports` | `?from=&to=` required; `&department=&employeeId=&detail=summary\|daily&format=json\|csv` |
 | GET | `/api/admin/employees` | `?department=&status=&search=&page=&limit=` |
 | GET | `/api/admin/employees/:id` | Single employee, same shape as the list rows |
-| POST | `/api/admin/employees` | Creates with consent **not** given — the employee gives it at first login |
+| POST | `/api/admin/employees` | Creates with consent **not** given â€” the employee gives it at first login |
 | PATCH | `/api/admin/employees/:id` | Name, role, department, timezone, status, password reset. `consentAudio` may only be set to `false` |
 | GET | `/api/admin/audit-logs` | `?adminId=&targetEmployeeId=&action=&from=&to=`. Read-only: no route updates or deletes a row |
 
@@ -158,15 +158,46 @@ Deactivating an employee or resetting a password revokes their refresh tokens im
 
 | Method | Path | Notes |
 |---|---|---|
-| POST | `/api/payroll/generate` | `{ month: "2026-08" }`. Idempotent — re-running overwrites and clears `syncedToPayroll` |
+| POST | `/api/payroll/generate` | `{ month: "2026-08" }`. Idempotent â€” re-running overwrites and clears `syncedToPayroll` |
 | GET | `/api/payroll?month=` | Generated summary rows |
 | GET | `/api/payroll/export?month=` | CSV (`&format=json` for JSON). Audit-logged |
-| POST | `/api/payroll/mark-synced` | `{ month, employeeIds? }` — confirms an upload actually happened |
-| POST | `/api/payroll/sync` | **501** — backlog I-2 |
+| POST | `/api/payroll/mark-synced` | `{ month, employeeIds? }` â€” confirms an upload actually happened |
+| POST | `/api/payroll/sync` | **501** â€” backlog I-2 |
 
-Only **closed** shifts count. Idle seconds are reported but not deducted — see open question 1
+Only **closed** shifts count. Idle seconds are reported but not deducted â€” see open question 1
 in [docs/PRODUCT_BACKLOG.md](../docs/PRODUCT_BACKLOG.md).
 
+## Companies (multi-tenant)
+
+One deployment serves many companies. Every employee belongs to one company (`employees.company_id`); a person signs in with their work email, which is unique across companies. HR admins only ever see their own company's people, settings, departments, audit trail, files and reports; another company's ids answer 404 or 403.
+
+`GET /api/auth/me` and `GET /api/config` return the company's `features`:
+
+| Feature | Switches off |
+|---|---|
+| `screenCapture` | screenshots (uploads, lists, files) |
+| `audioCapture` | audio samples, mic alerts, mic log |
+| `idleTracking` | activity pings, idle time, productivity |
+| `payroll` | `/api/payroll/*` |
+| `leave` | leave requests and approvals |
+
+Punch in/out, breaks and attendance are always on. A read of a switched-off feature answers `403 FEATURE_DISABLED`. An agent *upload* of one is answered `200 {"ignored": true, "reason": "FEATURE_DISABLED"}` and dropped, so an older agent does not retry it. `GET /api/attendance/status` carries `features`, `screenshotAllowed`, `activityAllowed` and `audioAllowed`. A suspended company answers `403 COMPANY_SUSPENDED` on every call.
+
+Plan limits: a storage limit makes screenshot and audio uploads answer `200 {"ignored": true, "reason": "STORAGE_FULL"}` (leave proofs answer 409); an employee limit makes adding or reactivating a person answer 409.
+
+Each company has a `timezone`; shift dates, "today" on the boards and the mic log default range follow it.
+
+### Super admin (`/api/super`, platform owner only)
+
+An account with `is_super_admin` set (`ADMIN_SUPER=1 npm run db:create-admin`). Anyone else gets 403.
+
+| Method | Path | |
+|---|---|---|
+| GET | `/api/super/companies?from=&to=` | Every company with active people, who is working now, storage used, hours worked / on break (this month, all time, and the optional date range; running shifts are counted up to now) |
+| POST | `/api/super/companies` | `{ name, features?, timezone?, storageLimitBytes?, maxEmployees?, admin: { name, email } }`. Creates the company and its first HR admin; the temporary password is returned once |
+| GET / PATCH | `/api/super/companies/:id` | PATCH takes any of `name`, `status` (`active`/`suspended`), `features`, `timezone`, `storageLimitBytes`, `maxEmployees` (`null` clears a limit). Suspending ends every session in the company |
+| GET | `/api/super/companies/:id/admins` | The company's HR admins |
+| POST | `/api/super/companies/:id/admins/:employeeId/reset-password` | New temporary password, returned once |
 ## Jobs
 
 Run in-process on a schedule when `ENABLE_SCHEDULER=true`, or from cron:

@@ -14,8 +14,13 @@ const logger = require('../utils/logger');
  * cleans up. The reverse order would leave a file on disk that no row references — a file
  * we promised to delete and can no longer find.
  */
-async function purgeTable({ table, urlColumn, timeColumn, cutoff }) {
-  const rows = await db()(table)
+async function purgeTable({ table, urlColumn, timeColumn, cutoff, companyId }) {
+  // Optionally limited to one company's employees, each of which keeps its own retention days.
+  const scope = (query) =>
+    companyId
+      ? query.whereIn('employee_id', db()('employees').where({ company_id: companyId }).select('id'))
+      : query;
+  const rows = await scope(db()(table))
     .where(timeColumn, '<', cutoff)
     .andWhere({ file_deleted: false })
     .whereNotNull(urlColumn)
@@ -38,7 +43,7 @@ async function purgeTable({ table, urlColumn, timeColumn, cutoff }) {
 
   // Rows whose file was already gone (e.g. removed by an S3 lifecycle rule) still need their
   // metadata marked, or they are re-examined on every future run.
-  const orphans = await db()(table)
+  const orphans = await scope(db()(table))
     .where(timeColumn, '<', cutoff)
     .andWhere({ file_deleted: false })
     .whereNull(urlColumn)
@@ -47,21 +52,40 @@ async function purgeTable({ table, urlColumn, timeColumn, cutoff }) {
   return { table, candidates: rows.length, deleted, orphansMarked: orphans, failures };
 }
 
-async function purge({ days = settings.get().retention.days, at = t.now() } = {}) {
-  const cutoff = t.daysAgo(days, at);
+const sum = (a, b) => ({
+  table: a.table,
+  candidates: a.candidates + b.candidates,
+  deleted: a.deleted + b.deleted,
+  orphansMarked: a.orphansMarked + b.orphansMarked,
+  failures: [...a.failures, ...b.failures],
+});
 
-  const screenshots = await purgeTable({
-    table: 'screenshots',
-    urlColumn: 'image_url',
-    timeColumn: 'captured_at',
-    cutoff,
-  });
-  const audio = await purgeTable({
-    table: 'audio_recordings',
-    urlColumn: 'file_url',
-    timeColumn: 'recorded_at',
-    cutoff,
-  });
+/**
+ * Deletes expired files, company by company, each by its own retention days. An explicit `days`
+ * overrides every company's setting.
+ */
+async function purge({ days, at = t.now() } = {}) {
+  const companyIds = await db()('companies').pluck('id');
+  let screenshots = { table: 'screenshots', candidates: 0, deleted: 0, orphansMarked: 0, failures: [] };
+  let audio = { table: 'audio_recordings', candidates: 0, deleted: 0, orphansMarked: 0, failures: [] };
+  let usedDays = days;
+  let cutoff = t.daysAgo(days || settings.get().retention.days, at);
+
+  for (const companyId of companyIds) {
+    await settings.ensure(companyId);
+    const companyDays = days || settings.get(companyId).retention.days;
+    if (!usedDays) usedDays = companyDays;
+    cutoff = t.daysAgo(companyDays, at);
+    screenshots = sum(
+      screenshots,
+      await purgeTable({ table: 'screenshots', urlColumn: 'image_url', timeColumn: 'captured_at', cutoff, companyId })
+    );
+    audio = sum(
+      audio,
+      await purgeTable({ table: 'audio_recordings', urlColumn: 'file_url', timeColumn: 'recorded_at', cutoff, companyId })
+    );
+  }
+  days = usedDays || settings.get().retention.days;
 
   const failures = [...screenshots.failures, ...audio.failures];
   const result = {

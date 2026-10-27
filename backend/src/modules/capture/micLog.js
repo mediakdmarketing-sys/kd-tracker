@@ -80,10 +80,10 @@ function shapePeriod(p, person) {
 }
 
 /** Defaults to the last 7 days, on the company clock. */
-function rangeOf({ from, to }) {
+function rangeOf({ from, to, timezone }) {
   return {
-    from: from || t.localDate(t.daysAgo(6)),
-    to: to || t.localDate(),
+    from: from || t.localDate(t.daysAgo(6), timezone),
+    to: to || t.localDate(t.now(), timezone),
   };
 }
 
@@ -91,8 +91,8 @@ function rangeOf({ from, to }) {
  * Muted periods in a date range, newest first.
  * @param {string[]|null} employeeIds  null = everyone (an admin); an array limits it (a leader).
  */
-async function micLog({ employeeIds, from, to }) {
-  const range = rangeOf({ from, to });
+async function micLog({ employeeIds, from, to, timezone }) {
+  const range = rangeOf({ from, to, timezone });
   if (employeeIds && !employeeIds.length) return { ...range, periods: [] };
 
   const base = db()('audio_recordings')

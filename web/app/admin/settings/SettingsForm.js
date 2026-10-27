@@ -10,8 +10,10 @@ import { patch } from '@/lib/client';
  * The API itself stays in seconds throughout (matches config.js's existing units, and every
  * other backend consumer of these values already expects seconds).
  */
-export default function SettingsForm({ initial }) {
+export default function SettingsForm({ initial, features = {} }) {
   const router = useRouter();
+  // Settings of a feature the company does not have are hidden: they would change nothing.
+  const has = (name) => features[name] !== false;
 
   const [form, setForm] = useState(() => ({
     screenshotMinMinutes: initial.capture.screenshotMinIntervalSec / 60,
@@ -21,6 +23,8 @@ export default function SettingsForm({ initial }) {
     shiftTargetHours: initial.shift.targetSeconds / 3600,
     breakAllowanceMinutes: initial.shift.breakAllowanceSeconds / 60,
     idleThresholdMinutes: initial.shift.idleThresholdSeconds / 60,
+    halfDayHours: initial.shift.halfDaySeconds / 3600,
+    fullDayHours: initial.shift.fullDaySeconds / 3600,
     autoCloseHours: initial.shift.autoCloseHours,
     retentionDays: initial.retention.days,
     deductIdle: initial.payroll.deductIdle,
@@ -51,6 +55,8 @@ export default function SettingsForm({ initial }) {
           targetSeconds: Math.round(form.shiftTargetHours * 3600),
           breakAllowanceSeconds: Math.round(form.breakAllowanceMinutes * 60),
           idleThresholdSeconds: Math.round(form.idleThresholdMinutes * 60),
+          halfDaySeconds: Math.round(form.halfDayHours * 3600),
+          fullDaySeconds: Math.round(form.fullDayHours * 3600),
           autoCloseHours: Math.round(form.autoCloseHours),
         },
         retention: { days: Math.round(form.retentionDays) },
@@ -67,7 +73,7 @@ export default function SettingsForm({ initial }) {
 
   return (
     <form onSubmit={handleSubmit} className="stack">
-      <div className="card card-pad">
+      {has('screenCapture') && <div className="card card-pad">
         <div style={{ fontWeight: 650, fontSize: 14, marginBottom: 12 }}>Screenshots</div>
         <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 16 }}>
           <NumberField
@@ -90,9 +96,9 @@ export default function SettingsForm({ initial }) {
             disabled={busy}
           />
         </div>
-      </div>
+      </div>}
 
-      <div className="card card-pad">
+      {has('audioCapture') && <div className="card card-pad">
         <div style={{ fontWeight: 650, fontSize: 14, marginBottom: 12 }}>Audio sampling</div>
         <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 16 }}>
           <NumberField
@@ -115,7 +121,7 @@ export default function SettingsForm({ initial }) {
             hint="Non-overlapping by design: length + gap is the full cycle."
           />
         </div>
-      </div>
+      </div>}
 
       <div className="card card-pad">
         <div style={{ fontWeight: 650, fontSize: 14, marginBottom: 12 }}>Shift &amp; breaks</div>
@@ -130,6 +136,26 @@ export default function SettingsForm({ initial }) {
             disabled={busy}
           />
           <NumberField
+            label="Half day starts at (hours worked)"
+            value={form.halfDayHours}
+            onChange={(v) => set('halfDayHours', v)}
+            min={0.25}
+            max={12}
+            step={0.25}
+            disabled={busy}
+            hint="A day with at least this many hours counts as a half day in reports."
+          />
+          <NumberField
+            label="Full day starts at (hours worked)"
+            value={form.fullDayHours}
+            onChange={(v) => set('fullDayHours', v)}
+            min={0.25}
+            max={16}
+            step={0.25}
+            disabled={busy}
+            hint="At least this many hours is a full day. Below the half-day line is 'less than half'."
+          />
+          <NumberField
             label="Break allowance (minutes)"
             value={form.breakAllowanceMinutes}
             onChange={(v) => set('breakAllowanceMinutes', v)}
@@ -138,7 +164,7 @@ export default function SettingsForm({ initial }) {
             step={5}
             disabled={busy}
           />
-          <NumberField
+          {has('idleTracking') && <NumberField
             label="Idle threshold (minutes)"
             value={form.idleThresholdMinutes}
             onChange={(v) => set('idleThresholdMinutes', v)}
@@ -147,7 +173,7 @@ export default function SettingsForm({ initial }) {
             step={1}
             disabled={busy}
             hint="No activity ping for this long marks the span as idle."
-          />
+          />}
           <NumberField
             label="Auto-close abandoned shifts after (hours)"
             value={form.autoCloseHours}
@@ -161,7 +187,7 @@ export default function SettingsForm({ initial }) {
         </div>
       </div>
 
-      <div className="card card-pad">
+      {(has('screenCapture') || has('audioCapture')) && <div className="card card-pad">
         <div style={{ fontWeight: 650, fontSize: 14, marginBottom: 12 }}>Retention</div>
         <NumberField
           label="Erase screenshots &amp; audio after (days)"
@@ -173,9 +199,9 @@ export default function SettingsForm({ initial }) {
           disabled={busy}
           hint="The database record of a capture is always kept — only the file is deleted."
         />
-      </div>
+      </div>}
 
-      <div className="card card-pad">
+      {has('payroll') && has('idleTracking') && <div className="card card-pad">
         <div style={{ fontWeight: 650, fontSize: 14, marginBottom: 12 }}>Payroll</div>
         <label className="inline" style={{ gap: 8, cursor: busy ? 'default' : 'pointer' }}>
           <input
@@ -190,7 +216,7 @@ export default function SettingsForm({ initial }) {
           Off by default — idle time is reported for visibility but not deducted. Change only
           after communicating the policy to employees.
         </p>
-      </div>
+      </div>}
 
       {error && <div className="notice notice-danger" role="alert">{error}</div>}
       {saved && !error && (

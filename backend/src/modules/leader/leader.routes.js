@@ -13,6 +13,7 @@ const attendanceService = require('../attendance/attendance.service');
 const projectService = require('../projects/project.service');
 const leaveService = require('../leave/leave.service');
 const audit = require('../../services/audit');
+const { requireFeature } = require('../../middleware/features');
 
 const router = express.Router();
 router.use(authenticate, requireAdminOrLeader);
@@ -110,6 +111,7 @@ router.get(
 // Screenshots for a member
 router.get(
   '/members/:employeeId/screenshots',
+  requireFeature('screenCapture'),
   requireSelfOrAdminOrLeader('employeeId'),
   validate(listQuerySchema, 'query'),
   asyncHandler(async (req, res) => {
@@ -138,14 +140,15 @@ router.get(
 // View individual screenshot file
 router.get(
   '/members/:employeeId/screenshots/file/:id',
+  requireFeature('screenCapture'),
   requireSelfOrAdminOrLeader('employeeId'),
   asyncHandler(async (req, res) => {
-    const { buffer, contentType, row } = await captureService.readFile('screenshots', req.params.id);
+    const { buffer, contentType, row } = await captureService.readFile('screenshots', req.params.id, req.user.companyId);
 
     // Verify this screenshot belongs to the stated employee (prevent id-fishing).
     if (row.employee_id !== req.params.employeeId) {
       const { forbidden } = require('../../utils/errors');
-      return next(forbidden('Screenshot does not belong to this employee'));
+      throw forbidden('Screenshot does not belong to this employee');
     }
 
     await audit.record(req, {
@@ -163,6 +166,7 @@ router.get(
 // Audio recordings for a member
 router.get(
   '/members/:employeeId/audio',
+  requireFeature('audioCapture'),
   requireSelfOrAdminOrLeader('employeeId'),
   validate(listQuerySchema, 'query'),
   asyncHandler(async (req, res) => {
@@ -191,11 +195,17 @@ router.get(
 // When a member's microphone was found muted, from what time to what time.
 router.get(
   '/members/:employeeId/mic-log',
+  requireFeature('audioCapture'),
   requireSelfOrAdminOrLeader('employeeId'),
   validate(listQuerySchema, 'query'),
   asyncHandler(async (req, res) => {
     const query = q(req);
-    const log = await micLog({ employeeIds: [req.params.employeeId], from: query.from, to: query.to });
+    const log = await micLog({
+      employeeIds: [req.params.employeeId],
+      from: query.from,
+      to: query.to,
+      timezone: req.user.timezone,
+    });
     await audit.record(req, {
       action: audit.ACTIONS.LISTED_AUDIO,
       targetEmployeeId: req.params.employeeId,
@@ -209,13 +219,14 @@ router.get(
 // Play individual audio file
 router.get(
   '/members/:employeeId/audio/file/:id',
+  requireFeature('audioCapture'),
   requireSelfOrAdminOrLeader('employeeId'),
   asyncHandler(async (req, res) => {
-    const { buffer, contentType, row } = await captureService.readFile('audio_recordings', req.params.id);
+    const { buffer, contentType, row } = await captureService.readFile('audio_recordings', req.params.id, req.user.companyId);
 
     if (row.employee_id !== req.params.employeeId) {
       const { forbidden } = require('../../utils/errors');
-      return next(forbidden('Audio does not belong to this employee'));
+      throw forbidden('Audio does not belong to this employee');
     }
 
     await audit.record(req, {
@@ -233,6 +244,7 @@ router.get(
 // Activity summary for a member — counts only, mirrors /api/activity/:id (admin).
 router.get(
   '/members/:employeeId/activity',
+  requireFeature('idleTracking'),
   requireSelfOrAdminOrLeader('employeeId'),
   validate(listQuerySchema, 'query'),
   asyncHandler(async (req, res) => {
@@ -275,22 +287,24 @@ const leaveReviewSchema = z.object({
 
 router.get(
   '/leave',
+  requireFeature('leave'),
   loadLeaderDepts(),
   validate(leaveListQuery, 'query'),
   asyncHandler(async (req, res) => {
     // Leave review is scoped to regular employees only — never sub-leaders — so a leader's
     // own request (or a sub-leader's) is never visible here and always falls to Admin.
-    const memberIds = await service.resolveLeaveMemberIds(req.leaderDepts);
+    const memberIds = await service.resolveLeaveMemberIds(req.leaderDepts, req.user.companyId);
     res.json(await leaveService.listForReviewer({ memberIds, ...q(req) }));
   })
 );
 
 router.patch(
   '/leave/:id',
+  requireFeature('leave'),
   loadLeaderDepts(),
   validate(leaveReviewSchema),
   asyncHandler(async (req, res) => {
-    const memberIds = await service.resolveLeaveMemberIds(req.leaderDepts);
+    const memberIds = await service.resolveLeaveMemberIds(req.leaderDepts, req.user.companyId);
     const updated = await leaveService.review(req.params.id, {
       ...req.body,
       reviewedBy: req.user.id,
@@ -309,9 +323,10 @@ router.patch(
 
 router.get(
   '/leave/:id/proof',
+  requireFeature('leave'),
   loadLeaderDepts(),
   asyncHandler(async (req, res) => {
-    const memberIds = await service.resolveLeaveMemberIds(req.leaderDepts);
+    const memberIds = await service.resolveLeaveMemberIds(req.leaderDepts, req.user.companyId);
     const { buffer, contentType, row } = await leaveService.getProof(req.params.id, { memberIds });
     await audit.record(req, {
       action: audit.ACTIONS.VIEWED_LEAVE_PROOF,

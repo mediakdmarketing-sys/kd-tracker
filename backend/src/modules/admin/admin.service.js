@@ -11,25 +11,30 @@ const { toBool, toIso } = require('../../utils/http');
 const { conflict, notFound, badRequest } = require('../../utils/errors');
 const { publicEmployee } = require('../auth/auth.service');
 const { generateTemporaryPassword } = require('../../utils/password');
+const companies = require('../../services/companies');
+
+const { DEFAULT_COMPANY_ID } = companies;
 
 /**
- * Story D-1 — "who is working right now".
+ * Story D-1 â€” "who is working right now".
  *
  * One pass over today's attendance plus the last activity ping per employee. Deliberately
  * poll-friendly (a few small queries) rather than a socket push; see the Sprint 4 deferral
  * note in docs/SPRINT_PLAN.md.
  */
-async function dashboard({ date } = {}) {
-  // Select only the columns the dashboard needs — avoids transferring password_hash,
+async function dashboard({ date, companyId } = {}) {
+  // Select only the columns the dashboard needs â€” avoids transferring password_hash,
   // consent fields, and other columns that are never used here.
   const employees = await db()('employees')
-    .where({ status: 'active' })
+    .where({ status: 'active', company_id: companyId })
     .orderBy('name')
     .select('id', 'name', 'email', 'department', 'timezone');
 
   // Each employee's "today" is their own local date unless a date is explicitly requested.
   const nowMs = t.now();
-  const employeeDates = employees.map(() => date || t.localDate(nowMs, t.DEFAULT_TIMEZONE));
+  const company = await companies.get(companyId);
+  const tz = (company && company.timezone) || t.DEFAULT_TIMEZONE;
+  const employeeDates = employees.map(() => date || t.localDate(nowMs, tz));
   const dates = new Set(employeeDates);
 
   const employeeIds = employees.map((e) => e.id);
@@ -55,6 +60,7 @@ async function dashboard({ date } = {}) {
     employees.map((e, i) => ({ employeeId: e.id, date: employeeDates[i] }))
   );
 
+  const idleOn = Boolean(company?.features.idleTracking);
   const since = t.hoursAgo(24);
   const lastActivity = await db()('activity_logs')
     .whereIn('employee_id', employeeIds)
@@ -70,7 +76,7 @@ async function dashboard({ date } = {}) {
     return acc;
   }, {});
   const rows = employees.map((emp) => {
-    const empDate = date || t.localDate(nowMs, t.DEFAULT_TIMEZONE);
+    const empDate = date || t.localDate(nowMs, tz);
     const mine = attendanceByEmployee[emp.id] || [];
     const current = mine.find((s) => s.status === 'open' || s.status === 'on_break');
 
@@ -98,7 +104,7 @@ async function dashboard({ date } = {}) {
     let state = 'not_started';
     if (current) state = current.status === 'on_break' ? 'on_break' : 'working';
     else if (shifts.length) state = 'punched_out';
-    // Only overrides the otherwise-unexplained "not started" case — an employee who actually
+    // Only overrides the otherwise-unexplained "not started" case â€” an employee who actually
     // punched in or worked earlier that day shows what they really did, approved leave or not.
     else if (onLeave) state = 'on_leave';
 
@@ -119,14 +125,15 @@ async function dashboard({ date } = {}) {
       punchOut: !current && shifts[0] ? toIso(shifts[0].punch_out) : null,
       workedSeconds: workedToday,
       breakSeconds: liveBreak,
-      overBreak: liveBreak > settings.get().shift.breakAllowanceSeconds,
-      shiftTargetSeconds: settings.get().shift.targetSeconds,
+      overBreak: liveBreak > settings.get(companyId).shift.breakAllowanceSeconds,
+      shiftTargetSeconds: settings.get(companyId).shift.targetSeconds,
       lastActivityAt: toIso(lastSeen),
       // A live shift with no activity ping inside the idle window is probably idle rather
-      // than working — surfaced here so HR sees it without digging through logs.
+      // than working â€” surfaced here so HR sees it without digging through logs.
       appearsIdle:
+        idleOn &&
         state === 'working' &&
-        (!lastSeen || nowMs - lastSeen > settings.get().shift.idleThresholdSeconds * 1000),
+        (!lastSeen || nowMs - lastSeen > settings.get(companyId).shift.idleThresholdSeconds * 1000),
       needsReview: toBool(current?.needs_review || shifts[0]?.needs_review),
     };
   });
@@ -144,13 +151,45 @@ async function dashboard({ date } = {}) {
   return { generatedAt: toIso(nowMs), summary, employees: rows };
 }
 
-/** Story D-2 — attendance rolled up per employee over a range, optionally by department. */
-async function report({ from, to, department, employeeId }) {
+/**
+ * What one day's worked time counts as, by the company's own thresholds (set in Settings):
+ * full, half, or short (less than a half day).
+ */
+function dayTypeOf(workedSeconds, { halfDaySeconds, fullDaySeconds }) {
+  if (workedSeconds >= fullDaySeconds) return 'full';
+  if (workedSeconds >= halfDaySeconds) return 'half';
+  return 'short';
+}
+
+const DAY_LABEL = { full: 'Full day', half: 'Half day', short: 'Less than half day' };
+
+/**
+ * Worked seconds per person per calendar day, finished shifts only (a shift still running has no
+ * final total, so its day is not judged yet). Two shifts on one day add up.
+ */
+async function dayTotals({ from, to, department, employeeId, companyId }) {
+  const query = db()('attendance as a')
+    .join('employees as e', 'e.id', 'a.employee_id')
+    .where('e.company_id', companyId)
+    .andWhere('a.status', 'closed')
+    .whereBetween('a.date', [from, to]);
+  if (department) query.andWhere('e.department', department);
+  if (employeeId) query.andWhere('a.employee_id', employeeId);
+  const rows = await query
+    .groupBy('a.employee_id', 'a.date')
+    .select('a.employee_id', 'a.date')
+    .sum({ worked: 'a.total_worked_seconds' });
+  return rows.map((r) => ({ employeeId: r.employee_id, date: r.date, worked: Number(r.worked) || 0 }));
+}
+
+/** Story D-2 â€” attendance rolled up per employee over a range, optionally by department. */
+async function report({ from, to, department, employeeId, companyId }) {
   if (!from || !to) throw badRequest('from and to dates are required (YYYY-MM-DD)');
   if (from > to) throw badRequest('`from` must not be after `to`');
 
   const query = db()('attendance as a')
     .join('employees as e', 'e.id', 'a.employee_id')
+    .where('e.company_id', companyId)
     .whereBetween('a.date', [from, to]);
 
   if (department) query.andWhere('e.department', department);
@@ -168,6 +207,7 @@ async function report({ from, to, department, employeeId }) {
   // Flag counts need a second pass: SUM over a boolean is not portable across SQLite/Postgres.
   const flagQuery = db()('attendance as a')
     .join('employees as e', 'e.id', 'a.employee_id')
+    .where('e.company_id', companyId)
     .whereBetween('a.date', [from, to])
     .andWhere((b) => b.where('a.needs_review', true).orWhere('a.over_break', true));
   if (department) flagQuery.andWhere('e.department', department);
@@ -179,16 +219,27 @@ async function report({ from, to, department, employeeId }) {
   // Approved leave days per employee in range. Note the same limitation as any other column
   // here: this report is built from the attendance JOIN above, so an employee with zero
   // attendance rows in the whole period (e.g. on leave the entire time) won't have a row to
-  // attach a leave count to at all — a gap worth knowing about, not silently patched over.
+  // attach a leave count to at all â€” a gap worth knowing about, not silently patched over.
   const leaveDaysBy = await leaveService.approvedDaysInRange({
     employeeIds: rows.map((r) => r.employee_id),
     from,
     to,
   });
 
+  const thresholds = settings.get(companyId).shift;
+  const dayCounts = {};
+  for (const d of await dayTotals({ from, to, department, employeeId, companyId })) {
+    const c = (dayCounts[d.employeeId] ||= { full: 0, half: 0, short: 0 });
+    c[dayTypeOf(d.worked, thresholds)] += 1;
+  }
+
   return rows.map((r) => {
     const worked = Number(r.worked_seconds) || 0;
+    const days = dayCounts[r.employee_id] || { full: 0, half: 0, short: 0 };
     return {
+      fullDays: days.full,
+      halfDays: days.half,
+      shortDays: days.short,
       employeeId: r.employee_id,
       name: r.name,
       email: r.email,
@@ -206,9 +257,10 @@ async function report({ from, to, department, employeeId }) {
 }
 
 /** Day-by-day rows behind the summary, for drill-down and for the CSV export. */
-async function detailedReport({ from, to, department, employeeId }) {
+async function detailedReport({ from, to, department, employeeId, companyId }) {
   const query = db()('attendance as a')
     .join('employees as e', 'e.id', 'a.employee_id')
+    .where('e.company_id', companyId)
     .whereBetween('a.date', [from, to]);
 
   if (department) query.andWhere('e.department', department);
@@ -235,7 +287,17 @@ async function detailedReport({ from, to, department, employeeId }) {
       'e.id as employee_id'
     );
 
-  return rows.map((r) => ({
+  const thresholds = settings.get(companyId).shift;
+  const dayWorked = new Map();
+  for (const d of await dayTotals({ from, to, department, employeeId, companyId })) {
+    dayWorked.set(`${d.employeeId}|${d.date}`, d.worked);
+  }
+
+  return rows.map((r) => {
+    const total = dayWorked.get(`${r.employee_id}|${r.date}`);
+    return {
+    dayWorkedFormatted: total === undefined ? '' : t.formatDuration(total),
+    dayType: total === undefined ? '' : DAY_LABEL[dayTypeOf(total, thresholds)],
     employeeId: r.employee_id,
     name: r.name,
     email: r.email,
@@ -253,13 +315,14 @@ async function detailedReport({ from, to, department, employeeId }) {
     autoClosed: toBool(r.auto_closed),
     needsReview: toBool(r.needs_review),
     reviewReason: r.review_reason || '',
-  }));
+    };
+  });
 }
 
 // --- Employee administration (story D-6) ------------------------------------------------
 
-async function listEmployees({ department, status, search, limit, offset }) {
-  const base = db()('employees');
+async function listEmployees({ department, status, search, limit, offset, companyId }) {
+  const base = db()('employees').where({ company_id: companyId });
   if (department) base.andWhere({ department });
   if (status) base.andWhere({ status });
   if (search) {
@@ -274,13 +337,14 @@ async function listEmployees({ department, status, search, limit, offset }) {
   return { rows: rows.map(publicEmployee), total: Number(count) };
 }
 
-async function getEmployee(id) {
-  const row = await db()('employees').where({ id }).first();
+async function getEmployee(id, companyId) {
+  const row = await db()('employees').where({ id, company_id: companyId }).first();
   if (!row) throw notFound('Employee not found');
   return publicEmployee(row);
 }
 
 async function createEmployee(input) {
+  await companies.assertRoomForEmployee(input.companyId || DEFAULT_COMPANY_ID);
   const existing = await db()('employees')
     .whereRaw('LOWER(email) = ?', [input.email.toLowerCase()])
     .first();
@@ -302,7 +366,8 @@ async function createEmployee(input) {
     department: input.department || null,
     employee_code: input.employeeCode || null,
     status: 'active',
-    timezone: input.timezone || t.DEFAULT_TIMEZONE,
+    company_id: input.companyId || DEFAULT_COMPANY_ID,
+    timezone: input.timezone || (await companies.get(input.companyId || DEFAULT_COMPANY_ID))?.timezone || t.DEFAULT_TIMEZONE,
     consent_monitoring: false,
     consent_audio: false,
     blur_screenshots: false,
@@ -327,8 +392,76 @@ async function createEmployee(input) {
   return { ...publicEmployee(row), ...(mustChange && { temporaryPassword }) };
 }
 
-async function updateEmployee(id, input) {
-  const row = await db()('employees').where({ id }).first();
+/** Everyone in the company as plain rows, for the CSV export. */
+async function exportEmployees(companyId) {
+  const rows = await db()('employees').where({ company_id: companyId }).orderBy('name');
+  return rows.map((r) => ({
+    name: r.name,
+    email: r.email,
+    employeeCode: r.employee_code || '',
+    department: r.department || '',
+    role: r.role,
+    status: r.status,
+    timezone: r.timezone || '',
+  }));
+}
+
+/**
+ * Creates many employees from an uploaded sheet. Each row stands alone: a row that cannot be
+ * added (email already used, plan limit reached, bad data) is reported and skipped, and the rest
+ * go through. Everyone is added as a plain employee with a temporary password, returned once.
+ * Departments the sheet names that do not exist yet are created.
+ */
+async function importEmployees({ rows, companyId }) {
+  const created = [];
+  const skipped = [];
+  const seen = new Set();
+  const known = new Set(
+    (await db()('departments').where({ company_id: companyId }).pluck('name')).map((n) => n.toLowerCase())
+  );
+
+  for (let i = 0; i < rows.length; i += 1) {
+    const row = rows[i];
+    const line = i + 1;
+    const email = row.email.toLowerCase();
+    if (seen.has(email)) {
+      skipped.push({ line, email, reason: 'Appears twice in the file' });
+      continue;
+    }
+    seen.add(email);
+
+    try {
+      const department = row.department ? row.department.trim() : '';
+      if (department && !known.has(department.toLowerCase())) {
+        await createDepartment({ name: department, companyId });
+        known.add(department.toLowerCase());
+      }
+      const employee = await createEmployee({
+        name: row.name,
+        email,
+        role: 'user',
+        department: department || undefined,
+        employeeCode: row.employeeCode || undefined,
+        timezone: row.timezone || undefined,
+        companyId,
+      });
+      created.push({
+        id: employee.id,
+        name: employee.name,
+        email: employee.email,
+        department: employee.department,
+        temporaryPassword: employee.temporaryPassword,
+      });
+    } catch (err) {
+      if (!err.expected) throw err;
+      skipped.push({ line, email, reason: err.message });
+    }
+  }
+  return { created, skipped };
+}
+
+async function updateEmployee(id, input, companyId) {
+  const row = await db()('employees').where({ id, company_id: companyId }).first();
   if (!row) throw notFound('Employee not found');
 
   const patch = { updated_at: t.now() };
@@ -344,7 +477,13 @@ async function updateEmployee(id, input) {
   if (input.department !== undefined) patch.department = input.department;
   if (input.employeeCode !== undefined) patch.employee_code = input.employeeCode;
   if (input.role !== undefined) patch.role = input.role;
-  if (input.status !== undefined) patch.status = input.status;
+  if (input.status !== undefined) {
+    // Bringing someone back counts against the plan like adding them.
+    if (input.status === 'active' && row.status !== 'active') {
+      await companies.assertRoomForEmployee(companyId);
+    }
+    patch.status = input.status;
+  }
   if (input.timezone !== undefined) patch.timezone = input.timezone;
   // A new password from HR (typed, or generated for an invitation) is a temporary one.
   const temporaryPassword = input.generatePassword ? generateTemporaryPassword() : input.password;
@@ -357,7 +496,7 @@ async function updateEmployee(id, input) {
   // but must never be able to turn it on for someone.
   if (input.consentAudio === false) patch.consent_audio = false;
 
-  // Screenshot blur is a display preference, not consent — HR may set it either way.
+  // Screenshot blur is a display preference, not consent â€” HR may set it either way.
   if (input.blurScreenshots !== undefined) patch.blur_screenshots = input.blurScreenshots;
 
   try {
@@ -368,7 +507,7 @@ async function updateEmployee(id, input) {
   }
 
   if (input.status === 'inactive' || temporaryPassword) {
-    // Deactivating or resetting a password must end existing sessions immediately — reason
+    // Deactivating or resetting a password must end existing sessions immediately â€” reason
     // 'admin' so the rotation grace window does not keep them alive for another two minutes.
     await db()('refresh_tokens')
       .where({ employee_id: id })
@@ -386,7 +525,7 @@ async function updateEmployee(id, input) {
  * days an active employee punched in. Averaged per person so a big department is comparable
  * with a small one; the y-axis is "days in the month" (capped by working days, ~26).
  */
-async function attendanceSummary({ from, to }) {
+async function attendanceSummary({ from, to, companyId }) {
   if (from > to) throw badRequest('`from` must not be after `to`');
 
   const months = [];
@@ -401,15 +540,15 @@ async function attendanceSummary({ from, to }) {
 
   // The departments table plus any department an active employee carries (seed data and older
   // accounts can name one that was never created), so no team silently drops off the chart.
-  const named = await db()('departments').pluck('name');
+  const named = await db()('departments').where({ company_id: companyId }).pluck('name');
   const inUse = await db()('employees')
-    .where({ status: 'active' })
+    .where({ status: 'active', company_id: companyId })
     .whereNotNull('department')
     .distinct('department')
     .pluck('department');
   const departments = [...new Set([...named, ...inUse])].filter(Boolean).sort((a, b) => a.localeCompare(b));
   const headcountRows = await db()('employees')
-    .where({ status: 'active' })
+    .where({ status: 'active', company_id: companyId })
     .whereNotNull('department')
     .groupBy('department')
     .select('department')
@@ -420,6 +559,7 @@ async function attendanceSummary({ from, to }) {
   const rows = await db()('attendance as a')
     .join('employees as e', 'e.id', 'a.employee_id')
     .where('e.status', 'active')
+    .where('e.company_id', companyId)
     .whereNotNull('e.department')
     .where('a.date', '>=', `${months[0]}-01`)
     .where('a.date', '<=', `${months[months.length - 1]}-31`)
@@ -444,8 +584,11 @@ async function attendanceSummary({ from, to }) {
   };
 }
 
-async function listAuditLogs({ adminId, targetEmployeeId, action, from, to, limit, offset }) {
-  const base = db()('audit_logs as l').leftJoin('employees as e', 'e.id', 'l.admin_id');
+async function listAuditLogs({ adminId, targetEmployeeId, action, from, to, limit, offset, companyId }) {
+  // An audit row belongs to the company of the admin who acted.
+  const base = db()('audit_logs as l')
+    .leftJoin('employees as e', 'e.id', 'l.admin_id')
+    .where('e.company_id', companyId);
   if (adminId) base.andWhere('l.admin_id', adminId);
   if (targetEmployeeId) base.andWhere('l.target_employee_id', targetEmployeeId);
   if (action) base.andWhere('l.action', action);
@@ -479,11 +622,11 @@ async function listAuditLogs({ adminId, targetEmployeeId, action, from, to, limi
 }
 
 /**
- * Full department list from the departments table — includes id, name, description.
+ * Full department list from the departments table â€” includes id, name, description.
  * Used by the departments management page and employee form dropdown.
  */
-async function listDepartmentsFull() {
-  const rows = await db()('departments').orderBy('name').select('id', 'name', 'description', 'created_at');
+async function listDepartmentsFull(companyId) {
+  const rows = await db()('departments').where({ company_id: companyId }).orderBy('name').select('id', 'name', 'description', 'created_at');
   return rows.map((r) => ({
     id: r.id,
     name: r.name,
@@ -493,20 +636,21 @@ async function listDepartmentsFull() {
 }
 
 /**
- * Lightweight name-only list — used by filter dropdowns in reports/payroll.
+ * Lightweight name-only list â€” used by filter dropdowns in reports/payroll.
  * Still reads from the departments table so only admin-created departments appear.
  */
-async function listDepartments() {
-  return db()('departments').orderBy('name').pluck('name');
+async function listDepartments(companyId) {
+  return db()('departments').where({ company_id: companyId }).orderBy('name').pluck('name');
 }
 
-async function createDepartment({ name, description }) {
-  const existing = await db()('departments').whereRaw('LOWER(name) = ?', [name.toLowerCase()]).first();
+async function createDepartment({ name, description, companyId }) {
+  const existing = await db()('departments').where({ company_id: companyId }).whereRaw('LOWER(name) = ?', [name.toLowerCase()]).first();
   if (existing) throw conflict('A department with that name already exists');
 
   const nowMs = t.now();
   const row = {
     id: uuid(),
+    company_id: companyId,
     name: name.trim(),
     description: description ? description.trim() : null,
     created_at: nowMs,
@@ -516,14 +660,17 @@ async function createDepartment({ name, description }) {
   return { id: row.id, name: row.name, description: row.description, createdAt: toIso(nowMs) };
 }
 
-async function deleteDepartment(id) {
-  const dept = await db()('departments').where({ id }).first();
+async function deleteDepartment(id, companyId) {
+  const dept = await db()('departments').where({ id, company_id: companyId }).first();
   if (!dept) throw notFound('Department not found');
 
   // Unassign all employees from this department.
-  await db()('employees').where({ department: dept.name }).update({ department: null, updated_at: t.now() });
+  await db()('employees').where({ department: dept.name, company_id: companyId }).update({ department: null, updated_at: t.now() });
   // Remove leader assignments for this department.
-  await db()('department_leaders').where({ department: dept.name }).del();
+  await db()('department_leaders')
+    .where({ department: dept.name })
+    .whereIn('employee_id', db()('employees').where({ company_id: companyId }).select('id'))
+    .del();
   // Delete the department record.
   await db()('departments').where({ id }).del();
 
@@ -532,9 +679,10 @@ async function deleteDepartment(id) {
 
 // --- Department leader management -------------------------------------------------------
 
-async function listDepartmentLeaders(department) {
+async function listDepartmentLeaders(department, companyId) {
   const base = db()('department_leaders as dl')
     .join('employees as e', 'e.id', 'dl.employee_id')
+    .where('e.company_id', companyId)
     .select('dl.department', 'dl.employee_id', 'dl.assigned_at', 'e.name', 'e.email', 'e.role', 'e.status')
     .orderBy(['dl.department', 'e.name']);
   if (department) base.where('dl.department', department);
@@ -550,8 +698,8 @@ async function listDepartmentLeaders(department) {
   }));
 }
 
-async function assignLeader({ department, employeeId, assignedBy }) {
-  const employee = await db()('employees').where({ id: employeeId }).first();
+async function assignLeader({ department, employeeId, assignedBy, companyId }) {
+  const employee = await db()('employees').where({ id: employeeId, company_id: companyId }).first();
   if (!employee) throw notFound('Employee not found');
   if (employee.status !== 'active') throw badRequest('Cannot assign an inactive employee as leader');
 
@@ -574,13 +722,15 @@ async function assignLeader({ department, employeeId, assignedBy }) {
     });
   } catch (err) {
     if (!isUniqueViolation(err)) throw err;
-    // Already a leader of this department — idempotent, not an error.
+    // Already a leader of this department â€” idempotent, not an error.
   }
 
   return { department, employeeId, assigned: true };
 }
 
-async function removeLeader({ department, employeeId }) {
+async function removeLeader({ department, employeeId, companyId }) {
+  const target = await db()('employees').where({ id: employeeId, company_id: companyId }).first();
+  if (!target) throw notFound('Employee not found');
   await db()('department_leaders').where({ department, employee_id: employeeId }).del();
 
   // If this employee no longer leads any department, downgrade role back to 'user'.
@@ -604,6 +754,8 @@ module.exports = {
   report,
   detailedReport,
   listEmployees,
+  exportEmployees,
+  importEmployees,
   getEmployee,
   createEmployee,
   updateEmployee,

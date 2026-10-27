@@ -271,7 +271,7 @@ function onTickError(err) {
 }
 
 function sampleActivity() {
-  if (!agent?.state.signedIn || !agent.state.captureAllowed) return;
+  if (!agent?.state.signedIn || !agent.state.captureAllowed || agent.state.activityAllowed === false) return;
 
   const sample = activity.sample(ACTIVITY_WINDOW_SECONDS);
   // An idle window produces no row. That absence is exactly what the server's idle detection

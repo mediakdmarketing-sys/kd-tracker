@@ -4,7 +4,7 @@ import SettingsForm from './SettingsForm';
 export const metadata = { title: 'Settings · WorkBuddy' };
 
 export default async function AdminSettingsPage() {
-  const [, settings] = await Promise.all([
+  const [user, settings] = await Promise.all([
     requireUser({ adminOnly: true }),
     api('/api/admin/settings'),
   ]);
@@ -22,7 +22,7 @@ export default async function AdminSettingsPage() {
         </div>
       </div>
 
-      <SettingsForm initial={settings} />
+      <SettingsForm initial={settings} features={user.company?.features} />
     </>
   );
 }

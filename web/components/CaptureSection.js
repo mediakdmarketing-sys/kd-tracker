@@ -27,19 +27,21 @@ export default function CaptureSection({
   showConsentColumn = false,
   subjectLabel = 'employee',
   blurScreenshots = false,
+  showScreenshots = true,
+  showAudio = true,
 }) {
   return (
     <>
-      <ScreenshotGrid
+      {showScreenshots && <ScreenshotGrid
         items={screenshots}
         timezone={timezone}
         from={from}
         to={to}
         fileUrlBase={screenshotUrlBase}
         blurred={blurScreenshots}
-      />
+      />}
 
-      <div className="card">
+      {showAudio && <div className="card">
         <div className="card-head">
           <h2>Audio samples</h2>
           <span className="faint">
@@ -109,7 +111,7 @@ export default function CaptureSection({
             </table>
           </div>
         )}
-      </div>
+      </div>}
     </>
   );
 }

@@ -36,7 +36,11 @@ export async function api(path, { method = 'GET', body, cache = 'no-store' } = {
   // the same thing for this page: the session cannot continue. Without this, an employee
   // deactivated mid-session (or mid-shift) hit the generic error boundary instead of being
   // routed back to sign-in like every other "you're not signed in anymore" case.
-  if (res.status === 401 || payload?.error?.code === 'ACCOUNT_DEACTIVATED') {
+  if (
+    res.status === 401 ||
+    payload?.error?.code === 'ACCOUNT_DEACTIVATED' ||
+    payload?.error?.code === 'COMPANY_SUSPENDED'
+  ) {
     redirect('/login');
   }
 
@@ -44,6 +48,11 @@ export async function api(path, { method = 'GET', body, cache = 'no-store' } = {
   // parallel on most pages, so whichever is refused first sends the person to choose one.
   if (payload?.error?.code === 'PASSWORD_CHANGE_REQUIRED') {
     redirect('/change-password');
+  }
+
+  // A page that belongs to a feature this company does not have: say so instead of an error.
+  if (payload?.error?.code === 'FEATURE_DISABLED') {
+    redirect('/me/feature-off');
   }
 
   if (!res.ok) {
@@ -73,12 +82,13 @@ export async function getSessionUser() {
  * The consent screen has to be unavoidable rather than a link somebody can skip — the
  * employee sees exactly what is captured before any capture is possible.
  */
-export async function requireUser({ adminOnly = false } = {}) {
+export async function requireUser({ adminOnly = false, superOnly = false } = {}) {
   const user = await getSessionUser();
 
   if (user.mustChangePassword) redirect('/change-password');
   if (user.consent.required) redirect('/consent');
   if (adminOnly && user.role !== 'admin') redirect('/me');
+  if (superOnly && !user.isSuperAdmin) redirect('/me');
 
   return user;
 }

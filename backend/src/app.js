@@ -16,7 +16,6 @@ const { lastRuns } = require('./jobs/jobRunner');
 
 const authRoutes = require('./modules/auth/auth.routes');
 const attendanceRoutes = require('./modules/attendance/attendance.routes');
-const projectRoutes = require('./modules/projects/project.routes');
 const leaveRoutes = require('./modules/leave/leave.routes');
 const capture = require('./modules/capture/capture.routes');
 const adminRoutes = require('./modules/admin/admin.routes');
@@ -88,14 +87,18 @@ function createApp() {
    * in Settings (backend/src/services/settings.js) reaches running agents without a restart.
    */
   app.get('/api/config', authenticate, (req, res) => {
-    const s = settings.get();
+    const s = settings.get(req.user.companyId);
+    const features = req.user.features;
     res.json({
+      // What the platform owner has switched on for this company; clients hide what is off.
+      features,
       screenshot: {
+        enabled: features.screenCapture,
         minIntervalSeconds: s.capture.screenshotMinIntervalSec,
         maxIntervalSeconds: s.capture.screenshotMaxIntervalSec,
       },
       audio: {
-        enabled: req.user.consentAudio,
+        enabled: req.user.consentAudio && features.audioCapture,
         sampleDurationSeconds: s.capture.audioSampleDurationSec,
         sampleGapSeconds: s.capture.audioSampleGapSec,
       },
@@ -111,7 +114,6 @@ function createApp() {
 
   app.use('/api/auth', authRoutes);
   app.use('/api/attendance', attendanceRoutes);
-  app.use('/api/projects', projectRoutes);
   app.use('/api/leave', leaveRoutes);
   app.use('/api/notifications', require('./modules/notifications/notifications.routes'));
   // Single canonical path. The old /api/screenshot (singular) alias is removed: it allowed
@@ -122,6 +124,7 @@ function createApp() {
   app.use('/api/admin', adminRoutes);
   app.use('/api/leader', leaderRoutes);
   app.use('/api/payroll', payrollRoutes);
+  app.use('/api/super', require('./modules/super/super.routes'));
 
   app.use(notFoundHandler);
   app.use(errorHandler);

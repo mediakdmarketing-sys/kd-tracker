@@ -1,6 +1,7 @@
 'use strict';
 
 const settings = require('../../services/settings');
+const companies = require('../../services/companies');
 const projectService = require('../projects/project.service');
 const { db, transaction, isUniqueViolation } = require('../../db');
 const { uuid } = require('../../utils/ids');
@@ -59,7 +60,12 @@ function shape(row, breaks = []) {
  * offline correct the number instead of baking in a wrong one.
  */
 async function computeIdleSeconds(attendance, trx = db()) {
-  const threshold = settings.get().shift.idleThresholdSeconds;
+  const owner = await trx('employees').where({ id: attendance.employee_id }).select('company_id').first();
+  const companyId = owner && owner.company_id;
+  // A company without idle tracking has no idle time to count.
+  const company = await companies.get(companyId);
+  if (company && !company.features.idleTracking) return 0;
+  const threshold = settings.get(companyId).shift.idleThresholdSeconds;
   const start = Number(attendance.punch_in);
   const end = Number(attendance.punch_out) || t.now();
 
@@ -153,7 +159,7 @@ async function punchIn({ employee, at, requestedAt }) {
       employee_id: employee.id,
       punch_in: resolved.at,
       punch_out: null,
-      date: t.localDate(resolved.at),
+      date: t.localDate(resolved.at, employee.timezone),
       total_break_seconds: 0,
       total_worked_seconds: null,
       idle_seconds: 0,
@@ -215,7 +221,7 @@ async function punchOut({ employee, at, requestedAt }) {
   const breakSeconds = fresh.total_break_seconds || 0;
   const grossSeconds = t.secondsBetween(Number(fresh.punch_in), resolved.at);
   const workedSeconds = Math.max(0, grossSeconds - breakSeconds);
-  const overBreak = breakSeconds > settings.get().shift.breakAllowanceSeconds;
+  const overBreak = breakSeconds > settings.get(employee.companyId).shift.breakAllowanceSeconds;
   const idleSeconds = await computeIdleSeconds({ ...fresh, punch_out: resolved.at });
 
   // A shift can be flagged for more than one reason; keep them all rather than the last one.
@@ -223,7 +229,7 @@ async function punchOut({ employee, at, requestedAt }) {
   if (overBreak) {
     reasons.push(
       `Break time ${t.formatDuration(breakSeconds)} exceeds the ${t.formatDuration(
-        settings.get().shift.breakAllowanceSeconds
+        settings.get(employee.companyId).shift.breakAllowanceSeconds
       )} allowance`
     );
   }
@@ -333,7 +339,7 @@ async function endBreak({ employee, at, requestedAt, silent = false }) {
       .update({
         status: 'open',
         total_break_seconds: totalBreak,
-        over_break: totalBreak > settings.get().shift.breakAllowanceSeconds,
+        over_break: totalBreak > settings.get(employee.companyId).shift.breakAllowanceSeconds,
         updated_at: receivedAt,
       });
   });
@@ -345,7 +351,7 @@ async function endBreak({ employee, at, requestedAt, silent = false }) {
   const attendancePatch = {
     status: 'open',
     total_break_seconds: totalBreak,
-    over_break: totalBreak > settings.get().shift.breakAllowanceSeconds,
+    over_break: totalBreak > settings.get(employee.companyId).shift.breakAllowanceSeconds,
     updated_at: receivedAt,
   };
   return shape({ ...shift, ...attendancePatch }, allBreaks);
@@ -363,6 +369,11 @@ async function closedWorkedOnDate(employeeId, date, exceptId = null) {
   return Number(total) || 0;
 }
 
+/** Whether the employee's company has a feature on (true when the caller carries no plan). */
+function featureOn(employee, name) {
+  return !employee.features || employee.features[name] !== false;
+}
+
 /** What the tray UI and the portal header show: the employee's live state. */
 async function currentStatus(employee) {
   const shift = await openShift(employee.id);
@@ -371,15 +382,16 @@ async function currentStatus(employee) {
       .where({ employee_id: employee.id })
       .orderBy('punch_in', 'desc')
       .first();
-    const today = t.localDate(t.now());
+    const today = t.localDate(t.now(), employee.timezone);
     return {
       state: 'punched_out',
       shift: last ? shape(last) : null,
       // Everything worked so far today, so the portal can show what is left of the target.
       workedSeconds: await closedWorkedOnDate(employee.id, today),
-      shiftTargetSeconds: settings.get().shift.targetSeconds,
+      shiftTargetSeconds: settings.get(employee.companyId).shift.targetSeconds,
       canPunchIn: employee.consentMonitoring,
       consentRequired: !employee.consentMonitoring,
+      features: employee.features,
     };
   }
 
@@ -403,15 +415,20 @@ async function currentStatus(employee) {
     workedSeconds: priorWorkedSeconds + Math.max(0, elapsed - liveBreakSeconds),
     priorWorkedSeconds,
     breakSeconds: liveBreakSeconds,
-    breakRemainingSeconds: Math.max(0, settings.get().shift.breakAllowanceSeconds - liveBreakSeconds),
+    breakRemainingSeconds: Math.max(0, settings.get(employee.companyId).shift.breakAllowanceSeconds - liveBreakSeconds),
     // Sent explicitly: once the break is over the allowance, `breakRemainingSeconds` is 0 and
     // a client cannot work out what the allowance was.
-    breakAllowanceSeconds: settings.get().shift.breakAllowanceSeconds,
-    overBreak: liveBreakSeconds > settings.get().shift.breakAllowanceSeconds,
-    shiftTargetSeconds: settings.get().shift.targetSeconds,
+    breakAllowanceSeconds: settings.get(employee.companyId).shift.breakAllowanceSeconds,
+    overBreak: liveBreakSeconds > settings.get(employee.companyId).shift.breakAllowanceSeconds,
+    shiftTargetSeconds: settings.get(employee.companyId).shift.targetSeconds,
     // The agent captures only while working, never on a break (spec 6.2 / 6.3).
     captureAllowed: shift.status === 'open',
-    audioAllowed: shift.status === 'open' && employee.consentAudio,
+    audioAllowed: shift.status === 'open' && employee.consentAudio && featureOn(employee, 'audioCapture'),
+    // Per-feature switches from the company's plan. `captureAllowed` stays the "is the shift
+    // running" gate; these say which kinds of capture are wanted during it.
+    screenshotAllowed: shift.status === 'open' && featureOn(employee, 'screenCapture'),
+    activityAllowed: shift.status === 'open' && featureOn(employee, 'idleTracking'),
+    features: employee.features,
   };
 }
 

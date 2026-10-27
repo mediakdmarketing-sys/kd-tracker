@@ -15,7 +15,8 @@ function toUser(row) {
   return {
     id: row.id,
     role: row.role,
-    timezone: row.timezone,
+    // What authenticate gives a signed-in user: the company clock, not the person's own zone.
+    timezone: require('../src/config').timezone,
     consentMonitoring: true,
     consentAudio: !!row.consent_audio,
   };

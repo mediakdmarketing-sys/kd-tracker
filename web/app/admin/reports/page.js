@@ -36,12 +36,13 @@ export default async function ReportsPage({ searchParams }) {
     { worked: 0, breaks: 0, idle: 0, days: 0, flagged: 0 }
   );
 
-  const csvHref = `/bff/api/admin/reports?${new URLSearchParams({
-    from,
-    to,
-    ...(department ? { department } : {}),
-    format: 'csv',
-  })}`;
+  const csvBase = { from, to, ...(department ? { department } : {}), format: 'csv' };
+  const csvHref = `/bff/api/admin/reports?${new URLSearchParams(csvBase)}`;
+  const summaryCsvHref = `/bff/api/admin/reports?${new URLSearchParams({ ...csvBase, detail: 'summary' })}`;
+  const dayTotals = report.rows.reduce(
+    (acc, r) => ({ full: acc.full + r.fullDays, half: acc.half + r.halfDays, short: acc.short + r.shortDays }),
+    { full: 0, half: 0, short: 0 }
+  );
 
   return (
     <>
@@ -53,9 +54,14 @@ export default async function ReportsPage({ searchParams }) {
             {department ? ` · ${department}` : ''}
           </p>
         </div>
-        <a className="btn btn-primary" href={csvHref}>
-          Export CSV
-        </a>
+        <div className="inline" style={{ gap: 8, flexWrap: 'wrap' }}>
+          <a className="btn btn-primary" href={summaryCsvHref}>
+            Export summary CSV
+          </a>
+          <a className="btn" href={csvHref}>
+            Export daily CSV
+          </a>
+        </div>
       </div>
 
       <div className="stack">
@@ -86,8 +92,14 @@ export default async function ReportsPage({ searchParams }) {
             <div className="sub">hours across {report.rows.length} people</div>
           </div>
           <div className="stat">
-            <div className="label">Shifts</div>
-            <div className="value">{totals.days}</div>
+            <div className="label">Full days</div>
+            <div className="value">{dayTotals.full}</div>
+            <div className="sub">set in Settings</div>
+          </div>
+          <div className="stat">
+            <div className="label">Half days</div>
+            <div className="value">{dayTotals.half}</div>
+            <div className="sub">{dayTotals.short} less than half</div>
           </div>
           <div className="stat">
             <div className="label">Break time</div>
@@ -109,7 +121,7 @@ export default async function ReportsPage({ searchParams }) {
         <div className="card">
           <div className="card-head">
             <h2>By employee</h2>
-            <span className="faint">Exports include a row per day</span>
+            <span className="faint">The daily export has a row per shift with the day type</span>
           </div>
           <div className="table-wrap">
             <table>
@@ -117,7 +129,10 @@ export default async function ReportsPage({ searchParams }) {
                 <tr>
                   <th>Employee</th>
                   <th>Department</th>
-                  <th>Days</th>
+                  <th>Full days</th>
+                  <th>Half days</th>
+                  <th>Less than half</th>
+                  <th>Shifts</th>
                   <th>Worked</th>
                   <th>Hours</th>
                   <th>Break</th>
@@ -129,7 +144,7 @@ export default async function ReportsPage({ searchParams }) {
               <tbody>
                 {report.rows.length === 0 ? (
                   <tr>
-                    <td colSpan={9}>
+                    <td colSpan={12}>
                       <div className="empty">No attendance in this range.</div>
                     </td>
                   </tr>
@@ -141,6 +156,9 @@ export default async function ReportsPage({ searchParams }) {
                         <div className="faint">{row.email}</div>
                       </td>
                       <td className="muted">{row.department || '—'}</td>
+                      <td className="num">{row.fullDays}</td>
+                      <td className="num">{row.halfDays}</td>
+                      <td className="num muted">{row.shortDays}</td>
                       <td className="num">{row.daysPresent}</td>
                       <td className="num">{row.workedFormatted}</td>
                       <td className="num">{row.workedHours}</td>

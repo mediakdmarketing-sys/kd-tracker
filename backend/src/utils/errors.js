@@ -34,6 +34,12 @@ const accountDeactivated = (message = 'Account is deactivated') =>
  * be replaced before anything else works. Its own code so each client can send the person to the
  * change-password screen instead of showing a generic "forbidden".
  */
+/** The company is switched off by the platform owner, so nobody in it can use the service. */
+const companySuspended = () =>
+  new ApiError(403, 'COMPANY_SUSPENDED', 'Your company account is suspended. Please contact your administrator.');
+/** The company has not been given this feature (a plan limit), as opposed to a role check. */
+const featureDisabled = (feature) =>
+  new ApiError(403, 'FEATURE_DISABLED', `${feature} is not enabled for your company.`);
 const passwordChangeRequired = () =>
   new ApiError(403, 'PASSWORD_CHANGE_REQUIRED', 'You must choose a new password before you continue.');
 const notFound = (message = 'Not found') => new ApiError(404, 'NOT_FOUND', message);
@@ -49,6 +55,8 @@ module.exports = {
   forbidden,
   accountDeactivated,
   passwordChangeRequired,
+  companySuspended,
+  featureDisabled,
   notFound,
   conflict,
   payloadTooLarge,

@@ -34,8 +34,8 @@ function band(score) {
   return 'review';
 }
 
-async function loadOverrides() {
-  const rows = await db()('app_categories').select('app_key', 'category');
+async function loadOverrides(companyId) {
+  const rows = await db()('app_categories').where({ company_id: companyId }).select('app_key', 'category');
   return new Map(rows.map((r) => [r.app_key, r.category]));
 }
 
@@ -55,8 +55,8 @@ function score({ workedSeconds, idleSeconds, samples }) {
 }
 
 /** Per-department overrides as Map(`${department}|${appKey}` -> category). */
-async function loadDepartmentOverrides() {
-  const rows = await db()('app_department_categories').select('app_key', 'department', 'category');
+async function loadDepartmentOverrides(companyId) {
+  const rows = await db()('app_department_categories').where({ company_id: companyId }).select('app_key', 'department', 'category');
   return new Map(rows.map((r) => [`${r.department}|${r.app_key}`, r.category]));
 }
 
@@ -70,15 +70,16 @@ function categoryIn(appKey, department, overrides, deptOverrides) {
 
 const emptySamples = () => ({ productive: 0, neutral: 0, distracting: 0 });
 
-async function overview({ from, to, department } = {}) {
+async function overview({ from, to, department, companyId } = {}) {
   if (!from || !to) throw badRequest('from and to dates are required (YYYY-MM-DD)');
   if (from > to) throw badRequest('`from` must not be after `to`');
 
-  const overrides = await loadOverrides();
-  const deptOverrides = await loadDepartmentOverrides();
+  const overrides = await loadOverrides(companyId);
+  const deptOverrides = await loadDepartmentOverrides(companyId);
 
   const attendanceQuery = db()('attendance as a')
     .join('employees as e', 'e.id', 'a.employee_id')
+    .where('e.company_id', companyId)
     .whereBetween('a.date', [from, to]);
   if (department) attendanceQuery.andWhere('e.department', department);
 
@@ -90,6 +91,7 @@ async function overview({ from, to, department } = {}) {
 
   const activityQuery = db()('activity_logs as l')
     .join('employees as e', 'e.id', 'l.employee_id')
+    .where('e.company_id', companyId)
     .whereBetween('l.date', [from, to])
     .whereNotNull('l.window_title');
   if (department) activityQuery.andWhere('e.department', department);
@@ -223,15 +225,16 @@ async function overview({ from, to, department } = {}) {
  * With a `department`, only apps that department's members used are listed, with the category
  * that applies to that department. Without one, the company-wide category is shown.
  */
-async function listApps({ days = 30, department } = {}) {
-  const overrideRows = await db()('app_categories').select('app_key', 'app_name', 'category');
+async function listApps({ days = 30, department, companyId } = {}) {
+  const overrideRows = await db()('app_categories').where({ company_id: companyId }).select('app_key', 'app_name', 'category');
   const overrides = new Map(overrideRows.map((r) => [r.app_key, r]));
   const categoryMap = new Map([...overrides].map(([k, v]) => [k, v.category]));
-  const deptOverrides = await loadDepartmentOverrides();
+  const deptOverrides = await loadDepartmentOverrides(companyId);
 
   const since = new Date(t.now() - days * 86400 * 1000).toISOString().slice(0, 10);
   const seenQuery = db()('activity_logs as l')
     .join('employees as e', 'e.id', 'l.employee_id')
+    .where('e.company_id', companyId)
     .where('l.date', '>=', since)
     .whereNotNull('l.window_title');
   if (department) seenQuery.andWhere('e.department', department);
@@ -253,7 +256,7 @@ async function listApps({ days = 30, department } = {}) {
     }
   } else {
     const own = await db()('app_department_categories')
-      .where({ department })
+      .where({ department, company_id: companyId })
       .select('app_key', 'app_name');
     for (const r of own) {
       if (!apps.has(r.app_key)) apps.set(r.app_key, { appKey: r.app_key, appName: r.app_name, samples: 0 });
@@ -277,7 +280,7 @@ async function listApps({ days = 30, department } = {}) {
  * With a `department`, sets the category for that department only. Without one it applies to
  * every department, so any department-specific settings for the app are cleared.
  */
-async function setCategory({ appName, category, department, updatedBy }) {
+async function setCategory({ appName, category, department, updatedBy, companyId }) {
   const key = normaliseApp(appName);
   if (!key) throw badRequest('appName is required');
   if (!CATEGORIES.includes(category)) throw badRequest('Unknown category');
@@ -287,7 +290,7 @@ async function setCategory({ appName, category, department, updatedBy }) {
 
   if (scope) {
     const existing = await db()('app_department_categories')
-      .where({ app_key: key, department: scope })
+      .where({ app_key: key, department: scope, company_id: companyId })
       .first();
     if (existing) {
       await db()('app_department_categories')
@@ -296,6 +299,7 @@ async function setCategory({ appName, category, department, updatedBy }) {
     } else {
       await db()('app_department_categories').insert({
         id: uuid(),
+        company_id: companyId,
         app_key: key,
         app_name: name,
         department: scope,
@@ -308,8 +312,8 @@ async function setCategory({ appName, category, department, updatedBy }) {
     return { appKey: key, category, department: scope };
   }
 
-  await db()('app_department_categories').where({ app_key: key }).del();
-  const existing = await db()('app_categories').where({ app_key: key }).first();
+  await db()('app_department_categories').where({ app_key: key, company_id: companyId }).del();
+  const existing = await db()('app_categories').where({ app_key: key, company_id: companyId }).first();
   if (existing) {
     await db()('app_categories')
       .where({ id: existing.id })
@@ -317,6 +321,7 @@ async function setCategory({ appName, category, department, updatedBy }) {
   } else {
     await db()('app_categories').insert({
       id: uuid(),
+      company_id: companyId,
       app_key: key,
       app_name: name,
       category,
@@ -333,13 +338,13 @@ async function setCategory({ appName, category, department, updatedBy }) {
  * department's setting (back to company-wide / default); the All view removes the company-wide
  * one and every department's.
  */
-async function resetCategory(appName, department) {
+async function resetCategory(appName, department, companyId) {
   const key = normaliseApp(appName);
   if (department) {
-    await db()('app_department_categories').where({ app_key: key, department }).del();
+    await db()('app_department_categories').where({ app_key: key, department, company_id: companyId }).del();
   } else {
-    await db()('app_categories').where({ app_key: key }).del();
-    await db()('app_department_categories').where({ app_key: key }).del();
+    await db()('app_categories').where({ app_key: key, company_id: companyId }).del();
+    await db()('app_department_categories').where({ app_key: key, company_id: companyId }).del();
   }
   return { appKey: key, reset: true };
 }

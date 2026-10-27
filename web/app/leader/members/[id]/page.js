@@ -1,6 +1,7 @@
 import { Suspense, cache } from 'react';
 import Link from 'next/link';
 import { api, requireUser } from '@/lib/api';
+import { featuresOf, when, EMPTY_MIC_LOG } from '@/lib/features';
 import RangeFilter from '@/components/RangeFilter';
 import CaptureSection from '@/components/CaptureSection';
 import MicLogTable from '@/components/MicLogTable';
@@ -21,6 +22,7 @@ export default async function LeaderMemberDetailPage({ params, searchParams }) {
     getMember(id),
   ]);
 
+  const has = featuresOf(user);
   const today = todayIn(member.timezone);
   const from = query.from || query.date || today;
   const to = query.to || query.date || today;
@@ -28,11 +30,11 @@ export default async function LeaderMemberDetailPage({ params, searchParams }) {
 
   const [attendance, screenshots, audio, activity, agentConfig, micLog] = await Promise.all([
     api(`/api/leader/members/${id}/attendance?from=${from}&to=${to}`),
-    api(`/api/leader/members/${id}/screenshots?from=${from}&to=${to}&limit=200`),
-    api(`/api/leader/members/${id}/audio?from=${from}&to=${to}&limit=60`),
-    api(`/api/leader/members/${id}/activity?from=${from}&to=${to}&limit=200`),
+    when(has('screenCapture'), () => api(`/api/leader/members/${id}/screenshots?from=${from}&to=${to}&limit=200`)),
+    when(has('audioCapture'), () => api(`/api/leader/members/${id}/audio?from=${from}&to=${to}&limit=60`)),
+    when(has('idleTracking'), () => api(`/api/leader/members/${id}/activity?from=${from}&to=${to}&limit=200`)),
     api('/api/config'),
-    api(`/api/leader/members/${id}/mic-log?from=${from}&to=${to}`),
+    when(has('audioCapture'), () => api(`/api/leader/members/${id}/mic-log?from=${from}&to=${to}`), EMPTY_MIC_LOG),
   ]);
 
   const shift = isRange ? null : attendance.data[0];
@@ -120,7 +122,7 @@ export default async function LeaderMemberDetailPage({ params, searchParams }) {
                 : 'within allowance'}
             </div>
           </div>
-          <div className="stat">
+          {has('idleTracking') && <div className="stat">
             <div className="label">Idle</div>
             <div className="value">
               {duration(
@@ -129,12 +131,12 @@ export default async function LeaderMemberDetailPage({ params, searchParams }) {
                   : shift?.idleSeconds
               )}
             </div>
-          </div>
-          <div className="stat">
+          </div>}
+          {has('idleTracking') && <div className="stat">
             <div className="label">Activity</div>
             <div className="value">{avgActivity === null ? '—' : `${avgActivity}%`}</div>
             <div className="sub">counts only, never content</div>
-          </div>
+          </div>}
         </div>
 
         {isOvertime && (
@@ -174,15 +176,17 @@ export default async function LeaderMemberDetailPage({ params, searchParams }) {
           </div>
         )}
 
-        <div className="card">
+        {has('audioCapture') && <div className="card">
           <div className="card-head">
             <h2>Microphone log</h2>
             <span className="faint">When the mic was found muted (from the audio samples)</span>
           </div>
           <MicLogTable periods={micLog.periods} timezone={member.timezone} />
-        </div>
+        </div>}
 
         <CaptureSection
+          showScreenshots={has('screenCapture')}
+          showAudio={has('audioCapture')}
           screenshots={screenshots.data}
           audio={audio.data}
           timezone={member.timezone}

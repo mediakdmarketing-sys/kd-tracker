@@ -10,6 +10,7 @@ const { resolveCaptureTime } = require('../../utils/eventTime');
 const { storage, buildKey, extensionFor } = require('../../storage');
 const attendanceService = require('../attendance/attendance.service');
 const notifications = require('../../services/notifications');
+const companies = require('../../services/companies');
 const logger = require('../../utils/logger');
 const { forbidden, conflict, notFound, payloadTooLarge, badRequest } = require('../../utils/errors');
 
@@ -23,6 +24,8 @@ const { forbidden, conflict, notFound, payloadTooLarge, badRequest } = require('
  *
  * Returns the already-stored row when the client has sent this `captureId` before.
  */
+const STORAGE_FULL = { ignored: true, reason: 'STORAGE_FULL' };
+
 async function findByCaptureId(table, employeeId, captureId) {
   if (!captureId) return null;
   return db()(table).where({ capture_id: captureId, employee_id: employeeId }).first();
@@ -121,9 +124,12 @@ async function uploadScreenshot({
   const at = resolveCaptureTime(capturedAt, 'capturedAt');
   const shift = await requireCapturableShift(employee, at);
   const buffer = decodeBase64(imageBase64, { field: 'imageBase64' });
+  // Over the company's storage limit: answered like a switched-off feature, so the agent
+  // drops the file instead of retrying it for ever.
+  if (!(await companies.reserveStorage(employee.companyId, buffer.length))) return STORAGE_FULL;
 
   const id = uuid();
-  const date = t.localDate(at);
+  const date = t.localDate(at, employee.timezone);
   // The storage key uses a server-generated id, not the client's `captureId` — a client
   // value has no business shaping a filesystem or bucket path.
   const key = buildKey({
@@ -240,7 +246,7 @@ async function recordMicEvent({ employee, state, at, reason }) {
     id: uuid(),
     employee_id: employee.id,
     at: when,
-    date: t.localDate(when),
+    date: t.localDate(when, employee.timezone),
     state,
     reason: reason ? String(reason).slice(0, 200) : null,
     created_at: t.now(),
@@ -284,10 +290,11 @@ async function uploadAudio({
   const at = resolveCaptureTime(recordedAt, 'recordedAt');
   const shift = await requireCapturableShift(employee, at);
   const buffer = decodeBase64(audioBase64, { field: 'audioBase64' });
+  if (!(await companies.reserveStorage(employee.companyId, buffer.length))) return STORAGE_FULL;
 
   // A sample longer than the configured window means a misconfigured or tampered agent —
   // continuous recording is exactly what the sampling design exists to prevent (spec 6.3).
-  const maxDuration = settings.get().capture.audioSampleDurationSec * 1.5;
+  const maxDuration = settings.get(employee.companyId).capture.audioSampleDurationSec * 1.5;
   if (durationSeconds > maxDuration) {
     throw badRequest(
       `Audio sample of ${durationSeconds}s exceeds the maximum sample length of ${Math.floor(
@@ -297,7 +304,7 @@ async function uploadAudio({
   }
 
   const id = uuid();
-  const date = t.localDate(at);
+  const date = t.localDate(at, employee.timezone);
   const key = buildKey({
     type: 'audio',
     employeeId: employee.id,
@@ -399,7 +406,7 @@ async function logActivity({ employee, entries }) {
         mouse_count: e.mouseCount,
         window_title: e.windowTitle ? String(e.windowTitle).slice(0, 255) : null,
         timestamp: at,
-        date: t.localDate(at),
+        date: t.localDate(at, employee.timezone),
         created_at: nowMs,
       };
     });
@@ -499,14 +506,19 @@ async function listAudio({ employeeId, date, from, to, limit, offset }) {
 }
 
 /** Streams the actual file. Callers must have written an audit row first. */
-async function readFile(table, id) {
+async function readFile(table, id, companyId) {
   const row = await db()(table).where({ id }).first();
   if (!row) throw notFound('Recording not found');
+  // A file of another company is indistinguishable from one that does not exist.
+  if (companyId) {
+    const owner = await db()('employees').where({ id: row.employee_id }).select('company_id').first();
+    if (!owner || owner.company_id !== companyId) throw notFound('Recording not found');
+  }
 
   const key = table === 'screenshots' ? row.image_url : row.file_url;
   if (toBool(row.file_deleted) || !key) {
     throw notFound(
-      `The file was deleted under the ${settings.get().retention.days}-day retention policy. The record of the capture is retained.`
+      `The file was deleted under the ${settings.get(companyId).retention.days}-day retention policy. The record of the capture is retained.`
     );
   }
 

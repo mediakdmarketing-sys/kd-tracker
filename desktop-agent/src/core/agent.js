@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 
 // The agent's brain. No Electron in here: screen, microphone and input access are injected,
 // so the decision-making — when to capture, what to queue, what the tray should show — is
@@ -60,6 +60,9 @@ class Agent {
       shiftState: 'unknown', // unknown | punched_out | working | on_break
       captureAllowed: false,
       audioAllowed: false,
+      // Which kinds of capture the company's plan includes. Default on until the server says otherwise.
+      screenshotAllowed: true,
+      activityAllowed: true,
       online: true,
       queue: { pending: 0, abandoned: 0, oldestAgeSeconds: 0 },
       lastError: null,
@@ -190,13 +193,13 @@ class Agent {
 
     // Punch-in just happened (capture was off, now it is on): fire the first screenshot and
     // audio sample immediately instead of waiting for the scheduler interval (5–10 min).
-    if (!wasCapturing && nowCapturing) {
+    if (!wasCapturing && nowCapturing && status.screenshotAllowed !== false) {
       this.captureScreens().catch((err) =>
         logger.error('Immediate post-punch-in screenshot failed', { message: err.message })
       );
-      if (status.audioAllowed) {
-        this.audioScheduler.armImmediate(this.now());
-      }
+    }
+    if (!wasCapturing && nowCapturing && status.audioAllowed) {
+      this.audioScheduler.armImmediate(this.now());
     }
 
     return this.#emit({
@@ -204,6 +207,8 @@ class Agent {
       shiftState,
       captureAllowed: nowCapturing,
       audioAllowed: Boolean(status.audioAllowed),
+      screenshotAllowed: status.screenshotAllowed !== false,
+      activityAllowed: status.activityAllowed !== false,
       status,
       lastError: null,
     });
@@ -398,7 +403,7 @@ class Agent {
 
     this.#checkBreakOverdue(now);
 
-    if (this.state.captureAllowed && this.screenshotScheduler.isDue(now)) {
+    if (this.state.captureAllowed && this.state.screenshotAllowed && this.screenshotScheduler.isDue(now)) {
       this.screenshotScheduler.arm(now);
       await this.captureScreens().catch((err) =>
         logger.error('Screenshot capture failed', { message: err.message })

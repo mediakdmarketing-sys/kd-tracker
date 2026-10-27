@@ -20,13 +20,28 @@ const requireAdmin = requireRole('admin');
 const requireAdminOrLeader = requireRole('admin', 'leader');
 
 /**
- * Allows access when the caller is the subject of the request, or an admin.
+ * True unless the employee exists and belongs to a different company than the caller. An id that
+ * does not exist passes, so the handler can answer with its own 404 rather than a misleading 403.
+ */
+async function inCallersCompany(user, employeeId) {
+  const target = await db()('employees').where({ id: employeeId }).select('company_id').first();
+  return !target || target.company_id === user.companyId;
+}
+
+/**
+ * Allows access when the caller is the subject of the request, or an admin of the same company.
  */
 function requireSelfOrAdmin(paramName = 'employeeId') {
-  return function guard(req, res, next) {
-    if (!req.user) return next(unauthorized());
-    if (req.user.role === 'admin' || req.user.id === req.params[paramName]) return next();
-    return next(forbidden('You can only access your own records'));
+  return async function guard(req, res, next) {
+    try {
+      if (!req.user) return next(unauthorized());
+      const targetId = req.params[paramName];
+      if (req.user.id === targetId) return next();
+      if (req.user.role === 'admin' && (await inCallersCompany(req.user, targetId))) return next();
+      return next(forbidden('You can only access your own records'));
+    } catch (err) {
+      return next(err);
+    }
   };
 }
 
@@ -45,8 +60,11 @@ function requireSelfOrAdminOrLeader(paramName = 'employeeId') {
 
     const targetId = req.params[paramName];
 
-    // Admin: full access always.
-    if (req.user.role === 'admin') return next();
+    // Admin: full access to their own company's people.
+    if (req.user.role === 'admin') {
+      if (await inCallersCompany(req.user, targetId)) return next();
+      return next(forbidden('You can only access your own records'));
+    }
 
     // Employee viewing their own data — allowed unless they are a leader
     // (leaders cannot view their own captures, only their members').
@@ -82,6 +100,10 @@ function requireSelfOrAdminOrLeader(paramName = 'employeeId') {
 async function leaderManagesEmployee(leaderId, memberId) {
   const target = await db()('employees').where({ id: memberId }).first();
   if (!target) return false;
+
+  // Never across companies.
+  const leader = await db()('employees').where({ id: leaderId }).select('company_id').first();
+  if (!leader || leader.company_id !== target.company_id) return false;
 
   // Admins are never visible to leaders.
   if (target.role === 'admin') return false;

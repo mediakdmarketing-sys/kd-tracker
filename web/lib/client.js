@@ -50,7 +50,7 @@ export async function call(path, { method = 'GET', body } = {}) {
   // The sign-in call itself is exempt: there is no session to end, and a 401 there means
   // "wrong password" — redirecting would reload the page and swallow the error message.
   const isLoginCall = path === '/login';
-  if (!isLoginCall && (res.status === 401 || (isJson && payload?.error?.code === 'ACCOUNT_DEACTIVATED'))) {
+  if (!isLoginCall && (res.status === 401 || (isJson && ['ACCOUNT_DEACTIVATED', 'COMPANY_SUSPENDED'].includes(payload?.error?.code)))) {
     window.location.href = '/login';
     // Never resolves: the navigation above is about to tear this page down anyway, and
     // nothing calling `call()` should try to render a result for a session that just ended.
