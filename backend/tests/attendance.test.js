@@ -318,6 +318,83 @@ describe('idle detection', () => {
   });
 });
 
+describe('idle time while the shift is still open', () => {
+  async function shiftWithPings(employee, startAgoMin, pingsAgoMin) {
+    const user = toUser(employee);
+    const start = t.now() - startAgoMin * 60 * 1000;
+    const shift = await attendanceService.punchIn({ employee: user, at: start });
+    await db()('activity_logs').insert(
+      pingsAgoMin.map((ago) => {
+        const ts = t.now() - ago * 60 * 1000;
+        return {
+          id: uuid(),
+          employee_id: employee.id,
+          attendance_id: shift.id,
+          keystroke_count: 10,
+          mouse_count: 5,
+          timestamp: ts,
+          date: t.localDate(ts),
+          created_at: ts,
+        };
+      })
+    );
+    return shift;
+  }
+
+  it('is measured now, not left at 0 until punch-out', async () => {
+    const employee = await createEmployee();
+    // 2 hours in: active for the first 30 minutes, then nothing for the last 90.
+    await shiftWithPings(employee, 120, [120, 115, 110, 105, 100, 95, 90]);
+
+    const token = await login(employee);
+    const res = await as(token).get('/api/attendance/status');
+    expect(res.status).toBe(200);
+    // The trailing 90 minutes of silence is idle, within a few minutes of ping spacing.
+    expect(res.body.shift.idleSeconds).toBeGreaterThan(80 * 60);
+    expect(res.body.shift.idleSeconds).toBeLessThan(100 * 60);
+
+    const list = await as(token).get(`/api/attendance/${employee.id}`);
+    expect(list.body.data[0].idleSeconds).toBeGreaterThan(80 * 60);
+  });
+
+  it('stays near zero while the person keeps working', async () => {
+    const employee = await createEmployee();
+    await shiftWithPings(employee, 60, [60, 55, 50, 45, 40, 35, 30, 25, 20, 15, 10, 5, 1]);
+    const res = await as(await login(employee)).get('/api/attendance/status');
+    expect(res.body.shift.idleSeconds).toBe(0);
+  });
+
+  it('does not call a shift idle when the agent never ran (no activity, no screenshots)', async () => {
+    const employee = await createEmployee();
+    await attendanceService.punchIn({ employee: toUser(employee), at: t.now() - 60 * 60 * 1000 });
+    const res = await as(await login(employee)).get('/api/attendance/status');
+    // Worked an hour, but there is nothing to measure idle from: unknown, not "all of it".
+    expect(res.body.shift.idleSeconds).toBe(0);
+  });
+
+  it('does call it idle when the agent ran (a screenshot exists) but nothing was typed', async () => {
+    const employee = await createEmployee();
+    const shift = await attendanceService.punchIn({
+      employee: toUser(employee),
+      at: t.now() - 60 * 60 * 1000,
+    });
+    const at = t.now() - 30 * 60 * 1000;
+    await db()('screenshots').insert({
+      id: uuid(),
+      employee_id: employee.id,
+      attendance_id: shift.id,
+      image_url: `screenshots/${uuid()}.png`,
+      captured_at: at,
+      date: t.localDate(at),
+      size_bytes: 10,
+      file_deleted: false,
+      created_at: at,
+    });
+    const res = await as(await login(employee)).get('/api/attendance/status');
+    expect(res.body.shift.idleSeconds).toBeGreaterThan(55 * 60);
+  });
+});
+
 describe('stale shift sweeper', () => {
   it('auto-closes a shift that was never punched out and flags it', async () => {
     const employee = await createEmployee();

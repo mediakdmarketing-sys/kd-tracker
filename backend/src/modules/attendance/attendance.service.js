@@ -70,6 +70,20 @@ async function computeIdleSeconds(attendance, trx = db()) {
     .orderBy('timestamp', 'asc')
     .select('timestamp');
 
+  if (!logs.length) {
+    // No activity at all. With no activity rows the loop below would call the whole shift idle,
+    // which is also what happens when the desktop agent simply never ran (punched in on the web
+    // only, agent closed or offline): then "idle" would equal the worked time and mean nothing.
+    // A screenshot proves the agent was running; without one the idle time is unknown, so it is
+    // not claimed.
+    const [{ count }] = await trx('screenshots')
+      .where({ employee_id: attendance.employee_id })
+      .andWhere('captured_at', '>=', start)
+      .andWhere('captured_at', '<=', end)
+      .count({ count: '*' });
+    if (!Number(count)) return 0;
+  }
+
   const breaks = await trx('breaks').where({ attendance_id: attendance.id }).select('break_start', 'break_end');
 
   // Marks: punch-in, every activity ping, and the end of the shift.
@@ -92,6 +106,16 @@ async function computeIdleSeconds(attendance, trx = db()) {
   }
 
   return Math.floor(idleMs / 1000);
+}
+
+/**
+ * A shift's row as it should be shown right now. Idle time is only stored when a shift ends, so
+ * for one still running it would read 0 until punch-out. Measure it from the activity so far
+ * instead, the same way the closing calculation will.
+ */
+async function withLiveIdle(row) {
+  if (!row || (row.status !== 'open' && row.status !== 'on_break')) return row;
+  return { ...row, idle_seconds: await computeIdleSeconds(row) };
 }
 
 /**
@@ -373,7 +397,7 @@ async function currentStatus(employee) {
   return {
     currentProject,
     state: shift.status === 'on_break' ? 'on_break' : 'working',
-    shift: shape(shift, breaks),
+    shift: shape(await withLiveIdle(shift), breaks),
     elapsedSeconds: elapsed,
     // Today's total: earlier closed shifts plus this one, so a re-punch-in continues the day.
     workedSeconds: priorWorkedSeconds + Math.max(0, elapsed - liveBreakSeconds),
@@ -406,14 +430,15 @@ async function history({ employeeId, from, to, limit, offset }) {
     return acc;
   }, {});
 
-  return { rows: rows.map((r) => shape(r, byShift[r.id] || [])), total: Number(count) };
+  const live = await Promise.all(rows.map(withLiveIdle));
+  return { rows: live.map((r) => shape(r, byShift[r.id] || [])), total: Number(count) };
 }
 
 async function byId(attendanceId) {
   const row = await db()('attendance').where({ id: attendanceId }).first();
   if (!row) throw notFound('Attendance record not found');
   const breaks = await db()('breaks').where({ attendance_id: row.id }).orderBy('break_start');
-  return shape(row, breaks);
+  return shape(await withLiveIdle(row), breaks);
 }
 
 module.exports = {

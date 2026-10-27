@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { post } from '@/lib/client';
 import PasswordField from '@/components/PasswordField';
 
-export default function ChangePasswordForm({ temporary }) {
+export default function ChangePasswordForm({ temporary, email }) {
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
   const [again, setAgain] = useState('');
@@ -42,6 +42,19 @@ export default function ChangePasswordForm({ temporary }) {
           {error}
         </div>
       ) : null}
+
+      {/* Tells the browser's password manager whose password this is, so it does not paste the
+          email address into the "current password" box. Read-only, off screen, not for people. */}
+      <input
+        type="text"
+        name="username"
+        autoComplete="username"
+        value={email || ''}
+        readOnly
+        tabIndex={-1}
+        aria-hidden="true"
+        style={{ position: 'absolute', left: -9999, width: 1, height: 1, opacity: 0 }}
+      />
 
       <div className="field">
         <PasswordField

@@ -24,7 +24,7 @@ export default async function ChangePasswordPage() {
                 : 'Choose a new password.'}
             </p>
           </div>
-          <ChangePasswordForm temporary={Boolean(user.mustChangePassword)} />
+          <ChangePasswordForm temporary={Boolean(user.mustChangePassword)} email={user.email} />
         </div>
       </div>
     </div>
