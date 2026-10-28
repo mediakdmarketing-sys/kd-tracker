@@ -18,6 +18,8 @@ export default function CreateCompanyForm() {
   const [timezone, setTimezone] = useState('');
   const [storageGb, setStorageGb] = useState('');
   const [maxPeople, setMaxPeople] = useState('');
+  const [plan, setPlan] = useState('pro');
+  const [trialDays, setTrialDays] = useState('');
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
   const [invite, setInvite] = useState(null);
@@ -31,6 +33,8 @@ export default function CreateCompanyForm() {
     setTimezone('');
     setStorageGb('');
     setMaxPeople('');
+    setPlan('pro');
+    setTrialDays('');
     setError(null);
   }
 
@@ -41,10 +45,13 @@ export default function CreateCompanyForm() {
     try {
       const created = await post('/api/super/companies', {
         name,
-        features,
+        plan,
+        ...(trialDays !== '' && { trialDays: Math.round(Number(trialDays)) }),
+        // Free and Pro set their own features and limits; only Custom takes them from this form.
+        ...(plan === 'custom' && { features }),
         ...(timezone && { timezone }),
-        ...(storageGb !== '' && { storageLimitBytes: Math.round(Number(storageGb) * 1024 ** 3) }),
-        ...(maxPeople !== '' && { maxEmployees: Math.round(Number(maxPeople)) }),
+        ...(plan === 'custom' && storageGb !== '' && { storageLimitBytes: Math.round(Number(storageGb) * 1024 ** 3) }),
+        ...(plan === 'custom' && maxPeople !== '' && { maxEmployees: Math.round(Number(maxPeople)) }),
         admin: { name: adminName, email: adminEmail },
       });
       setInvite({
@@ -135,6 +142,22 @@ export default function CreateCompanyForm() {
 
           <div className="filters" style={{ marginBottom: 14 }}>
             <div className="field">
+              <label htmlFor="nc-plan">Plan</label>
+              <select id="nc-plan" value={plan} onChange={(e) => setPlan(e.target.value)} disabled={busy}>
+                <option value="pro">Pro (100 people, 50 GB, everything)</option>
+                <option value="free">Free (5 people, 1 GB, no capture or payroll)</option>
+                <option value="custom">Custom (choose below)</option>
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="nc-trial">Free trial days (optional)</label>
+              <input id="nc-trial" type="number" min="1" max="365" value={trialDays} onChange={(e) => setTrialDays(e.target.value)} placeholder="No trial" disabled={busy} />
+            </div>
+          </div>
+
+          {plan === 'custom' && (
+          <div className="filters" style={{ marginBottom: 14 }}>
+            <div className="field">
               <label htmlFor="nc-gb">Storage limit (GB, optional)</label>
               <input id="nc-gb" type="number" min="0" step="0.1" value={storageGb} onChange={(e) => setStorageGb(e.target.value)} placeholder="No limit" disabled={busy} />
             </div>
@@ -143,7 +166,9 @@ export default function CreateCompanyForm() {
               <input id="nc-max" type="number" min="1" step="1" value={maxPeople} onChange={(e) => setMaxPeople(e.target.value)} placeholder="No limit" disabled={busy} />
             </div>
           </div>
+          )}
 
+          {plan === 'custom' && (
           <div className="field" style={{ marginBottom: 14 }}>
             <label>Features</label>
             <div style={{ display: 'grid', gap: 8 }}>
@@ -167,6 +192,7 @@ export default function CreateCompanyForm() {
               </span>
             </div>
           </div>
+          )}
 
           <div className="inline">
             <button type="submit" className="btn btn-primary" disabled={busy || !name || !adminName || !adminEmail}>

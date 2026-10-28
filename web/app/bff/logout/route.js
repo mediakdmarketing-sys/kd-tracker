@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { REFRESH_COOKIE, clearSession, apiUrl } from '@/lib/session';
+import { REFRESH_COOKIE, OWNER_REFRESH_COOKIE, clearSession, clearOwnerSession, apiUrl } from '@/lib/session';
 
 export async function POST() {
   const jar = await cookies();
@@ -21,6 +21,21 @@ export async function POST() {
     }
   }
 
+  // Signing out while viewing as someone ends the owner's parked session too.
+  const parked = jar.get(OWNER_REFRESH_COOKIE)?.value;
+  if (parked) {
+    try {
+      await fetch(apiUrl('/api/auth/logout'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept-Encoding': 'identity' },
+        body: JSON.stringify({ refreshToken: parked }),
+        cache: 'no-store',
+      });
+    } catch {
+      // Cleared below regardless.
+    }
+  }
+  clearOwnerSession(jar);
   clearSession(jar);
   return NextResponse.json({ ok: true });
 }

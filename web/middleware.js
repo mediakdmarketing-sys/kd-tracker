@@ -5,11 +5,13 @@ import {
   EXPIRY_COOKIE,
   writeSession,
   clearSession,
+  restoreOwnerOnResponse,
   parseDuration,
   apiUrl,
 } from '@/lib/session';
 
-const PUBLIC_PATHS = ['/login', '/bff/login'];
+// /bff/api/public: a company's name, colour and logo, which its login page shows before sign-in.
+const PUBLIC_PATHS = ['/login', '/bff/login', '/bff/api/public'];
 
 /**
  * Token refresh happens here rather than in the pages.
@@ -47,6 +49,13 @@ export async function middleware(request) {
       cache: 'no-store',
     });
     if (!res.ok) {
+      // A view-as session that ran out (or was ended) hands the platform owner their own session back.
+      const back = request.nextUrl.clone();
+      back.pathname = '/super';
+      back.search = '';
+      const ownerResponse = NextResponse.redirect(back);
+      if (restoreOwnerOnResponse(request, ownerResponse)) return ownerResponse;
+
       const response = redirectToLogin(request);
       clearSession(response.cookies);
       return response;

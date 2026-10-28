@@ -10,7 +10,7 @@ import { patch } from '@/lib/client';
  * The API itself stays in seconds throughout (matches config.js's existing units, and every
  * other backend consumer of these values already expects seconds).
  */
-export default function SettingsForm({ initial, features = {} }) {
+export default function SettingsForm({ initial, features = {}, endpoint = '/api/admin/settings' }) {
   const router = useRouter();
   // Settings of a feature the company does not have are hidden: they would change nothing.
   const has = (name) => features[name] !== false;
@@ -44,7 +44,7 @@ export default function SettingsForm({ initial, features = {} }) {
     setError(null);
     setSaved(false);
     try {
-      await patch('/api/admin/settings', {
+      await patch(endpoint, {
         capture: {
           screenshotMinIntervalSec: Math.round(form.screenshotMinMinutes * 60),
           screenshotMaxIntervalSec: Math.round(form.screenshotMaxMinutes * 60),

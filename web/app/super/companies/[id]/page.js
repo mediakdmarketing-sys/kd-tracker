@@ -4,6 +4,12 @@ import { api } from '@/lib/api';
 import { duration, formatBytes } from '@/lib/format';
 import RangeFilter from '@/components/RangeFilter';
 import CompanyControls from './CompanyControls';
+import ViewAsList from './ViewAsList';
+import BrandingCard from './BrandingCard';
+import PlanCard from './PlanCard';
+import DomainCard from './DomainCard';
+import DangerCard from './DangerCard';
+import UsageChart from './UsageChart';
 
 export const metadata = { title: 'Company · WorkBuddy' };
 
@@ -13,9 +19,12 @@ export default async function CompanyPage({ params, searchParams }) {
   const qs = new URLSearchParams();
   if (query.from) qs.set('from', query.from);
   if (query.to) qs.set('to', query.to);
-  const [company, admins] = await Promise.all([
+  const [me, usage, company, admins, people] = await Promise.all([
+    api('/api/auth/me'),
+    api(`/api/super/companies/${id}/usage?days=30`),
     api(`/api/super/companies/${id}${qs.size ? `?${qs}` : ''}`),
     api(`/api/super/companies/${id}/admins`),
+    api(`/api/super/companies/${id}/people`),
   ]);
 
   return (
@@ -81,7 +90,29 @@ export default async function CompanyPage({ params, searchParams }) {
         </div>
       </div>
 
-      <CompanyControls company={company} admins={admins} />
+      <div style={{ marginBottom: 16 }}>
+        <UsageChart usage={usage} />
+      </div>
+
+      <div style={{ marginBottom: 16 }}>
+        <ViewAsList people={people} suspended={company.status !== 'active'} />
+      </div>
+
+      {/* Support staff can look and view as a person; everything below is the owner's to change. */}
+      <fieldset disabled={me.platformRole !== 'owner'} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
+        <div className="stack">
+          <PlanCard key={`${company.plan}-${company.trialEndsAt}-${company.autoSuspend}`} company={company} />
+          <BrandingCard key={`${company.slug}-${company.brand.version}`} company={company} />
+          <DomainCard key={`${company.customDomain}-${company.customDomainVerified}`} company={company} />
+          <CompanyControls company={company} admins={admins} />
+          <div className="card card-pad">
+            <Link href={`/super/companies/${id}/settings`} className="btn">
+              Shift, break &amp; retention defaults →
+            </Link>
+          </div>
+          <DangerCard company={company} />
+        </div>
+      </fieldset>
     </>
   );
 }

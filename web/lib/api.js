@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
+import { redirect, notFound } from 'next/navigation';
 import { ACCESS_COOKIE, apiUrl } from './session';
 
 /**
@@ -50,10 +50,19 @@ export async function api(path, { method = 'GET', body, cache = 'no-store' } = {
     redirect('/change-password');
   }
 
+  // A platform account on a server that requires two-factor: it can only set it up.
+  if (payload?.error?.code === 'TWO_FACTOR_SETUP_REQUIRED') {
+    redirect('/super/security');
+  }
+
   // A page that belongs to a feature this company does not have: say so instead of an error.
   if (payload?.error?.code === 'FEATURE_DISABLED') {
     redirect('/me/feature-off');
   }
+
+  // A page asking for something that does not exist (a company, an employee, a request that was
+  // removed) is a missing page, not a server fault.
+  if (res.status === 404 && method === 'GET') notFound();
 
   if (!res.ok) {
     const error = new Error(payload?.error?.message || `Request failed (${res.status})`);

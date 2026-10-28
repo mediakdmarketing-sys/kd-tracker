@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { writeSession, apiUrl } from '@/lib/session';
+import { writeSession, clearOwnerSession, apiUrl } from '@/lib/session';
+import { resolveSlug } from '@/lib/brand';
 
 /**
  * Exchanges credentials for a session. Tokens are written into httpOnly cookies scoped to
@@ -9,8 +10,9 @@ import { writeSession, apiUrl } from '@/lib/session';
 export async function POST(request) {
   let email;
   let password;
+  let companySlug;
   try {
-    ({ email, password } = await request.json());
+    ({ email, password, companySlug } = await request.json());
   } catch {
     return NextResponse.json(
       { error: { code: 'VALIDATION_ERROR', message: 'Request body must be valid JSON.' } },
@@ -23,7 +25,14 @@ export async function POST(request) {
     res = await fetch(apiUrl('/api/auth/login'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Accept-Encoding': 'identity' },
-      body: JSON.stringify({ email, password, client: 'web' }),
+      // Signing in on a company's own address is limited to that company; the address itself
+      // wins over anything the page sent.
+      body: JSON.stringify({
+        email,
+        password,
+        client: 'web',
+        companySlug: (await resolveSlug(request.headers.get('host'))) || companySlug || undefined,
+      }),
       cache: 'no-store',
     });
   } catch {
@@ -36,7 +45,15 @@ export async function POST(request) {
   const payload = await res.json();
   if (!res.ok) return NextResponse.json(payload, { status: res.status });
 
-  writeSession(await cookies(), {
+  // Right password, but a platform account with two-factor on still owes a code.
+  if (payload.twoFactorRequired) {
+    return NextResponse.json({ twoFactorRequired: true, challenge: payload.challenge });
+  }
+
+  const jar = await cookies();
+  // A fresh sign-in never inherits a parked view-as session.
+  clearOwnerSession(jar);
+  writeSession(jar, {
     accessToken:  payload.accessToken,
     refreshToken: payload.refreshToken,
     expiresIn:    payload.expiresIn,

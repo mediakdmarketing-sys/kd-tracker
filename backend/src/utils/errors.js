@@ -35,11 +35,26 @@ const accountDeactivated = (message = 'Account is deactivated') =>
  * change-password screen instead of showing a generic "forbidden".
  */
 /** The company is switched off by the platform owner, so nobody in it can use the service. */
-const companySuspended = () =>
-  new ApiError(403, 'COMPANY_SUSPENDED', 'Your company account is suspended. Please contact your administrator.');
+const companySuspended = (reason) =>
+  new ApiError(
+    403,
+    'COMPANY_SUSPENDED',
+    reason === 'trial'
+      ? 'Your free trial has ended. Please contact your provider to continue.'
+      : 'Your company account is suspended. Please contact your administrator.'
+  );
 /** The company has not been given this feature (a plan limit), as opposed to a role check. */
 const featureDisabled = (feature) =>
   new ApiError(403, 'FEATURE_DISABLED', `${feature} is not enabled for your company.`);
+/** A "view as" session may look, and use the admin tools, but not act as the person themself. */
+const impersonationReadOnly = () =>
+  new ApiError(
+    403,
+    'IMPERSONATION_READ_ONLY',
+    'You are viewing as another person. You can look around and use admin tools, but not act as them (punching in, consent, passwords, leave).'
+  );
+const twoFactorSetupRequired = () =>
+  new ApiError(403, 'TWO_FACTOR_SETUP_REQUIRED', 'Set up two-factor sign-in before you continue.');
 const passwordChangeRequired = () =>
   new ApiError(403, 'PASSWORD_CHANGE_REQUIRED', 'You must choose a new password before you continue.');
 const notFound = (message = 'Not found') => new ApiError(404, 'NOT_FOUND', message);
@@ -55,6 +70,8 @@ module.exports = {
   forbidden,
   accountDeactivated,
   passwordChangeRequired,
+  impersonationReadOnly,
+  twoFactorSetupRequired,
   companySuspended,
   featureDisabled,
   notFound,

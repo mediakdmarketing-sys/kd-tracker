@@ -20,6 +20,11 @@ export const ACCESS_COOKIE  = 'kd_at';
 export const REFRESH_COOKIE = 'kd_rt';
 export const EXPIRY_COOKIE  = 'kd_exp';
 
+// While the platform owner is viewing as someone, their own session waits in these cookies.
+export const OWNER_ACCESS_COOKIE  = 'kd_sa_at';
+export const OWNER_REFRESH_COOKIE = 'kd_sa_rt';
+export const OWNER_EXPIRY_COOKIE  = 'kd_sa_exp';
+
 const SECURE = process.env.COOKIE_SECURE === '1' || process.env.NODE_ENV === 'production';
 
 const baseOptions = {
@@ -58,6 +63,47 @@ export function clearSession(jar) {
   jar.set(ACCESS_COOKIE,  '', zero);
   jar.set(REFRESH_COOKIE, '', zero);
   jar.set(EXPIRY_COOKIE,  '', zero);
+}
+
+/** Put the parked owner session back, on a response (used by middleware, which has no cookie jar). */
+export function restoreOwnerOnResponse(request, response) {
+  const refresh = request.cookies.get(OWNER_REFRESH_COOKIE)?.value;
+  if (!refresh) return false;
+  const opts = { ...baseOptions, maxAge: 14 * 24 * 60 * 60 };
+  response.cookies.set(ACCESS_COOKIE,  request.cookies.get(OWNER_ACCESS_COOKIE)?.value || '', opts);
+  response.cookies.set(REFRESH_COOKIE, refresh, opts);
+  response.cookies.set(EXPIRY_COOKIE,  request.cookies.get(OWNER_EXPIRY_COOKIE)?.value || '0', opts);
+  clearOwnerSession(response.cookies);
+  return true;
+}
+
+/** Parks the current session in the owner cookies, so a view-as session can take its place. */
+export function stashOwnerSession(jar) {
+  const refreshMaxAge = 14 * 24 * 60 * 60;
+  const opts = { ...baseOptions, maxAge: refreshMaxAge };
+  jar.set(OWNER_ACCESS_COOKIE,  jar.get(ACCESS_COOKIE)?.value  || '', opts);
+  jar.set(OWNER_REFRESH_COOKIE, jar.get(REFRESH_COOKIE)?.value || '', opts);
+  jar.set(OWNER_EXPIRY_COOKIE,  jar.get(EXPIRY_COOKIE)?.value  || '', opts);
+}
+
+/** Puts the parked owner session back as the session. Returns false if there was none. */
+export function restoreOwnerSession(jar) {
+  const refresh = jar.get(OWNER_REFRESH_COOKIE)?.value;
+  if (!refresh) return false;
+  const refreshMaxAge = 14 * 24 * 60 * 60;
+  const opts = { ...baseOptions, maxAge: refreshMaxAge };
+  jar.set(ACCESS_COOKIE,  jar.get(OWNER_ACCESS_COOKIE)?.value || '', opts);
+  jar.set(REFRESH_COOKIE, refresh, opts);
+  jar.set(EXPIRY_COOKIE,  jar.get(OWNER_EXPIRY_COOKIE)?.value || '0', opts);
+  clearOwnerSession(jar);
+  return true;
+}
+
+export function clearOwnerSession(jar) {
+  const zero = { ...baseOptions, maxAge: 0 };
+  jar.set(OWNER_ACCESS_COOKIE,  '', zero);
+  jar.set(OWNER_REFRESH_COOKIE, '', zero);
+  jar.set(OWNER_EXPIRY_COOKIE,  '', zero);
 }
 
 export function apiUrl(path) {

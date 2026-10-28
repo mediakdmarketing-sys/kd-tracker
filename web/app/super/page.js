@@ -103,7 +103,17 @@ export default async function CompaniesPage({ searchParams }) {
                       <td>
                         <span className={`pill ${c.status === 'active' ? 'pill-working' : 'pill-out'}`}>
                           {c.status}
-                        </span>
+                        </span>{' '}
+                        <span className="pill pill-idle">{c.plan}</span>
+                        {c.trialExpired ? (
+                          <div className="faint" style={{ fontSize: 12, color: 'var(--danger, #b42318)' }}>
+                            trial ended{c.autoSuspend ? ': blocked' : ''}
+                          </div>
+                        ) : c.trialEndsAt ? (
+                          <div className="faint" style={{ fontSize: 12 }}>
+                            trial: {Math.ceil((c.trialEndsAt - Date.now()) / 86400000)} days left
+                          </div>
+                        ) : null}
                       </td>
                       <td className="num">
                         {c.employees}

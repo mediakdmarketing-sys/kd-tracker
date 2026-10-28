@@ -8,6 +8,8 @@ const {
   accountDeactivated,
   passwordChangeRequired,
   companySuspended,
+  impersonationReadOnly,
+  twoFactorSetupRequired,
 } = require('../utils/errors');
 const companies = require('../services/companies');
 const settings = require('../services/settings');
@@ -21,6 +23,21 @@ const ALLOWED_WHILE_PASSWORD_PENDING = new Set([
   '/api/auth/logout-all',
 ]);
 const { toBool } = require('../utils/http');
+
+// While someone is viewing as another person, writes are limited to the admin and leader tools
+// (which is what they are there to use) and signing out. Everything that is the person's own
+// doing (punching in, capture, consent, password, their own leave) is refused.
+const IMPERSONATION_WRITE_PREFIXES = ['/api/admin/', '/api/leader/', '/api/payroll/'];
+const IMPERSONATION_WRITE_EXACT = new Set(['/api/auth/logout', '/api/auth/refresh']);
+
+function impersonationMayWrite(req) {
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return true;
+  const path = req.originalUrl.split('?')[0];
+  return (
+    IMPERSONATION_WRITE_EXACT.has(path) ||
+    IMPERSONATION_WRITE_PREFIXES.some((p) => path.startsWith(p))
+  );
+}
 
 function extractToken(req) {
   const header = req.headers.authorization || '';
@@ -64,11 +81,22 @@ async function authenticate(req, res, next) {
       if (!row) throw unauthorized('Account no longer exists');
       if (row.status !== 'active') throw accountDeactivated();
 
+      // A "view as" token is only good while the person who started it is still a super admin.
+      let impersonatedBy = null;
+      if (payload.imp) {
+        const owner = await db()('employees').where({ id: payload.imp }).first();
+        if (!owner || owner.status !== 'active' || !toBool(owner.is_super_admin)) {
+          throw unauthorized('This view-as session has ended');
+        }
+        impersonatedBy = { id: owner.id, name: owner.name };
+      }
+
       // The person's company decides whether they may use the service at all, and which
       // features it has. Its settings are loaded here so handlers can read them synchronously.
       const company = await companies.get(row.company_id);
       if (!company) throw unauthorized('Account no longer exists');
-      if (company.status !== 'active') throw companySuspended();
+      const blocked = companies.blockReason(company);
+      if (blocked) throw companySuspended(blocked);
       await settings.ensure(company.id);
 
       req[cacheKey] = {
@@ -81,6 +109,9 @@ async function authenticate(req, res, next) {
         companyName: company.name,
         features: company.features,
         isSuperAdmin: toBool(row.is_super_admin),
+        impersonatedBy,
+        platformRole: toBool(row.is_super_admin) ? row.platform_role || 'owner' : null,
+        twoFactorEnabled: toBool(row.totp_enabled),
         timezone: company.timezone || config.timezone,
         status: row.status,
         mustChangePassword: toBool(row.must_change_password),
@@ -91,7 +122,21 @@ async function authenticate(req, res, next) {
 
     req.user = req[cacheKey];
 
-    if (req.user.mustChangePassword && !ALLOWED_WHILE_PASSWORD_PENDING.has(req.originalUrl.split('?')[0])) {
+    if (req.user.impersonatedBy && !impersonationMayWrite(req)) throw impersonationReadOnly();
+
+    // With SUPER_2FA_REQUIRED, a platform account without two-factor can only set it up.
+    if (
+      config.auth.superTwoFactorRequired &&
+      req.user.isSuperAdmin &&
+      !req.user.twoFactorEnabled &&
+      !req.user.impersonatedBy &&
+      !req.originalUrl.startsWith('/api/auth/') &&
+      !req.originalUrl.startsWith('/api/config')
+    ) {
+      throw twoFactorSetupRequired();
+    }
+
+    if (!req.user.impersonatedBy && req.user.mustChangePassword && !ALLOWED_WHILE_PASSWORD_PENDING.has(req.originalUrl.split('?')[0])) {
       throw passwordChangeRequired();
     }
     next();

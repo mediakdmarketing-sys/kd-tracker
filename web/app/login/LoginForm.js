@@ -6,13 +6,16 @@ import { post } from '@/lib/client';
 import PasswordField from '@/components/PasswordField';
 import { connectDesktopAgent } from '@/lib/agentConnect';
 
-export default function LoginForm() {
+export default function LoginForm({ companySlug }) {
   const router = useRouter();
   const params = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
+  // Set after the password step when this account also needs a code from its authenticator app.
+  const [challenge, setChallenge] = useState(null);
+  const [code, setCode] = useState('');
 
   async function submit(event) {
     event.preventDefault();
@@ -20,7 +23,14 @@ export default function LoginForm() {
     setError(null);
 
     try {
-      await post('/login', { email, password });
+      const first = challenge
+        ? await post('/login/2fa', { challenge, code })
+        : await post('/login', { email, password, ...(companySlug && { companySlug }) });
+      if (first.twoFactorRequired) {
+        setChallenge(first.challenge);
+        setBusy(false);
+        return;
+      }
       // Signed in here => sign the desktop agent in too. Best-effort, never blocks the portal.
       connectDesktopAgent();
       router.replace(params.get('next') || '/');
@@ -28,7 +38,52 @@ export default function LoginForm() {
     } catch (err) {
       setError(err.message);
       setBusy(false);
+      // The sign-in step expires after a few minutes: start again from the password.
+      if (challenge && /expired/i.test(err.message)) {
+        setChallenge(null);
+        setCode('');
+      }
     }
+  }
+
+  if (challenge) {
+    return (
+      <form onSubmit={submit}>
+        {error ? (
+          <div className="notice notice-danger" style={{ marginBottom: 14 }} role="alert">
+            {error}
+          </div>
+        ) : null}
+        <div className="field">
+          <label htmlFor="code">Authenticator code</label>
+          <input
+            id="code"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            autoFocus
+            required
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            placeholder="6-digit code, or a recovery code"
+          />
+        </div>
+        <button type="submit" className="btn btn-primary btn-lg" style={{ width: '100%' }} disabled={busy}>
+          {busy ? 'Checking?' : 'Verify and sign in'}
+        </button>
+        <button
+          type="button"
+          className="btn"
+          style={{ width: '100%', marginTop: 8 }}
+          onClick={() => {
+            setChallenge(null);
+            setCode('');
+            setError(null);
+          }}
+        >
+          Back
+        </button>
+      </form>
+    );
   }
 
   return (

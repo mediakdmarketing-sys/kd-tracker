@@ -434,28 +434,7 @@ router.delete(
 // CORS, port, and cron schedules stay in .env; see backend/src/services/settings.js's own
 // comment for the full reasoning.
 
-const settingsPatchSchema = z.object({
-  capture: z
-    .object({
-      screenshotMinIntervalSec: z.number().int().min(30).max(3600).optional(),
-      screenshotMaxIntervalSec: z.number().int().min(30).max(3600).optional(),
-      audioSampleDurationSec: z.number().int().min(10).max(1800).optional(),
-      audioSampleGapSec: z.number().int().min(10).max(3600).optional(),
-    })
-    .optional(),
-  shift: z
-    .object({
-      targetSeconds: z.number().int().min(1800).max(57600).optional(),
-      breakAllowanceSeconds: z.number().int().min(0).max(14400).optional(),
-      idleThresholdSeconds: z.number().int().min(60).max(3600).optional(),
-      autoCloseHours: z.number().int().min(1).max(48).optional(),
-      halfDaySeconds: z.number().int().min(900).max(43200).optional(),
-      fullDaySeconds: z.number().int().min(900).max(57600).optional(),
-    })
-    .optional(),
-  retention: z.object({ days: z.number().int().min(1).max(365).optional() }).optional(),
-  payroll: z.object({ deductIdle: z.boolean().optional() }).optional(),
-});
+const { settingsPatchSchema, assertValidSettings } = require('./settingsSchema');
 
 router.get(
   '/settings',
@@ -472,20 +451,7 @@ router.patch(
     // cross-field mistake) only becomes checkable once the patch is merged onto whatever is
     // NOT being changed in this request — so that check happens here, against the merged
     // result, rather than as a zod .refine() on the raw partial patch.
-    const current = settings.get(req.user.companyId);
-    const merged = {
-      capture: { ...current.capture, ...req.body.capture },
-      shift: { ...current.shift, ...req.body.shift },
-      retention: { ...current.retention, ...req.body.retention },
-      payroll: { ...current.payroll, ...req.body.payroll },
-    };
-    if (merged.shift.halfDaySeconds > merged.shift.fullDaySeconds) {
-      throw badRequest('A half day cannot need more hours than a full day');
-    }
-    if (merged.capture.screenshotMinIntervalSec > merged.capture.screenshotMaxIntervalSec) {
-      throw badRequest('Screenshot minimum interval must not exceed the maximum interval');
-    }
-
+    assertValidSettings(settings.get(req.user.companyId), req.body);
     const updated = await settings.update(req.body, { updatedBy: req.user.id, companyId: req.user.companyId });
     await audit.record(req, {
       action: audit.ACTIONS.UPDATED_SETTINGS,

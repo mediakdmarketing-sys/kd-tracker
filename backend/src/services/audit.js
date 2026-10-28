@@ -22,7 +22,14 @@ async function record(req, { action, targetEmployeeId, targetType, targetId, det
       target_type: targetType || null,
       target_id: targetId || null,
       ip_address: req.ip || null,
-      details: details ? JSON.stringify(details) : null,
+      // A "view as" session is marked on everything it does, so the company can tell.
+      details:
+        details || req.user?.impersonatedBy
+          ? JSON.stringify({
+              ...details,
+              ...(req.user?.impersonatedBy && { impersonatedBy: req.user.impersonatedBy.name }),
+            })
+          : null,
       timestamp: now(),
     });
   } catch (err) {
@@ -48,6 +55,8 @@ const ACTIONS = {
   UPDATED_SETTINGS: 'updated_settings',
   REVIEWED_LEAVE_REQUEST: 'reviewed_leave_request',
   VIEWED_LEAVE_PROOF: 'viewed_leave_proof',
+  IMPERSONATION_STARTED: 'impersonation_started',
+  IMPERSONATION_ENDED: 'impersonation_ended',
 };
 
 module.exports = { record, ACTIONS };

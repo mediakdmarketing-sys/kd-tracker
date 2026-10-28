@@ -6,6 +6,9 @@ import NavLink from './NavLink';
 import LogoutButton from './LogoutButton';
 import NotificationBadge from './NotificationBadge';
 import BackButton from './BackButton';
+import ViewAsBanner from './ViewAsBanner';
+import NoticeBanners from './NoticeBanners';
+import { brandStyle, logoUrl } from '@/lib/brand';
 
 const COLLAPSE_KEY = 'kd_sidebar_collapsed';
 const COLLAPSE_WIDTH_PX = 900; // matches the old auto-collapse breakpoint, now just the default
@@ -187,10 +190,17 @@ const LEADER_GROUPS = [
 ];
 
 // The platform owner's own section: companies and what each may use.
-const SUPER_GROUP = {
-  label: 'Platform',
-  links: [{ href: '/super', label: 'Companies', icon: Icon.departments }],
-};
+function superGroup(user) {
+  const links = [
+    { href: '/super', label: 'Companies', icon: Icon.departments },
+    { href: '/super/audit', label: 'Platform audit', icon: Icon.history },
+    { href: '/super/announcements', label: 'Announcements', icon: Icon.bell },
+  ];
+  // Only the owner manages staff; support staff do not see it.
+  if (user.platformRole === 'owner') links.push({ href: '/super/staff', label: 'Staff', icon: Icon.team });
+  links.push({ href: '/super/security', label: 'Security', icon: Icon.settings });
+  return { label: 'Platform', links };
+}
 
 const USER_GROUP = {
   label: 'Me',
@@ -250,7 +260,7 @@ export default function AppShell({ user, children }) {
 
   // A feature the company does not have disappears from the menu, along with its page.
   const features = user.company?.features || {};
-  const groups = (user.isSuperAdmin ? [SUPER_GROUP, ...baseGroups] : baseGroups)
+  const groups = (user.isSuperAdmin ? [superGroup(user), ...baseGroups] : baseGroups)
     .map((g) => ({ ...g, links: g.links.filter((l) => !l.feature || features[l.feature] !== false) }))
     .filter((g) => g.links.length > 0);
 
@@ -262,14 +272,19 @@ export default function AppShell({ user, children }) {
     .toUpperCase();
 
   return (
-    <div className="shell">
+    <div className="shell" style={brandStyle(user.company?.brand?.color)}>
       <div className="sidebar-rail">
         <aside className={`sidebar${collapsed ? ' collapsed' : ''}`}>
           <div className="brand-row">
             <Link href={user.isSuperAdmin ? '/super' : user.role === 'admin' ? '/admin' : user.role === 'leader' ? '/leader' : '/me'} className="brand">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/icons/icon-192.png" alt="" className="brand-mark" />
-              <span className="brand-word">WorkBuddy</span>
+              <img
+                src={user.company?.brand?.hasLogo ? logoUrl(user.company.slug, user.company.brand.version) : '/icons/icon-192.png'}
+                alt=""
+                className="brand-mark"
+                style={{ objectFit: 'contain' }}
+              />
+              <span className="brand-word">{user.company?.brand?.name || 'WorkBuddy'}</span>
             </Link>
           </div>
 
@@ -327,6 +342,12 @@ export default function AppShell({ user, children }) {
       </div>
 
       <main className="main">
+        {user.impersonation && <ViewAsBanner user={user} />}
+        <NoticeBanners
+          announcements={user.announcements}
+          trialEndsAt={user.company?.trialEndsAt}
+          isAdmin={user.role === 'admin'}
+        />
         <BackButton />
         {children}
       </main>

@@ -8,7 +8,7 @@ const { uuid, randomToken, sha256 } = require('../../utils/ids');
 const { now } = require('../../utils/time');
 const { toBool } = require('../../utils/http');
 const logger = require('../../utils/logger');
-const { unauthorized, forbidden, notFound, badRequest, companySuspended } = require('../../utils/errors');
+const { unauthorized, forbidden, notFound, badRequest, conflict, companySuspended } = require('../../utils/errors');
 const companies = require('../../services/companies');
 
 /** The disclosure shown before the first punch-in (story A-4). Versioned so a change re-prompts. */
@@ -47,9 +47,16 @@ const CONSENT_DISCLOSURE = {
     'Attendance verification and payroll calculation for remote work. It is not used for individual performance ranking.',
 };
 
-function signAccessToken(employee) {
+const totp = require('../../utils/totp');
+
+/** Proof that the password was right, good for five minutes, to be traded for a session with a code. */
+function signChallenge(employee) {
+  return jwt.sign({ sub: employee.id, type: '2fa' }, config.auth.jwtSecret, { expiresIn: '5m' });
+}
+
+function signAccessToken(employee, impersonatedBy) {
   return jwt.sign(
-    { sub: employee.id, role: employee.role, type: 'access' },
+    { sub: employee.id, role: employee.role, type: 'access', ...(impersonatedBy && { imp: impersonatedBy }) },
     config.auth.jwtSecret,
     { expiresIn: config.auth.expiresIn }
   );
@@ -68,14 +75,16 @@ function parseDuration(spec) {
   return Number(match[1]) * mult;
 }
 
-async function issueRefreshToken(employeeId, client) {
+async function issueRefreshToken(employeeId, client, { impersonatedBy, expiresAt } = {}) {
   const token = randomToken();
   await db()('refresh_tokens').insert({
     id: uuid(),
     employee_id: employeeId,
     token_hash: sha256(token),
     client: client || null,
-    expires_at: now() + parseDuration(config.auth.refreshExpiresIn),
+    // A view-as session keeps the end time it started with, however often it is refreshed.
+    expires_at: expiresAt || now() + parseDuration(config.auth.refreshExpiresIn),
+    impersonated_by: impersonatedBy || null,
     created_at: now(),
   });
   return token;
@@ -94,7 +103,20 @@ function publicEmployee(row, company) {
     department: row.department,
     companyId: row.company_id,
     isSuperAdmin: toBool(row.is_super_admin),
-    ...(company && { company: { id: company.id, name: company.name, features: company.features } }),
+    platformRole: toBool(row.is_super_admin) ? row.platform_role || 'owner' : null,
+    ...(toBool(row.is_super_admin) && { twoFactorEnabled: toBool(row.totp_enabled) }),
+    ...(company && {
+      company: {
+        id: company.id,
+        name: company.name,
+        slug: company.slug,
+        features: company.features,
+        brand: company.brand,
+        plan: company.plan,
+        // So the portal can warn HR before a trial runs out.
+        trialEndsAt: company.trialEndsAt ? new Date(company.trialEndsAt).toISOString() : null,
+      },
+    }),
     employeeCode: row.employee_code,
     timezone: config.timezone,
     status: row.status,
@@ -108,12 +130,13 @@ function publicEmployee(row, company) {
       givenAt: row.consent_given_at ? new Date(Number(row.consent_given_at)).toISOString() : null,
       version: row.consent_version,
       // The client uses this to decide whether to show the consent screen before punch-in.
-      required: !toBool(row.consent_monitoring) || row.consent_version !== CONSENT_VERSION,
+      // Platform accounts are not monitored (they have no shifts), so they are not asked.
+      required: !toBool(row.is_super_admin) && (!toBool(row.consent_monitoring) || row.consent_version !== CONSENT_VERSION),
     },
   };
 }
 
-async function login({ email, password, client }) {
+async function login({ email, password, client, companySlug }) {
   const row = await db()('employees').whereRaw('LOWER(email) = ?', [email.toLowerCase()]).first();
 
   // Same message and comparable timing whether the email is unknown or the password is wrong,
@@ -127,6 +150,16 @@ async function login({ email, password, client }) {
   if (!ok) throw unauthorized('Invalid email or password');
   if (row.status !== 'active') throw forbidden('Account is deactivated. Contact HR.');
   const company = await activeCompanyOf(row);
+  // Signing in on a company's own address (acme.<domain>) is for that company's people only. The
+  // answer is the same as a wrong password, so the address does not reveal who works where.
+  if (companySlug && company.slug !== String(companySlug).toLowerCase()) {
+    throw unauthorized('Invalid email or password');
+  }
+
+  // A platform account with two-factor on is only half signed in until it gives a code.
+  if (toBool(row.is_super_admin) && toBool(row.totp_enabled)) {
+    return { twoFactorRequired: true, challenge: signChallenge(row) };
+  }
 
   return {
     accessToken: signAccessToken(row),
@@ -136,11 +169,109 @@ async function login({ email, password, client }) {
   };
 }
 
+const sha = (text) => require('crypto').createHash('sha256').update(String(text)).digest('hex');
+const normaliseRecovery = (code) => String(code || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+/** Second step of sign-in for a platform account: the code from the authenticator, or a recovery code. */
+async function verifyTwoFactor({ challenge, code, client }) {
+  let payload;
+  try {
+    payload = jwt.verify(challenge, config.auth.jwtSecret);
+  } catch {
+    throw unauthorized('That sign-in expired. Start again.');
+  }
+  if (payload.type !== '2fa') throw unauthorized('That sign-in expired. Start again.');
+
+  const row = await db()('employees').where({ id: payload.sub }).first();
+  if (!row || row.status !== 'active' || !toBool(row.is_super_admin) || !toBool(row.totp_enabled)) {
+    throw unauthorized('That sign-in expired. Start again.');
+  }
+  const company = await activeCompanyOf(row);
+
+  const step = totp.verify(row.totp_secret, code, { lastStep: row.totp_last_step });
+  if (step !== null) {
+    await db()('employees').where({ id: row.id }).update({ totp_last_step: step });
+  } else {
+    // A recovery code works once, then is gone.
+    const hashes = JSON.parse(row.totp_recovery || '[]');
+    const hash = sha(normaliseRecovery(code));
+    const at = hashes.indexOf(hash);
+    if (at < 0) throw unauthorized('That code is not right.');
+    hashes.splice(at, 1);
+    await db()('employees').where({ id: row.id }).update({ totp_recovery: JSON.stringify(hashes) });
+  }
+
+  return {
+    accessToken: signAccessToken(row),
+    refreshToken: await issueRefreshToken(row.id, client),
+    expiresIn: config.auth.expiresIn,
+    employee: publicEmployee(row, company),
+  };
+}
+
+async function superRow(employeeId) {
+  const row = await db()('employees').where({ id: employeeId }).first();
+  if (!row || !toBool(row.is_super_admin)) throw forbidden('Platform accounts only');
+  return row;
+}
+
+/** Starts two-factor setup: a fresh secret to put into an authenticator app. Not active until confirmed. */
+async function setupTwoFactor(employeeId) {
+  const row = await superRow(employeeId);
+  if (toBool(row.totp_enabled)) throw conflict('Two-factor sign-in is already on.');
+  const secret = totp.generateSecret();
+  await db()('employees').where({ id: row.id }).update({ totp_secret: secret, updated_at: now() });
+  return { secret, otpauthUrl: totp.otpauthUrl({ secret, account: row.email }) };
+}
+
+/** Confirms setup with a first code, turns it on and returns recovery codes (shown once). */
+async function enableTwoFactor(employeeId, { code }) {
+  const row = await superRow(employeeId);
+  if (toBool(row.totp_enabled)) throw conflict('Two-factor sign-in is already on.');
+  if (!row.totp_secret) throw badRequest('Start the setup first.');
+  const step = totp.verify(row.totp_secret, code);
+  if (step === null) throw badRequest('That code is not right. Check the time on your phone and try again.');
+
+  const codes = Array.from({ length: 8 }, () => {
+    const raw = require('crypto').randomBytes(5).toString('hex');
+    return `${raw.slice(0, 5)}-${raw.slice(5)}`;
+  });
+  await db()('employees').where({ id: row.id }).update({
+    totp_enabled: true,
+    totp_last_step: step,
+    totp_recovery: JSON.stringify(codes.map((c) => sha(normaliseRecovery(c)))),
+    updated_at: now(),
+  });
+  return { enabled: true, recoveryCodes: codes };
+}
+
+/** Turning it off needs the password and a current code, so a borrowed session cannot do it. */
+async function disableTwoFactor(employeeId, { password, code }) {
+  const row = await superRow(employeeId);
+  if (!toBool(row.totp_enabled)) return { enabled: false };
+  if (!row.password_hash || !(await bcrypt.compare(password, row.password_hash))) {
+    throw badRequest('The password is not correct.');
+  }
+  if (totp.verify(row.totp_secret, code, { lastStep: row.totp_last_step }) === null) {
+    throw badRequest('That code is not right.');
+  }
+  await db()('employees').where({ id: row.id }).update({
+    totp_enabled: false,
+    totp_secret: null,
+    totp_last_step: null,
+    totp_recovery: null,
+    updated_at: now(),
+  });
+  await logoutEverywhere(row.id);
+  return { enabled: false };
+}
+
 /** The person's company, which must exist and not be suspended for them to sign in. */
 async function activeCompanyOf(row) {
   const company = await companies.get(row.company_id);
   if (!company) throw unauthorized('Invalid email or password');
-  if (company.status !== 'active') throw companySuspended();
+  const blocked = companies.blockReason(company);
+  if (blocked) throw companySuspended(blocked);
   return company;
 }
 
@@ -190,6 +321,14 @@ async function refresh({ refreshToken }) {
   if (employee.status !== 'active') throw forbidden('Account is deactivated');
   const company = await activeCompanyOf(employee);
 
+  const impersonatedBy = stored.impersonated_by || null;
+  if (impersonatedBy) {
+    const owner = await db()('employees').where({ id: impersonatedBy }).first();
+    if (!owner || owner.status !== 'active' || !toBool(owner.is_super_admin)) {
+      throw unauthorized('This view-as session has ended');
+    }
+  }
+
   // Rotate: the presented token is retired and a fresh one issued, so a stolen refresh token
   // is usable only inside the grace window before the legitimate client's next refresh.
   // `revoked_at` is left at its original value on a grace-window reuse, so repeated retries
@@ -203,8 +342,11 @@ async function refresh({ refreshToken }) {
     });
 
   return {
-    accessToken: signAccessToken(employee),
-    refreshToken: await issueRefreshToken(employee.id, stored.client),
+    accessToken: signAccessToken(employee, impersonatedBy),
+    refreshToken: await issueRefreshToken(employee.id, stored.client, {
+      impersonatedBy,
+      expiresAt: impersonatedBy ? Number(stored.expires_at) : undefined,
+    }),
     expiresIn: config.auth.expiresIn,
     employee: publicEmployee(employee, company),
   };
@@ -212,6 +354,8 @@ async function refresh({ refreshToken }) {
 
 async function logout({ refreshToken }) {
   if (!refreshToken) return { revoked: 0 };
+  const stored = await db()('refresh_tokens').where({ token_hash: sha256(refreshToken) }).first();
+  if (stored && stored.impersonated_by && !stored.revoked_at) await recordImpersonationEnd(stored);
   // Reason 'logout', not 'rotated': signing out must take effect immediately, with no grace.
   const revoked = await db()('refresh_tokens')
     .where({ token_hash: sha256(refreshToken) })
@@ -255,10 +399,38 @@ async function changePassword(employeeId, { currentPassword, newPassword }) {
   return { changed: true };
 }
 
-async function me(employeeId) {
+/** The company sees when a view-as session ended, in its own audit trail. */
+async function recordImpersonationEnd(stored) {
+  const owner = await db()('employees').where({ id: stored.impersonated_by }).select('name').first();
+  await db()('audit_logs').insert({
+    id: uuid(),
+    admin_id: stored.employee_id,
+    action: 'impersonation_ended',
+    target_employee_id: stored.employee_id,
+    target_type: 'employee',
+    details: JSON.stringify({ impersonatedBy: owner ? owner.name : 'platform owner' }),
+    timestamp: now(),
+  });
+}
+
+/**
+ * The signed-in person. In a view-as session the person's own pending steps (temporary password,
+ * consent) are not asked, since they are not the one signed in, and the response says who is.
+ */
+async function me(employeeId, impersonatedBy) {
   const row = await db()('employees').where({ id: employeeId }).first();
   if (!row) throw notFound('Employee not found');
-  return publicEmployee(row, await companies.get(row.company_id));
+  const shape = {
+    ...publicEmployee(row, await companies.get(row.company_id)),
+    announcements: await require('../../services/announcements').active(),
+  };
+  if (!impersonatedBy) return shape;
+  return {
+    ...shape,
+    mustChangePassword: false,
+    consent: { ...shape.consent, required: false },
+    impersonation: { by: impersonatedBy },
+  };
 }
 
 /**
@@ -353,6 +525,10 @@ module.exports = {
   createAgentCode,
   exchangeAgentCode,
   refresh,
+  verifyTwoFactor,
+  setupTwoFactor,
+  enableTwoFactor,
+  disableTwoFactor,
   logout,
   logoutEverywhere,
   changePassword,
@@ -360,6 +536,8 @@ module.exports = {
   recordConsent,
   publicEmployee,
   signAccessToken,
+  issueRefreshToken,
+  parseDuration,
   CONSENT_DISCLOSURE,
   CONSENT_VERSION,
 };

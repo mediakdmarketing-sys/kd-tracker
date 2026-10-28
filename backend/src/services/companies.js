@@ -34,6 +34,22 @@ function shape(row) {
     slug: row.slug,
     status: row.status,
     timezone: row.timezone || config.timezone,
+    isInternal: toBool(row.is_internal),
+    plan: row.plan || 'pro',
+    trialEndsAt: row.trial_ends_at == null ? null : Number(row.trial_ends_at),
+    autoSuspend: row.auto_suspend == null ? true : toBool(row.auto_suspend),
+    billingNote: row.billing_note || null,
+    // A trial that has run out blocks the company when auto-suspend is on (see isBlocked).
+    trialExpired: row.trial_ends_at != null && Number(row.trial_ends_at) < Date.now(),
+    customDomain: row.custom_domain || null,
+    customDomainVerified: toBool(row.custom_domain_verified),
+    brand: {
+      name: row.brand_name || null,
+      color: row.brand_color || null,
+      hasLogo: Boolean(row.logo_key),
+      // Changes whenever the branding does, so browsers refetch the logo.
+      version: Number(row.updated_at) || 0,
+    },
     storageLimitBytes: row.storage_limit_bytes == null ? null : Number(row.storage_limit_bytes),
     maxEmployees: row.max_employees == null ? null : Number(row.max_employees),
     features: Object.fromEntries(FEATURES.map((f) => [f, toBool(row[FEATURE_COLUMN[f]])])),
@@ -51,6 +67,17 @@ async function get(id) {
   const company = shape(row);
   cache.set(key, { company, at: Date.now() });
   return company;
+}
+
+/**
+ * Why this company cannot be used right now: 'suspended' (switched off by the platform owner),
+ * 'trial' (the free trial ran out with auto-suspend on), or null.
+ */
+function blockReason(company) {
+  if (!company) return 'suspended';
+  if (company.status !== 'active') return 'suspended';
+  if (company.trialExpired && company.autoSuspend) return 'trial';
+  return null;
 }
 
 function invalidate(id) {
@@ -134,6 +161,7 @@ module.exports = {
   invalidate,
   shape,
   employeeIds,
+  blockReason,
   assertRoomForEmployee,
   reserveStorage,
   storageBytes,

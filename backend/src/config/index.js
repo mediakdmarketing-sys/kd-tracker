@@ -63,7 +63,12 @@ const config = {
     // A rotated refresh token stays usable for this long. Covers the case where the server
     // rotated but the response never reached the client (ADR-0004).
     refreshGraceSeconds: int('REFRESH_GRACE_SECONDS', 120),
+    // When set, a platform owner without two-factor sign-in can do nothing but set it up.
+    superTwoFactorRequired: process.env.SUPER_2FA_REQUIRED === '1',
   },
+
+  // Where a company's own domain (track.acme.com) must point (a CNAME) to be verified.
+  customDomain: { target: process.env.CUSTOM_DOMAIN_TARGET || '' },
 
   offline: {
     // Timestamps this far ahead of the server are a broken client clock, not a late upload.
