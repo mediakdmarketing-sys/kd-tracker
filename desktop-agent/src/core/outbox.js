@@ -23,6 +23,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const logger = require('./logger');
 
 // sql.js init is async (WASM compilation) but only needs to happen once. We kick it off at
 // module load time and Outbox.open() awaits the result — so the constructor stays synchronous
@@ -94,9 +95,27 @@ class Outbox {
       existingData = fs.readFileSync(dbPath);
     } catch (err) {
       if (err.code !== 'ENOENT') throw err;
+      // (a missing file is the first run: start empty, below)
       // First run — start empty.
     }
-    return new Outbox(dir, SQL, existingData);
+    try {
+      return new Outbox(dir, SQL, existingData);
+    } catch (err) {
+      if (!existingData) throw err;
+      // The queue file cannot be read. The usual cause is a power cut or crash while it was being
+      // written: Windows can leave a file of the right size filled with zeros. Failing here would
+      // stop the agent from ever starting again, silently, on every launch. So the unreadable file
+      // is set aside (kept, not deleted, in case someone wants to look at it) and the agent starts
+      // with an empty queue.
+      const aside = `${dbPath}.corrupt-${Date.now()}`;
+      fs.renameSync(dbPath, aside);
+      logger.warn('The offline queue file was unreadable; set it aside and started a new one', {
+        message: err.message,
+        movedTo: aside,
+        bytes: existingData.length,
+      });
+      return new Outbox(dir, SQL, null);
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -107,7 +126,15 @@ class Outbox {
   _flush() {
     const data = this.db.export();
     const tmp = this.dbPath + '.tmp';
-    fs.writeFileSync(tmp, Buffer.from(data));
+    // fsync before the rename: without it a power cut right after the rename can leave the new
+    // file at full size but never written (all zeros), which is exactly the failure open() recovers from.
+    const fd = fs.openSync(tmp, 'w');
+    try {
+      fs.writeSync(fd, Buffer.from(data));
+      fs.fsyncSync(fd);
+    } finally {
+      fs.closeSync(fd);
+    }
     fs.renameSync(tmp, this.dbPath);
   }
 

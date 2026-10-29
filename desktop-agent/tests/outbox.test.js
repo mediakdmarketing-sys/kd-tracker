@@ -126,4 +126,29 @@ describe('outbox', () => {
 
     outbox = await Outbox.open(dir); // so afterEach can close something valid
   });
+
+  it('starts with a new queue, keeping the old file, when the queue file is unreadable', async () => {
+    const dir = outbox.dir;
+    outbox.close();
+    // What a power cut can leave behind: a file of the right size, all zeros.
+    fs.writeFileSync(`${dir}/queue.sqlite3`, Buffer.alloc(45056));
+
+    const recovered = await Outbox.open(dir);
+    expect(recovered.stats().pending).toBe(0);
+    recovered.enqueue({ kind: 'activity', endpoint: '/api/activity/log', payload: { keystrokeCount: 1 } });
+    expect(recovered.due()).toHaveLength(1);
+    recovered.close();
+
+    const kept = fs.readdirSync(dir).filter((f) => f.startsWith('queue.sqlite3.corrupt-'));
+    expect(kept).toHaveLength(1);
+    expect(fs.statSync(`${dir}/${kept[0]}`).size).toBe(45056);
+
+    // and plain garbage is handled the same way
+    fs.writeFileSync(`${dir}/queue.sqlite3`, 'this is not a database');
+    const again = await Outbox.open(dir);
+    expect(again.stats().pending).toBe(0);
+    again.close();
+
+    outbox = await Outbox.open(dir);
+  });
 });
