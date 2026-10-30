@@ -12,7 +12,6 @@ export default async function MyShiftPage() {
     api('/api/attendance/status'),
   ]);
 
-  const agentDownloadUrl = process.env.AGENT_DOWNLOAD_URL || '';
   const shift   = status.shift ?? null;
   const isOpen  = isOpenShift(shift);
   const punched = status.state !== 'punched_out';
@@ -34,15 +33,14 @@ export default async function MyShiftPage() {
       </div>
 
       <div className="stack">
-        {agentDownloadUrl && (
-          <div className="notice" style={{ fontSize: 13 }}>
-            Screenshots and activity come from the WorkBuddy desktop agent. Not installed yet?{' '}
-            <a href={agentDownloadUrl} download>
-              <strong>Download it here</strong>
-            </a>{' '}
-            (see <Link href="/help#agent-install">install steps</Link>).
-          </div>
-        )}
+        {/* Warning, not a download link: the file lives on the Download page. */}
+        <div className="notice notice-warn" role="note">
+          <strong>Install the desktop agent.</strong> Screenshots and activity come from the WorkBuddy
+          desktop agent, so install it before you punch in.{' '}
+          <Link href="/download">
+            <strong>Download</strong>
+          </Link>
+        </div>
 
         {/* Live punch controls + ticking clock */}
         <ShiftPanel initial={status} timezone={user.timezone} />

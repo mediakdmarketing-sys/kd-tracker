@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import DownloadChoice from '@/components/DownloadChoice';
 
 export const metadata = { title: 'Download · WorkBuddy' };
 
@@ -23,9 +24,16 @@ const PLATFORMS = [
     name: 'macOS',
     requirement: 'macOS 12 Monterey or later',
     format: '.dmg installer',
-    url:
-      process.env.AGENT_DOWNLOAD_URL_MAC ||
-      'https://github.com/mediakdmarketing-sys/kd-tracker/actions/runs/39793908149/artifacts/12431933638',
+    options: [
+      {
+        label: 'macOS (Apple silicon) · .dmg',
+        url: process.env.AGENT_DOWNLOAD_URL_MAC_ARM || 'https://pub-71e396a00e5740aea9a398af6cd25b69.r2.dev/WorkBuddy-0.7.0-arm64.dmg',
+      },
+      {
+        label: 'macOS (Intel) · .dmg',
+        url: process.env.AGENT_DOWNLOAD_URL_MAC || 'https://pub-71e396a00e5740aea9a398af6cd25b69.r2.dev/WorkBuddy-0.7.0.dmg',
+      },
+    ],
     icon: (
       <svg width="34" height="34" viewBox="0 0 24 24" fill="#333">
         <path d="M16.4 12.6c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.1-2.8.9-3.5.9s-1.8-.8-3-.8c-1.5 0-3 .9-3.8 2.3-1.6 2.8-.4 7 1.2 9.3.8 1.1 1.700 2.400 2.900 2.300 1.200 0 1.600-.7 3-.7s1.800.7 3 .7c1.300 0 2.100-1.100 2.800-2.300.9-1.300 1.300-2.500 1.300-2.600-.1 0-2.500-1-2.500-3.800zM14.200 5.800c.6-.8 1.100-1.800.9-2.900-.9 0-2 .6-2.700 1.400-.6.700-1.100 1.800-1 2.800 1 .1 2-.5 2.800-1.300z" />
@@ -36,10 +44,17 @@ const PLATFORMS = [
     id: 'linux',
     name: 'Linux',
     requirement: 'Ubuntu 20.04+ · Debian · Fedora',
-    format: '.AppImage / .deb',
-    url:
-      process.env.AGENT_DOWNLOAD_URL_LINUX ||
-      'https://github.com/mediakdmarketing-sys/kd-tracker/actions/runs/39795415880/artifacts/12432703255',
+    format: '.deb / .AppImage',
+    options: [
+      {
+        label: 'Linux · .deb',
+        url: process.env.AGENT_DOWNLOAD_URL_LINUX_DEB || 'https://pub-71e396a00e5740aea9a398af6cd25b69.r2.dev/kd-tracker-agent_0.7.0_amd64.deb',
+      },
+      {
+        label: 'Linux · .AppImage',
+        url: process.env.AGENT_DOWNLOAD_URL_LINUX || 'https://pub-71e396a00e5740aea9a398af6cd25b69.r2.dev/WorkBuddy-0.7.0.AppImage',
+      },
+    ],
     icon: (
       // Tux, the Linux penguin: black body, white belly and face, yellow beak and feet.
       <svg width="44" height="44" viewBox="0 0 64 64" aria-hidden="true">
@@ -117,7 +132,9 @@ export default function DownloadPage() {
                 <span className="pill pill-working">{VERSION}</span>{' '}
                 <span className="faint">{p.format}</span>
               </p>
-              {p.url ? (
+              {p.options ? (
+                <DownloadChoice name={p.name} options={p.options} />
+              ) : p.url ? (
                 <a className="btn btn-primary btn-lg" href={p.url} download style={{ width: '100%' }}>
                   Download for {p.name}
                 </a>
