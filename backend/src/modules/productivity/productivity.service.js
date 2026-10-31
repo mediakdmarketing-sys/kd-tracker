@@ -70,7 +70,7 @@ function categoryIn(appKey, department, overrides, deptOverrides) {
 
 const emptySamples = () => ({ productive: 0, neutral: 0, distracting: 0 });
 
-async function overview({ from, to, department } = {}) {
+async function overview({ from, to, department, employeeId } = {}) {
   if (!from || !to) throw badRequest('from and to dates are required (YYYY-MM-DD)');
   if (from > to) throw badRequest('`from` must not be after `to`');
 
@@ -81,6 +81,7 @@ async function overview({ from, to, department } = {}) {
     .join('employees as e', 'e.id', 'a.employee_id')
     .whereBetween('a.date', [from, to]);
   if (department) attendanceQuery.andWhere('e.department', department);
+  if (employeeId) attendanceQuery.andWhere('a.employee_id', employeeId);
 
   const attendance = await attendanceQuery
     .groupBy('a.employee_id', 'e.name', 'e.department')
@@ -93,6 +94,7 @@ async function overview({ from, to, department } = {}) {
     .whereBetween('l.date', [from, to])
     .whereNotNull('l.window_title');
   if (department) activityQuery.andWhere('e.department', department);
+  if (employeeId) activityQuery.andWhere('l.employee_id', employeeId);
 
   const activity = await activityQuery
     .groupBy('l.employee_id', 'e.department', 'l.window_title')
@@ -200,11 +202,38 @@ async function overview({ from, to, department } = {}) {
     .slice(0, 10)
     .map((a) => ({ app: a.app, category: a.category, seconds: a.count * SAMPLE_SECONDS }));
 
+  const domainQuery = db()('activity_logs as l')
+    .join('employees as e', 'e.id', 'l.employee_id')
+    .whereBetween('l.date', [from, to])
+    .whereNotNull('l.domain');
+  if (department) domainQuery.andWhere('e.department', department);
+  if (employeeId) domainQuery.andWhere('l.employee_id', employeeId);
+  const domainRows = await domainQuery.groupBy('l.domain').select('l.domain').count({ c: 'l.id' });
+
+  // Websites are classified by the full host first ("youtube.com"), then by its main name
+  // ("youtube"), so an app rule and the built-in defaults apply to the site as well.
+  const domains = domainRows
+    .map((r) => {
+      const parts = r.domain.split('.');
+      const main = parts.length > 1 ? parts[parts.length - 2] : r.domain;
+      const category = categoryIn(r.domain, department, overrides, deptOverrides);
+      const mainCategory = categoryIn(main, department, overrides, deptOverrides);
+      const count = Number(r.c) || 0;
+      return {
+        domain: r.domain,
+        category: category !== 'neutral' ? category : mainCategory,
+        seconds: count * SAMPLE_SECONDS,
+      };
+    })
+    .sort((a, b) => b.seconds - a.seconds)
+    .slice(0, 10);
+
   const n = employees.length;
   return {
     from,
     to,
     department: department || null,
+    employeeId: employeeId || null,
     summary: {
       employees: n,
       score: score({ workedSeconds: totals.worked, idleSeconds: totals.idle, samples: totals.samples }),
@@ -214,6 +243,7 @@ async function overview({ from, to, department } = {}) {
     },
     departments,
     apps,
+    domains,
     employees: employees.map(({ _samples, ...rest }) => rest),
   };
 }

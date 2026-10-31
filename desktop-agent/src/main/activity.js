@@ -17,6 +17,7 @@
 
 const { powerMonitor, BrowserWindow } = require('electron');
 const logger = require('../core/logger');
+const { domainOf } = require('./domain');
 
 let hook = null;
 let counts = { keystrokes: 0, mouse: 0 };
@@ -70,6 +71,7 @@ function sample(windowSeconds) {
     keystrokeCount: taken.keystrokes,
     mouseCount: taken.mouse,
     windowTitle: takeActiveApp(),
+    domain: takeActiveDomain(),
     // Presence, used to decide whether to send a row at all. An idle machine produces no row,
     // which is exactly the gap the server's idle detection looks for.
     active: hook ? taken.keystrokes + taken.mouse > 0 || active : active,
@@ -91,6 +93,7 @@ let activeWin = null;
 let appTimer = null;
 let appPolling = false;
 let appTally = new Map(); // app name -> polls seen in the current window
+let domainTally = new Map(); // website host -> polls seen in the current window
 
 async function tryLoadActiveWin() {
   try {
@@ -115,6 +118,8 @@ async function pollActiveApp() {
     if (name) {
       const key = String(name).slice(0, MAX_APP_NAME);
       appTally.set(key, (appTally.get(key) || 0) + 1);
+      const domain = await domainOf(win);
+      if (domain) domainTally.set(domain, (domainTally.get(domain) || 0) + 1);
     }
   } catch (err) {
     logger.debug?.('Active app lookup failed', { message: err.message });
@@ -138,6 +143,20 @@ function takeActiveApp() {
   if (best) return best;
   const focused = BrowserWindow.getFocusedWindow();
   return focused ? focused.getTitle() : null;
+}
+
+/** The website seen for most of the window that just ended, then resets. */
+function takeActiveDomain() {
+  let best = null;
+  let bestCount = 0;
+  for (const [host, count] of domainTally) {
+    if (count > bestCount) {
+      best = host;
+      bestCount = count;
+    }
+  }
+  domainTally = new Map();
+  return best;
 }
 
 function start() {

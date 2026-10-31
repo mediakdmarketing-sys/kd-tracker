@@ -454,6 +454,7 @@ const productivityQuery = z.object({
   from: DATE,
   to: DATE,
   department: z.string().max(120).optional(),
+  employeeId: z.string().max(64).optional(),
 });
 
 const appCategorySchema = z.object({

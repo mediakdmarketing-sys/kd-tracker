@@ -522,6 +522,7 @@ class Agent {
         keystrokeCount: sample.keystrokeCount,
         mouseCount: sample.mouseCount,
         windowTitle: sample.windowTitle,
+        domain: sample.domain || null,
         timestamp: new Date(this.now()).toISOString(),
       },
     });

@@ -222,6 +222,8 @@ const activityEntrySchema = z.object({
   // null is valid: the agent sends null when it cannot determine the window title
   // (e.g. uiohook-napi not installed). undefined and string are also accepted.
   windowTitle: z.string().max(255).nullable().optional(),
+  // Website host only (e.g. "youtube.com"), sent while a browser is in the foreground.
+  domain: z.string().max(120).nullable().optional(),
   timestamp: z.string().datetime({ offset: true }).optional(),
   captureId: CAPTURE_ID.optional(),
 });
