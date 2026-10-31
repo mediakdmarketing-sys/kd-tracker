@@ -176,9 +176,9 @@ describe('employee administration', () => {
     expect(res.status).toBe(409);
   });
 
-  it('will not let HR grant audio consent on behalf of an employee', async () => {
+  it('will not turn audio on for an employee who has not accepted the consent screen', async () => {
     const adminToken = await login(await createEmployee({ role: 'admin' }));
-    const employee = await createEmployee({ consent_audio: false });
+    const employee = await createEmployee({ consent_audio: false, consent_monitoring: false, consent_given_at: null });
 
     const res = await as(adminToken)
       .patch(`/api/admin/employees/${employee.id}`)
@@ -187,6 +187,21 @@ describe('employee administration', () => {
     expect(res.status).toBe(400);
     const row = await db()('employees').where({ id: employee.id }).first();
     expect(row.consent_audio).toBeFalsy();
+  });
+
+  it('lets HR turn audio back on for an employee who accepted consent, and tells them', async () => {
+    const adminToken = await login(await createEmployee({ role: 'admin' }));
+    const employee = await createEmployee({ consent_audio: false });
+
+    const res = await as(adminToken)
+      .patch(`/api/admin/employees/${employee.id}`)
+      .send({ consentAudio: true });
+
+    expect(res.status).toBe(200);
+    const row = await db()('employees').where({ id: employee.id }).first();
+    expect(row.consent_audio).toBeTruthy();
+    const note = await db()('notifications').where({ employee_id: employee.id, type: 'audio_on' }).first();
+    expect(note).toBeTruthy();
   });
 
   it('revokes sessions when an employee is deactivated', async () => {

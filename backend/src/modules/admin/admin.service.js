@@ -356,6 +356,14 @@ async function updateEmployee(id, input) {
   // Audio consent belongs to the employee. HR may turn it off (e.g. on a written request),
   // but must never be able to turn it on for someone.
   if (input.consentAudio === false) patch.consent_audio = false;
+  if (input.consentAudio === true) {
+    // Turning it back on restores what the employee accepted at first login; it is not a way
+    // to record someone who never went through the consent screen.
+    if (!toBool(row.consent_monitoring)) {
+      throw badRequest('This employee has not accepted the consent screen yet, so audio cannot be turned on.');
+    }
+    patch.consent_audio = true;
+  }
 
   // Screenshot blur is a display preference, not consent — HR may set it either way.
   if (input.blurScreenshots !== undefined) patch.blur_screenshots = input.blurScreenshots;

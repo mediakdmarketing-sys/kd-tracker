@@ -16,6 +16,7 @@ const { asyncHandler, pagination, paged, sendWithRange } = require('../../utils/
 const { sendCsv } = require('../../utils/csv');
 const { badRequest } = require('../../utils/errors');
 const audit = require('../../services/audit');
+const notifications = require('../../services/notifications');
 
 const router = express.Router();
 
@@ -189,8 +190,9 @@ const updateEmployeeSchema = z.object({
   department: z.string().max(120).nullable().optional(),
   employeeCode: z.string().max(50).nullable().optional(),
   timezone: z.string().max(64).optional(),
-  // Only revocation is accepted — consent is the employee's to give (see admin.service).
-  consentAudio: z.literal(false).optional(),
+  // HR can switch audio off, and back on for someone who has already accepted monitoring consent
+  // (see admin.service). The employee is told either way.
+  consentAudio: z.boolean().optional(),
   // Display preference, not consent — admin-controlled in both directions.
   blurScreenshots: z.boolean().optional(),
 });
@@ -238,6 +240,14 @@ router.patch(
   validate(updateEmployeeSchema),
   asyncHandler(async (req, res) => {
     const updated = await service.updateEmployee(req.params.id, req.body);
+    if (req.body.consentAudio !== undefined) {
+      await notifications.notify([updated.id], {
+        type: req.body.consentAudio ? 'audio_on' : 'audio_off',
+        title: req.body.consentAudio ? 'Audio sampling turned on' : 'Audio sampling turned off',
+        body: `HR turned audio sampling ${req.body.consentAudio ? 'on' : 'off'} for your account.`,
+        refId: `audio:${updated.id}:${Date.now()}`,
+      });
+    }
     await audit.record(req, {
       action:
         req.body.status === 'inactive'
@@ -249,7 +259,11 @@ router.patch(
       // Never log the password itself, only that one was set.
       details: {
         fields: Object.keys(req.body).map((k) =>
-          k === 'password' || k === 'generatePassword' ? 'password:reset' : k
+          k === 'password' || k === 'generatePassword'
+            ? 'password:reset'
+            : k === 'consentAudio'
+              ? `consentAudio:${req.body.consentAudio ? 'on' : 'off'}`
+              : k
         ),
       },
     });
