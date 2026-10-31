@@ -309,6 +309,26 @@ export default function EmployeeActions({ employee, departments = [] }) {
             >
               {busy === 'audio' ? 'Saving…' : 'Turn off audio'}
             </button>
+          ) : employee.consent.monitoring ? (
+            <button
+              type="button"
+              className="btn"
+              disabled={busy !== null}
+              onClick={() =>
+                update(
+                  { consentAudio: true },
+                  'audio',
+                  {
+                    title: 'Turn on audio sampling?',
+                    message: `Audio sampling will resume for ${employee.name} and they will be notified. Do this only at their request.`,
+                    confirmLabel: 'Turn on audio',
+                    danger: false,
+                  }
+                )
+              }
+            >
+              {busy === 'audio' ? 'Saving…' : 'Turn on audio'}
+            </button>
           ) : null}
 
           <button
