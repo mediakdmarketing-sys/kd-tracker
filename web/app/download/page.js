@@ -1,18 +1,27 @@
 import Link from 'next/link';
 import DownloadChoice from '@/components/DownloadChoice';
+import { latestBuilds } from '@/lib/latestBuilds';
 
 export const metadata = { title: 'Download · WorkBuddy' };
 
-const VERSION = 'v0.7.0';
+// Re-read the update feed at most every 5 minutes (see lib/latestBuilds.js).
+export const revalidate = 300;
 
-// Each URL can be overridden per deploy; the defaults are the current release builds.
-const PLATFORMS = [
+// Shown when the feed cannot be read: the builds that were uploaded by hand.
+const FALLBACK_VERSION = '0.7.0';
+const R2 = 'https://pub-71e396a00e5740aea9a398af6cd25b69.r2.dev';
+
+// The newest build per platform comes from the update feed. A per-deploy env var still wins, and
+// the fixed links are the last resort.
+function platformsFor(b) {
+  return [
   {
     id: 'windows',
     name: 'Windows',
     requirement: 'Windows 10 or later · 64-bit',
     format: '.exe installer',
-    url: 'https://pub-71e396a00e5740aea9a398af6cd25b69.r2.dev/WorkBuddy%20Setup%200.7.0.exe',
+    version: b.windows?.version ?? FALLBACK_VERSION,
+    url: b.windows?.url ?? `${R2}/WorkBuddy%20Setup%200.7.0.exe`,
     icon: (
       <svg width="34" height="34" viewBox="0 0 24 24" fill="#0078d4">
         <path d="M3 5.5l8-1.1v7.1H3zM12 4.3l9-1.3v8.5h-9zM3 12.5h8v7.1l-8-1.1zM12 12.5h9V21l-9-1.3z" />
@@ -24,14 +33,15 @@ const PLATFORMS = [
     name: 'macOS',
     requirement: 'macOS 12 Monterey or later',
     format: '.dmg installer',
+    version: b.macos?.version ?? FALLBACK_VERSION,
     options: [
       {
         label: 'macOS (Apple silicon) · .dmg',
-        url: process.env.AGENT_DOWNLOAD_URL_MAC_ARM || 'https://pub-71e396a00e5740aea9a398af6cd25b69.r2.dev/WorkBuddy-0.7.0-arm64.dmg',
+        url: process.env.AGENT_DOWNLOAD_URL_MAC_ARM || b.macos?.arm || `${R2}/WorkBuddy-0.7.0-arm64.dmg`,
       },
       {
         label: 'macOS (Intel) · .dmg',
-        url: process.env.AGENT_DOWNLOAD_URL_MAC || 'https://pub-71e396a00e5740aea9a398af6cd25b69.r2.dev/WorkBuddy-0.7.0.dmg',
+        url: process.env.AGENT_DOWNLOAD_URL_MAC || b.macos?.intel || `${R2}/WorkBuddy-0.7.0.dmg`,
       },
     ],
     icon: (
@@ -45,14 +55,15 @@ const PLATFORMS = [
     name: 'Linux',
     requirement: 'Ubuntu 20.04+ · Debian · Fedora',
     format: '.deb / .AppImage',
+    version: b.linux?.version ?? FALLBACK_VERSION,
     options: [
       {
         label: 'Linux · .deb',
-        url: process.env.AGENT_DOWNLOAD_URL_LINUX_DEB || 'https://pub-71e396a00e5740aea9a398af6cd25b69.r2.dev/kd-tracker-agent_0.7.0_amd64.deb',
+        url: process.env.AGENT_DOWNLOAD_URL_LINUX_DEB || b.linux?.deb || `${R2}/kd-tracker-agent_0.7.0_amd64.deb`,
       },
       {
         label: 'Linux · .AppImage',
-        url: process.env.AGENT_DOWNLOAD_URL_LINUX || 'https://pub-71e396a00e5740aea9a398af6cd25b69.r2.dev/WorkBuddy-0.7.0.AppImage',
+        url: process.env.AGENT_DOWNLOAD_URL_LINUX || b.linux?.appImage || `${R2}/WorkBuddy-0.7.0.AppImage`,
       },
     ],
     icon: (
@@ -75,7 +86,8 @@ const PLATFORMS = [
     name: 'Android',
     requirement: 'Android 8.0 or later',
     format: '.apk installer',
-    url: process.env.AGENT_DOWNLOAD_URL_APK || 'https://pub-71e396a00e5740aea9a398af6cd25b69.r2.dev/WorkBuddy.apk',
+    version: b.android?.version ?? FALLBACK_VERSION,
+    url: process.env.AGENT_DOWNLOAD_URL_APK || b.android?.url || `${R2}/WorkBuddy.apk`,
     note: 'Allow “Install unknown apps” for your browser when Android asks.',
     icon: (
       <svg width="34" height="34" viewBox="0 0 24 24" fill="#3ddc84">
@@ -83,7 +95,8 @@ const PLATFORMS = [
       </svg>
     ),
   },
-];
+  ];
+}
 
 const STEPS = [
   'Run the installer and follow the prompts.',
@@ -97,7 +110,8 @@ const STEPS = [
   'Punch in as usual. The agent handles screenshots in the background.',
 ];
 
-export default function DownloadPage() {
+export default async function DownloadPage() {
+  const PLATFORMS = platformsFor(await latestBuilds());
   return (
     <>
       <div className="page-head">
@@ -129,7 +143,7 @@ export default function DownloadPage() {
                 {p.requirement}
               </p>
               <p style={{ margin: '0 0 16px', fontSize: 13 }}>
-                <span className="pill pill-working">{VERSION}</span>{' '}
+                <span className="pill pill-working">v{p.version}</span>{' '}
                 <span className="faint">{p.format}</span>
               </p>
               {p.options ? (

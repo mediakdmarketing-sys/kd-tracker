@@ -402,6 +402,8 @@ describe('activity', () => {
       keystrokeCount: 42,
       mouseCount: 7,
       windowTitle: 'VS Code',
+      // Only the website's host is ever kept, and null when the sample had none.
+      domain: null,
       timestamp: new Date(1_700_000_000_000).toISOString(),
       captureId: item.capture_id,
     });

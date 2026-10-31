@@ -48,6 +48,9 @@ class MainActivity : AppCompatActivity() {
     private var message: String? = null
     private var busy = false
 
+    private var update: UpdateInfo? = null
+    private var updating = false
+
     // The clock ticks locally between status reads.
     private var baseWorked = 0L
     private var baseAtMs = 0L
@@ -90,6 +93,15 @@ class MainActivity : AppCompatActivity() {
         }
 
         render()
+
+        // Once per launch: is there a newer build to offer?
+        lifecycleScope.launch {
+            val found = withContext(Dispatchers.IO) { Updater(this@MainActivity).check() }
+            if (found != null) {
+                update = found
+                render()
+            }
+        }
 
         // Re-reads the server every 30 seconds while the screen is open, and ticks the clock.
         lifecycleScope.launch {
@@ -214,6 +226,14 @@ class MainActivity : AppCompatActivity() {
         audioConsentBox = null
 
         content.addView(title("WorkBuddy"))
+        update?.let { info ->
+            content.addView(
+                primary(if (updating) "Downloading update…" else "Update available (${info.versionName}) — tap to install") {
+                    installUpdate(info)
+                }.also { it.isEnabled = !updating },
+                spaced(top = 12),
+            )
+        }
         if (!tokens.signedIn) {
             renderLogin()
         } else {
@@ -375,6 +395,26 @@ class MainActivity : AppCompatActivity() {
             }.also { it.isEnabled = disclosure != null && !busy },
             spaced(top = 16),
         )
+    }
+
+    private fun installUpdate(info: UpdateInfo) {
+        // Android asks once, per app, to allow installing from this app.
+        if (!packageManager.canRequestPackageInstalls()) {
+            startActivity(
+                Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName")),
+            )
+            message = "Allow WorkBuddy to install updates, then tap the update button again."
+            render()
+            return
+        }
+        updating = true
+        render()
+        lifecycleScope.launch {
+            val intent = withContext(Dispatchers.IO) { Updater(this@MainActivity).download(info) }
+            updating = false
+            if (intent != null) startActivity(intent) else message = "Could not download the update. Try again later."
+            render()
+        }
     }
 
     private fun signOut() {

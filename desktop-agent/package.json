@@ -1,6 +1,6 @@
 {
   "name": "kd-tracker-agent",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "private": true,
   "description": "Desktop monitoring agent for Windows, macOS and Linux",
   "homepage": "https://kd-tracker-three.vercel.app",
