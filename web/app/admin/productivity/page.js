@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import RangeFilter from '@/components/RangeFilter';
+import ProductivityFilters from './ProductivityFilters';
 import { duration, daysAgoDate, todayIn, dateLabel } from '@/lib/format';
 import CategoryEditor from './CategoryEditor';
 
@@ -19,7 +19,7 @@ const BAND_PILL = {
 // agree. 'great' and 'good' share the green style.
 const scoreBand = (s) => (s >= 60 ? 'good' : s >= 50 ? 'average' : 'review');
 
-function Presets({ active, department }) {
+function Presets({ active, department, employeeId }) {
   const today = todayIn();
   const presets = [
     { label: 'Today', from: today },
@@ -29,7 +29,7 @@ function Presets({ active, department }) {
   return (
     <div className="presets">
       {presets.map((p) => {
-        const href = `?${new URLSearchParams({ from: p.from, to: today, ...(department ? { department } : {}) })}`;
+        const href = `?${new URLSearchParams({ from: p.from, to: today, ...(department ? { department } : {}), ...(department && employeeId ? { employeeId } : {}) })}`;
         const on = active.from === p.from && active.to === today;
         return (
           <Link key={p.label} href={href} className={`preset${on ? ' active' : ''}`}>
@@ -69,18 +69,35 @@ export default async function ProductivityPage({ searchParams }) {
   const from = params.from || daysAgoDate(7);
   const to = params.to || todayIn();
   const department = params.department || '';
+  const employeeId = department ? params.employeeId || '' : '';
 
-  const query = new URLSearchParams({ from, to, ...(department ? { department } : {}) });
+  const query = new URLSearchParams({
+    from,
+    to,
+    ...(department ? { department } : {}),
+    ...(department && employeeId ? { employeeId } : {}),
+  });
 
   // requireUser({ adminOnly }) already ran in the admin layout.
-  const [departments, data, apps] = await Promise.all([
+  const [savedDepartments, everyone, data, apps, employeeList] = await Promise.all([
     api('/api/admin/departments'),
+    api('/api/admin/employees?status=active&limit=200'),
     api(`/api/admin/productivity?${query}`),
     api(`/api/admin/app-categories${department ? `?${new URLSearchParams({ department })}` : ''}`),
+    // The Employee filter only exists once a department is chosen.
+    department
+      ? api(`/api/admin/employees?${new URLSearchParams({ department, status: 'active', limit: '200' })}`)
+      : Promise.resolve({ data: [] }),
   ]);
+  const employees = employeeList.data;
+  // Saved departments plus any an employee belongs to, so the filter lists every real department.
+  const departments = [
+    ...new Set([...savedDepartments, ...everyone.data.map((e) => e.department).filter(Boolean)]),
+  ].sort((a, b) => a.localeCompare(b));
 
   const { summary } = data;
-  const topSeconds = Math.max(...data.apps.map((a) => a.seconds), 1);
+  const topSeconds = Math.max(...data.domains.map((a) => a.seconds), 1);
+  const selectedEmployee = employees.find((e) => e.id === employeeId);
 
   return (
     <>
@@ -90,30 +107,22 @@ export default async function ProductivityPage({ searchParams }) {
           <p>
             {dateLabel(from)} — {dateLabel(to)}
             {department ? ` · ${department}` : ''}
+            {selectedEmployee ? ` · ${selectedEmployee.name}` : ''}
           </p>
         </div>
       </div>
 
       <div className="stack">
         <div className="card card-pad" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <Presets active={{ from, to }} department={department} />
-          <Suspense fallback={null}>
-            <RangeFilter
-              fields={[
-                { name: 'from', label: 'From', type: 'date', defaultValue: from },
-                { name: 'to', label: 'To', type: 'date', defaultValue: to },
-                {
-                  name: 'department',
-                  label: 'Department',
-                  type: 'select',
-                  options: [
-                    { value: '', label: 'All departments' },
-                    ...departments.map((d) => ({ value: d, label: d })),
-                  ],
-                },
-              ]}
-            />
-          </Suspense>
+          <Presets active={{ from, to }} department={department} employeeId={employeeId} />
+          <ProductivityFilters
+            from={from}
+            to={to}
+            department={department}
+            employeeId={employeeId}
+            departments={departments}
+            employees={employees}
+          />
         </div>
 
         <p className="hint">
@@ -133,7 +142,7 @@ export default async function ProductivityPage({ searchParams }) {
             <div className={`value ${summary.score === null ? '' : scoreBand(summary.score)}`}>
               {summary.score === null ? '—' : `${summary.score}%`}
             </div>
-            <div className="sub">across {summary.employees} people</div>
+            <div className="sub">{selectedEmployee ? `for ${selectedEmployee.name}` : `across ${summary.employees} people`}</div>
           </div>
           <div className="stat">
             <div className="label">Avg active time</div>
@@ -201,21 +210,21 @@ export default async function ProductivityPage({ searchParams }) {
 
           <div className="card">
             <div className="card-head">
-              <h2>Top apps</h2>
-              <span className="faint">{department || 'all departments'}</span>
+              <h2>Top websites</h2>
+              <span className="faint">{selectedEmployee?.name || department || 'all departments'}</span>
             </div>
             <div className="card-pad">
-              {data.apps.length === 0 ? (
+              {data.domains.length === 0 ? (
                 <div className="empty">
-                  No app data yet. It appears once the desktop agent reports the foreground app.
+                  No website data yet. It appears once the desktop agent reports the site open in the browser.
                 </div>
               ) : (
-                data.apps.map((a) => (
-                  <div key={a.app} style={{ marginBottom: 10 }}>
+                data.domains.map((a) => (
+                  <div key={a.domain} style={{ marginBottom: 10 }}>
                     <div className="inline" style={{ justifyContent: 'space-between' }}>
                       <span>
                         <i className={`dot ${a.category}`} />
-                        {a.app}
+                        {a.domain}
                       </span>
                       <span className="muted">{duration(a.seconds)}</span>
                     </div>
