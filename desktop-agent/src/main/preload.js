@@ -12,4 +12,8 @@ contextBridge.exposeInMainWorld('agent', {
   punch: (action) => ipcRenderer.invoke('agent:punch', action),
   sync: () => ipcRenderer.invoke('agent:sync'),
   onState: (handler) => ipcRenderer.on('agent:state', (_event, state) => handler(state)),
+  getUpdate: () => ipcRenderer.invoke('agent:getUpdate'),
+  installUpdate: () => ipcRenderer.invoke('agent:installUpdate'),
+  openDownload: () => ipcRenderer.invoke('agent:openDownload'),
+  onUpdate: (handler) => ipcRenderer.on('agent:update', (_event, update) => handler(update)),
 });

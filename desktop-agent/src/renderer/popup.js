@@ -7,6 +7,37 @@ const app = document.getElementById('app');
 let state = null;
 let error = null;
 let busy = false;
+// A newer version of the agent: null, or { phase: 'available' | 'downloading' | 'ready', version, percent }.
+let update = null;
+
+function updateBanner() {
+  if (!update) return '';
+  const version = update.version ? ` ${escape(update.version)}` : '';
+  if (update.phase === 'manual') {
+    return `
+      <div class="card" id="update-banner">
+        <strong>New version${version} available</strong>
+        <div class="muted" style="margin-top:4px">Download it and open it to replace this one.</div>
+        <div class="row" style="margin-top:8px"><button class="primary" id="open-download">Download</button></div>
+      </div>`;
+  }
+  if (update.phase === 'ready') {
+    // The agent restarts to install, which would cut a capture short: only offer it when idle.
+    const idle = !state?.signedIn || state.shiftState === 'punched_out';
+    return `
+      <div class="card" id="update-banner">
+        <strong>Update${version} is ready</strong>
+        ${
+          idle
+            ? '<div class="row" style="margin-top:8px"><button class="primary" id="install-update">Restart to update</button></div>'
+            : '<div class="muted" style="margin-top:4px">It installs when you punch out.</div>'
+        }
+      </div>`;
+  }
+  const percent = update.phase === 'downloading' && update.percent != null ? ` (${update.percent}%)` : '';
+  return `<div class="card" id="update-banner"><strong>New version${version} found</strong>
+    <div class="muted" style="margin-top:4px">Downloading${percent}…</div></div>`;
+}
 
 function h(html) {
   return html;
@@ -42,7 +73,7 @@ function render() {
       }
     : null;
 
-  app.innerHTML = state.signedIn ? signedInView() : signInView();
+  app.innerHTML = updateBanner() + (state.signedIn ? signedInView() : signInView());
   wire();
 
   if (draft && !state.signedIn) {
@@ -164,6 +195,9 @@ function wire() {
 
   document.getElementById('signout')?.addEventListener('click', () => run(() => window.agent.signOut()));
 
+  document.getElementById('install-update')?.addEventListener('click', () => window.agent.installUpdate());
+  document.getElementById('open-download')?.addEventListener('click', () => window.agent.openDownload());
+
   document.querySelectorAll('[data-punch]').forEach((button) => {
     button.addEventListener('click', () => run(() => window.agent.punch(button.dataset.punch)));
   });
@@ -196,8 +230,14 @@ window.agent.onState((next) => {
   if (!busy) render();
 });
 
+window.agent.onUpdate((next) => {
+  update = next;
+  if (!busy) render();
+});
+
 (async () => {
   state = await window.agent.getState();
+  update = await window.agent.getUpdate();
   render();
   // The worked-today counter should tick rather than jump on the next sync.
   setInterval(() => {

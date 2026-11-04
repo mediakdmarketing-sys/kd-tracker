@@ -36,6 +36,9 @@ let agent = null;
 let outbox = null;
 let timers = [];
 let stopUpdater = () => {};
+let installUpdate = () => false;
+// What the popup shows about a new version: null, or { phase, version, percent }.
+let updateStatus = null;
 
 // Let the web portal sign this agent in: after an employee signs in on the portal it opens a
 // workbuddy://connect?code=... link, and the OS hands it to us. In development the app is
@@ -211,10 +214,17 @@ async function start() {
 
   // New builds arrive on their own. A restart is only allowed while the employee is punched out
   // (or the app is quit), never mid-shift. A no-op in development or with no update URL set.
-  stopUpdater = startUpdater({
+  const updater = startUpdater({
     url: process.env.KD_UPDATE_URL || BUNDLED.updateUrl,
     isIdle: () => agent.state.shiftState === 'punched_out',
+    onStatus: (status) => {
+      // Progress ticks carry no version; keep the one from "available".
+      updateStatus = { ...updateStatus, ...status };
+      popup?.webContents.send('agent:update', updateStatus);
+    },
   });
+  stopUpdater = updater.stop;
+  installUpdate = updater.install;
 
   audio.registerHandlers();
   activity.start();
@@ -425,6 +435,10 @@ function registerIpc() {
   ipcMain.handle('agent:signOut', () => agent.signOut());
   ipcMain.handle('agent:punch', (_e, action) => agent.punch(action));
   ipcMain.handle('agent:sync', () => agent.syncStatus());
+  ipcMain.handle('agent:getUpdate', () => updateStatus);
+  ipcMain.handle('agent:installUpdate', () => installUpdate());
+  // macOS: the new .dmg is fetched from the portal's Download page.
+  ipcMain.handle('agent:openDownload', () => shell.openExternal(`${agentPortalUrl()}/download`));
 }
 
 function quit() {
