@@ -122,6 +122,21 @@ const config = {
     // Default: false — idle time is reported but not deducted (the safe default; enable only
     // after the policy has been communicated to employees and recorded in the consent notice).
     deductIdle: bool('PAYROLL_DEDUCT_IDLE', false),
+    // A day's work (breaks already taken out) of at least this long is a FULL day, at least the
+    // half-day limit a HALF day; less than that is paid by the hour. Editable in Settings.
+    fullDaySeconds: int('PAYROLL_FULL_DAY_SECONDS', 9 * 3600),
+    halfDaySeconds: int('PAYROLL_HALF_DAY_SECONDS', 4.5 * 3600),
+  },
+
+  // Outgoing email (payslips), through Resend's HTTP API: SMTP ports are blocked on some hosts,
+  // port 443 never is. Leave RESEND_API_KEY empty and the portal says email is not set up.
+  mail: {
+    resendApiKey: str('RESEND_API_KEY', ''),
+    // "Name <address@your-verified-domain>", the address must be on a domain verified in Resend.
+    from: str('MAIL_FROM', ''),
+    // The public address of THIS API, so an email can link its logo (mail clients fetch it from
+    // the internet). Without it emails are sent without a logo.
+    publicApiUrl: str('PUBLIC_API_URL', '').replace(/\/$/, ''),
   },
 
   jobs: {

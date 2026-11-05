@@ -1,5 +1,6 @@
 import { api, requireUser } from '@/lib/api';
 import SettingsForm from './SettingsForm';
+import BrandingCard from './BrandingCard';
 
 export const metadata = { title: 'Settings · WorkBuddy' };
 
@@ -22,7 +23,10 @@ export default async function AdminSettingsPage() {
         </div>
       </div>
 
-      <SettingsForm initial={settings} />
+      <div className="stack">
+        <BrandingCard company={settings.company} emailConfigured={Boolean(settings.email?.configured)} />
+        <SettingsForm initial={settings} />
+      </div>
     </>
   );
 }

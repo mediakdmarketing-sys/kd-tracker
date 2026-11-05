@@ -41,7 +41,12 @@ function defaults() {
       autoCloseHours: config.shift.autoCloseHours,
     },
     retention: { days: config.retention.days },
-    payroll: { deductIdle: config.payroll.deductIdle },
+    payroll: {
+      deductIdle: config.payroll.deductIdle,
+      fullDaySeconds: config.payroll.fullDaySeconds,
+      halfDaySeconds: config.payroll.halfDaySeconds,
+    },
+    company: { name: null, logoKey: null, logoContentType: null, logoUpdatedAt: null },
   };
 }
 
@@ -60,12 +65,26 @@ function rowToSettings(row) {
       autoCloseHours: row.shift_auto_close_hours,
     },
     retention: { days: row.retention_days },
-    payroll: { deductIdle: toBool(row.payroll_deduct_idle) },
+    payroll: {
+      deductIdle: toBool(row.payroll_deduct_idle),
+      fullDaySeconds: row.payroll_full_day_seconds,
+      halfDaySeconds: row.payroll_half_day_seconds,
+    },
+    company: {
+      name: row.company_name || null,
+      logoKey: row.logo_key || null,
+      logoContentType: row.logo_content_type || null,
+      logoUpdatedAt: row.logo_updated_at == null ? null : Number(row.logo_updated_at),
+    },
   };
 }
 
 function settingsToRow(s) {
   return {
+    company_name: s.company.name,
+    logo_key: s.company.logoKey,
+    logo_content_type: s.company.logoContentType,
+    logo_updated_at: s.company.logoUpdatedAt,
     screenshot_min_interval_sec: s.capture.screenshotMinIntervalSec,
     screenshot_max_interval_sec: s.capture.screenshotMaxIntervalSec,
     audio_sample_duration_sec: s.capture.audioSampleDurationSec,
@@ -76,6 +95,8 @@ function settingsToRow(s) {
     shift_auto_close_hours: s.shift.autoCloseHours,
     retention_days: s.retention.days,
     payroll_deduct_idle: s.payroll.deductIdle,
+    payroll_full_day_seconds: s.payroll.fullDaySeconds,
+    payroll_half_day_seconds: s.payroll.halfDaySeconds,
   };
 }
 
@@ -142,6 +163,7 @@ async function update(patch, { updatedBy } = {}) {
     shift: { ...cache.shift, ...patch.shift },
     retention: { ...cache.retention, ...patch.retention },
     payroll: { ...cache.payroll, ...patch.payroll },
+    company: { ...cache.company, ...patch.company },
   };
 
   const now = Date.now();

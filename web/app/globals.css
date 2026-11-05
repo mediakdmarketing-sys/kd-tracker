@@ -374,6 +374,29 @@ h3 {
   border-bottom: 1px solid var(--border);
 }
 
+/* Payslip: a few facts in a row, and a clean sheet when printed or saved as PDF. */
+.kv-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 14px;
+}
+
+@media print {
+  .sidebar-rail,
+  .topbar,
+  .clock-corner,
+  .no-print {
+    display: none !important;
+  }
+  .main {
+    padding: 0 !important;
+  }
+  .payslip {
+    box-shadow: none !important;
+    border: none !important;
+  }
+}
+
 /* The same clock on the few pages that have no sidebar shell (consent, change password). */
 .clock-corner {
   position: fixed;

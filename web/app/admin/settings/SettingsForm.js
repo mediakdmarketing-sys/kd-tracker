@@ -24,6 +24,8 @@ export default function SettingsForm({ initial }) {
     autoCloseHours: initial.shift.autoCloseHours,
     retentionDays: initial.retention.days,
     deductIdle: initial.payroll.deductIdle,
+    fullDayHours: initial.payroll.fullDaySeconds / 3600,
+    halfDayHours: initial.payroll.halfDaySeconds / 3600,
   }));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -54,7 +56,11 @@ export default function SettingsForm({ initial }) {
           autoCloseHours: Math.round(form.autoCloseHours),
         },
         retention: { days: Math.round(form.retentionDays) },
-        payroll: { deductIdle: form.deductIdle },
+        payroll: {
+          deductIdle: form.deductIdle,
+          fullDaySeconds: Math.round(form.fullDayHours * 3600),
+          halfDaySeconds: Math.round(form.halfDayHours * 3600),
+        },
       });
       setSaved(true);
       router.refresh();
@@ -177,6 +183,36 @@ export default function SettingsForm({ initial }) {
 
       <div className="card card-pad">
         <div style={{ fontWeight: 650, fontSize: 14, marginBottom: 12 }}>Payroll</div>
+
+        <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 6 }}>
+          <NumberField
+            label="Full day = at least (hours of work)"
+            value={form.fullDayHours}
+            onChange={(v) => set('fullDayHours', v)}
+            min={1}
+            max={16}
+            step={0.25}
+            disabled={busy}
+            hint="Work time with breaks taken out. Pays the whole daily rate."
+          />
+          <NumberField
+            label="Half day = at least (hours of work)"
+            value={form.halfDayHours}
+            onChange={(v) => set('halfDayHours', v)}
+            min={0.25}
+            max={12}
+            step={0.25}
+            disabled={busy}
+            hint="Pays half the daily rate. Less than this is paid by the hour."
+          />
+        </div>
+        <p className="faint" style={{ margin: '0 0 16px' }}>
+          Break time is never counted as work, so someone who takes a break and stays late to finish
+          their hours gets a full day, the same as someone who takes none and leaves on time. Work
+          on a day that is neither full nor half is paid by the hour (the daily rate spread over a
+          full day&apos;s hours). A month&apos;s payslips keep the limits they were generated with.
+        </p>
+
         <label className="inline" style={{ gap: 8, cursor: busy ? 'default' : 'pointer' }}>
           <input
             type="checkbox"

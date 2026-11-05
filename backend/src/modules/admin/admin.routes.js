@@ -4,6 +4,7 @@ const express = require('express');
 const { z } = require('zod');
 const service = require('./admin.service');
 const settings = require('../../services/settings');
+const mailer = require('../../services/mailer');
 const projectService = require('../projects/project.service');
 const leaveService = require('../leave/leave.service');
 const { micLog } = require('../capture/micLog');
@@ -379,13 +380,27 @@ const settingsPatchSchema = z.object({
     })
     .optional(),
   retention: z.object({ days: z.number().int().min(1).max(365).optional() }).optional(),
-  payroll: z.object({ deductIdle: z.boolean().optional() }).optional(),
+  payroll: z
+    .object({
+      deductIdle: z.boolean().optional(),
+      fullDaySeconds: z.number().int().min(3600).max(57600).optional(),
+      halfDaySeconds: z.number().int().min(900).max(43200).optional(),
+    })
+    .optional(),
+  // An empty name clears it; the portal then falls back to its default.
+  company: z.object({ name: z.string().trim().max(120).optional() }).optional(),
 });
+
+/** Settings as the portal sees them: the logo's storage key stays internal. */
+function publicSettings(s) {
+  const { logoKey, logoContentType, ...company } = s.company;
+  return { ...s, company: { name: company.name, hasLogo: Boolean(logoKey), logoUpdatedAt: company.logoUpdatedAt } };
+}
 
 router.get(
   '/settings',
   asyncHandler(async (req, res) => {
-    res.json(settings.get());
+    res.json({ ...publicSettings(settings.get()), email: { configured: mailer.isConfigured() } });
   })
 );
 
@@ -407,14 +422,21 @@ router.patch(
     if (merged.capture.screenshotMinIntervalSec > merged.capture.screenshotMaxIntervalSec) {
       throw badRequest('Screenshot minimum interval must not exceed the maximum interval');
     }
+    if (merged.payroll.halfDaySeconds >= merged.payroll.fullDaySeconds) {
+      throw badRequest('The half-day limit must be shorter than the full-day limit');
+    }
 
-    const updated = await settings.update(req.body, { updatedBy: req.user.id });
+    const patch = { ...req.body };
+    if (patch.company && patch.company.name !== undefined) {
+      patch.company = { name: patch.company.name || null };
+    }
+    const updated = await settings.update(patch, { updatedBy: req.user.id });
     await audit.record(req, {
       action: audit.ACTIONS.UPDATED_SETTINGS,
       targetType: 'settings',
       details: { fields: Object.keys(req.body) },
     });
-    res.json(updated);
+    res.json(publicSettings(updated));
   })
 );
 

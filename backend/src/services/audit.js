@@ -48,6 +48,14 @@ const ACTIONS = {
   UPDATED_SETTINGS: 'updated_settings',
   REVIEWED_LEAVE_REQUEST: 'reviewed_leave_request',
   VIEWED_LEAVE_PROOF: 'viewed_leave_proof',
+  SET_PAY_RATE: 'set_pay_rate',
+  UPDATED_PAY_RATE: 'updated_pay_rate',
+  UPLOADED_PAY_RATES: 'uploaded_pay_rates',
+  ADDED_BONUS: 'added_bonus',
+  DELETED_BONUS: 'deleted_bonus',
+  UPLOADED_BONUSES: 'uploaded_bonuses',
+  VIEWED_PAYSLIP: 'viewed_payslip',
+  EMAILED_PAYSLIPS: 'emailed_payslips',
 };
 
 module.exports = { record, ACTIONS };

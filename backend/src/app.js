@@ -122,6 +122,7 @@ function createApp() {
   app.use('/api/admin', adminRoutes);
   app.use('/api/leader', leaderRoutes);
   app.use('/api/payroll', payrollRoutes);
+app.use('/api/branding', require('./modules/branding/branding.routes'));
 
   app.use(notFoundHandler);
   app.use(errorHandler);

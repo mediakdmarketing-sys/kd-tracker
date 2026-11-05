@@ -66,6 +66,8 @@ export async function call(path, { method = 'GET', body } = {}) {
     const error = new Error(payload?.error?.message || `Request failed (${res.status})`);
     error.status = res.status;
     error.code = payload?.error?.code;
+    // Per-field / per-row problems (a bulk upload names the rows that failed).
+    error.details = payload?.error?.details;
     throw error;
   }
   return payload;
@@ -73,3 +75,4 @@ export async function call(path, { method = 'GET', body } = {}) {
 
 export const post = (path, body) => call(path, { method: 'POST', body });
 export const patch = (path, body) => call(path, { method: 'PATCH', body });
+export const del = (path) => call(path, { method: 'DELETE' });

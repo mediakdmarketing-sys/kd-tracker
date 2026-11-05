@@ -1,6 +1,7 @@
 'use strict';
 
 const settings = require('../../services/settings');
+const pay = require('./pay.service');
 const { db } = require('../../db');
 const { uuid } = require('../../utils/ids');
 const t = require('../../utils/time');
@@ -42,6 +43,13 @@ async function generate({ month }) {
     .count({ c: '*' });
   const flaggedBy = Object.fromEntries(flagged.map((f) => [f.employee_id, Number(f.c)]));
 
+  // Pay: each day is a full day, a half day or plain hours by how much work it held (breaks already
+  // taken out), priced at the daily rate in force that day. The limits used are kept on the row.
+  const employeeIds = aggregates.map((a) => a.employee_id);
+  const days = await pay.payableDays({ start, end, employeeIds });
+  const rates = await pay.ratesFor(employeeIds);
+  const limits = pay.currentLimits();
+
   // Build all records in memory first — no DB round-trips yet.
   // When PAYROLL_DEDUCT_IDLE=true, idle time is subtracted from billable hours.
   // The raw worked_seconds and idle_seconds are always stored so HR can audit the
@@ -52,7 +60,17 @@ async function generate({ month }) {
     const billableSeconds = settings.get().payroll.deductIdle
       ? Math.max(0, workedSeconds - idleSeconds)
       : workedSeconds;
+    const priced = pay.priceDays(days.get(row.employee_id) || [], rates.get(row.employee_id) || [], limits);
     return {
+      base_pay_cents: priced.baseCents,
+      priced_days: priced.pricedDays,
+      rate_missing_days: priced.unpricedDays,
+      full_days: priced.fullDays,
+      half_days: priced.halfDays,
+      partial_days: priced.partialDays,
+      partial_seconds: priced.partialSeconds,
+      full_day_seconds: limits.fullSeconds,
+      half_day_seconds: limits.halfSeconds,
       id: uuid(),
       employee_id: row.employee_id,
       month,
@@ -82,6 +100,15 @@ async function generate({ month }) {
         idle_deducted:        db().raw('excluded.idle_deducted'),
         days_present:         db().raw('excluded.days_present'),
         days_flagged:         db().raw('excluded.days_flagged'),
+        base_pay_cents:       db().raw('excluded.base_pay_cents'),
+        priced_days:          db().raw('excluded.priced_days'),
+        rate_missing_days:    db().raw('excluded.rate_missing_days'),
+        full_days:            db().raw('excluded.full_days'),
+        half_days:            db().raw('excluded.half_days'),
+        partial_days:         db().raw('excluded.partial_days'),
+        partial_seconds:      db().raw('excluded.partial_seconds'),
+        full_day_seconds:     db().raw('excluded.full_day_seconds'),
+        half_day_seconds:     db().raw('excluded.half_day_seconds'),
         generated_on:         db().raw('excluded.generated_on'),
         synced_to_payroll:    false,
         synced_at:            null,
@@ -110,6 +137,11 @@ async function generate({ month }) {
     range: { from: start, to: end },
     employeesProcessed: results.length,
     generatedAt: toIso(generatedOn),
+    // Employees who worked days no rate covers: those days pay nothing until HR sets a rate and
+    // the month is regenerated.
+    missingRates: results
+      .filter((r) => r.rate_missing_days > 0)
+      .map((r) => ({ employeeId: r.employee_id, days: r.rate_missing_days })),
     openShiftsExcluded: openShifts.length,
     // Surface enough detail so HR knows which employees to chase before finalising payroll.
     openShiftWarnings: openShifts.map((s) => ({
@@ -121,8 +153,20 @@ async function generate({ month }) {
   };
 }
 
-function shape(row) {
+function shape(row, bonusCents = 0) {
+  const baseCents = Number(row.base_pay_cents) || 0;
   return {
+    // Pay (USD). Bonuses are added when read, so one entered after generating still shows.
+    basePay: pay.toDollars(baseCents),
+    bonusTotal: pay.toDollars(bonusCents),
+    netPay: pay.toDollars(baseCents + bonusCents),
+    pricedDays: Number(row.priced_days) || 0,
+    rateMissingDays: Number(row.rate_missing_days) || 0,
+    // Days by kind. "Other" is work on days that were neither a full nor a half day, paid by the hour.
+    fullDays: Number(row.full_days) || 0,
+    halfDays: Number(row.half_days) || 0,
+    otherDays: Number(row.partial_days) || 0,
+    otherHours: Math.round(((Number(row.partial_seconds) || 0) / 3600) * 100) / 100,
     id: row.id,
     employeeId: row.employee_id,
     name: row.name,
@@ -155,7 +199,8 @@ async function list({ month, department }) {
     .orderBy('e.name')
     .select('p.*', 'e.name', 'e.email', 'e.department');
 
-  return rows.map(shape);
+  const bonuses = await pay.bonusTotals(month, rows.map((r) => r.employee_id));
+  return rows.map((r) => shape(r, bonuses.get(r.employee_id) || 0));
 }
 
 /**
