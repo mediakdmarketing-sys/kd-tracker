@@ -360,6 +360,57 @@ h3 {
   padding: 26px 32px 64px;
 }
 
+/* Fixed strip at the top of every page, holding the New York clock. It cancels .main's top and
+   side padding so it spans the full width, and sticks while the page scrolls. */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  justify-content: flex-end;
+  margin: -26px -32px 18px;
+  padding: 10px 32px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+/* The same clock on the few pages that have no sidebar shell (consent, change password). */
+.clock-corner {
+  position: fixed;
+  top: 12px;
+  right: 16px;
+  z-index: 20;
+  padding: 6px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.ny-clock {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.ny-clock-label {
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 11px;
+}
+
+.ny-clock-time {
+  min-width: 82px;
+  text-align: right;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
 .page-head {
   display: flex;
   align-items: flex-end;
@@ -898,6 +949,13 @@ select:focus {
 @media (max-width: 720px) {
   .main {
     padding: 18px 16px 48px;
+  }
+  .topbar {
+    margin: -18px -16px 14px;
+    padding: 8px 16px;
+  }
+  .ny-clock-label {
+    display: none;
   }
   .clock {
     font-size: 32px;

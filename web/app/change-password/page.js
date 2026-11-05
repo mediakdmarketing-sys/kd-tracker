@@ -1,4 +1,5 @@
 import { getSessionUser } from '@/lib/api';
+import NewYorkClock from '@/components/NewYorkClock';
 import ChangePasswordForm from './ChangePasswordForm';
 
 export const metadata = { title: 'Choose a password · WorkBuddy' };
@@ -10,6 +11,9 @@ export default async function ChangePasswordPage() {
 
   return (
     <div className="login-wrap">
+      <div className="clock-corner">
+        <NewYorkClock />
+      </div>
       <div className="login-card card">
         <div className="card-pad">
           <div className="login-head">

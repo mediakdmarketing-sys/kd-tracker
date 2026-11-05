@@ -1,4 +1,5 @@
 import { getSessionUser, api } from '@/lib/api';
+import NewYorkClock from '@/components/NewYorkClock';
 import ConsentForm from './ConsentForm';
 
 export const metadata = { title: 'What we monitor · WorkBuddy' };
@@ -13,6 +14,9 @@ export default async function ConsentPage() {
 
   return (
     <div className="login-wrap" style={{ alignItems: 'flex-start', paddingTop: 48 }}>
+      <div className="clock-corner">
+        <NewYorkClock />
+      </div>
       <div className="card" style={{ maxWidth: 680, width: '100%' }}>
         <div className="card-pad">
           <h1>What this system records</h1>

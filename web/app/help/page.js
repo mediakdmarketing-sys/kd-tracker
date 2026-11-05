@@ -1,6 +1,7 @@
 import { requireUser } from '@/lib/api';
 import CopyCommand from '@/components/CopyCommand';
 import OpenOnHash from '@/components/OpenOnHash';
+import { latestBuilds } from '@/lib/latestBuilds';
 
 export const metadata = { title: 'Help · WorkBuddy' };
 
@@ -478,11 +479,14 @@ export default async function HelpPage() {
   const user = await requireUser();
   const sections = sectionsFor(user.role);
   const quickStart = QUICK_START[user.role] || QUICK_START.user;
-  // Read at request time on the server, so changing the installer link needs no code change.
-  const agentDownloadUrl = process.env.AGENT_DOWNLOAD_URL || '';
-  // The APK is served from this portal itself (web/public/downloads), so installing needs no
-  // account anywhere else. Set ANDROID_DOWNLOAD_URL to host it elsewhere instead.
-  const androidDownloadUrl = process.env.ANDROID_DOWNLOAD_URL || '/downloads/WorkBuddy.apk';
+  // The newest builds come from the update feed (see lib/latestBuilds.js), so publishing a release
+  // needs no code change here. An env var still wins when one is set.
+  const builds = await latestBuilds();
+  const agentDownloadUrl = process.env.AGENT_DOWNLOAD_URL || builds.windows?.url || '';
+  // Without a published Android build the APK served from this portal (web/public/downloads) is
+  // used, so installing needs no account anywhere else.
+  const androidDownloadUrl =
+    process.env.ANDROID_DOWNLOAD_URL || builds.android?.url || '/downloads/WorkBuddy.apk';
 
   return (
     <>

@@ -6,6 +6,7 @@ import NavLink from './NavLink';
 import LogoutButton from './LogoutButton';
 import NotificationBadge from './NotificationBadge';
 import BackButton from './BackButton';
+import NewYorkClock from './NewYorkClock';
 
 const COLLAPSE_KEY = 'kd_sidebar_collapsed';
 const COLLAPSE_WIDTH_PX = 900; // matches the old auto-collapse breakpoint, now just the default
@@ -314,6 +315,10 @@ export default function AppShell({ user, children }) {
       </div>
 
       <main className="main">
+        {/* Stays at the top while the page scrolls, for every role. */}
+        <div className="topbar">
+          <NewYorkClock />
+        </div>
         <BackButton />
         {children}
       </main>
