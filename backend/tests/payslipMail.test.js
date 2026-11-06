@@ -322,3 +322,122 @@ describe('the payslip template', () => {
     expect(quiet.text).not.toMatch(/All amounts are in US dollars/);
   });
 });
+
+describe('the PDF and the DUPLICATE mark', () => {
+  const zlib = require('zlib');
+
+  /**
+   * The text a PDF draws, one string per text operation. pdfkit writes standard-font text as hex
+   * pieces with kerning numbers between them ("[<44> 20 <5550>] TJ"), so the pieces are joined.
+   */
+  function drawnText(buffer) {
+    const raw = buffer.toString('latin1');
+    const lines = [];
+    for (const m of raw.matchAll(/stream\r?\n([\s\S]*?)\r?\nendstream/g)) {
+      let content;
+      try {
+        content = zlib.inflateSync(Buffer.from(m[1], 'latin1')).toString('latin1');
+      } catch {
+        continue; // not a compressed content stream (an image or a font)
+      }
+      for (const op of content.matchAll(/\[([^\]]*)\]\s*TJ/g)) {
+        const pieces = [...op[1].matchAll(/<([0-9a-fA-F]*)>/g)].map((p) => Buffer.from(p[1], 'hex').toString('latin1'));
+        lines.push(pieces.join(''));
+      }
+    }
+    return lines;
+  }
+  const hasMark = (pdf) => drawnText(pdf).includes('DUPLICATE');
+
+  async function sendTo(e) {
+    await mail.queue({ month: MONTH, employeeIds: [e.id] });
+    await mail.processQueue();
+    return sent[sent.length - 1];
+  }
+
+  it('attaches a clean PDF the first time and stamps DUPLICATE when the same payslip is sent again', async () => {
+    const e = await paidEmployee({ email: 'ann@kdmarketing.in' });
+    await payroll.generate({ month: MONTH });
+
+    const first = await sendTo(e);
+    expect(first.attachments).toHaveLength(1);
+    expect(first.attachments[0].filename).toBe('payslip-2026-07.pdf');
+    expect(first.attachments[0].content.subarray(0, 5).toString()).toBe('%PDF-');
+    expect(hasMark(first.attachments[0].content)).toBe(false);
+    expect(first.subject).toBe('Your payslip for July 2026');
+    expect(first.html).not.toMatch(/DUPLICATE/);
+
+    const second = await sendTo(e);
+    expect(second.attachments[0].filename).toBe('payslip-2026-07-duplicate.pdf');
+    expect(hasMark(second.attachments[0].content)).toBe(true);
+    expect(second.subject).toBe('Your payslip for July 2026 (duplicate copy)');
+    expect(second.html).toMatch(/DUPLICATE COPY/);
+    expect(second.text).toMatch(/DUPLICATE COPY/);
+
+    const third = await sendTo(e); // and every further repeat
+    expect(hasMark(third.attachments[0].content)).toBe(true);
+    expect((await mail.status(MONTH)).rows[0].timesSent).toBe(3);
+  });
+
+  it('does not stamp a payslip whose figures changed since it was last sent: that is a correction', async () => {
+    const e = await paidEmployee({ email: 'ann@kdmarketing.in' });
+    await payroll.generate({ month: MONTH });
+    await sendTo(e);
+
+    await pay.addBonus({ employeeId: e.id, month: MONTH, amount: 40, reason: 'Added later' });
+    const corrected = await sendTo(e);
+    expect(hasMark(corrected.attachments[0].content)).toBe(false);
+    expect(corrected.subject).toBe('Your payslip for July 2026');
+
+    const again = await sendTo(e); // the corrected one sent a second time IS a duplicate
+    expect(hasMark(again.attachments[0].content)).toBe(true);
+  });
+
+  it('does not count a send that never arrived as one already sent', async () => {
+    const e = await paidEmployee({ email: 'ann@kdmarketing.in' });
+    await payroll.generate({ month: MONTH });
+
+    mailer.setTransport(async () => {
+      throw new Error('Mailbox full');
+    });
+    await mail.queue({ month: MONTH, employeeIds: [e.id] });
+    await mail.processQueue();
+    expect((await mail.status(MONTH)).rows[0]).toMatchObject({ status: 'failed', timesSent: 0 });
+
+    mailer.setTransport(async (m) => {
+      sent.push(m);
+      return { id: 'ok' };
+    });
+    const retry = await sendTo(e);
+    expect(hasMark(retry.attachments[0].content)).toBe(false);
+  });
+
+  it('gives HR a PDF to download that is never stamped, to admins only', async () => {
+    const e = await paidEmployee({ email: 'ann@kdmarketing.in' });
+    await payroll.generate({ month: MONTH });
+    await sendTo(e);
+    await sendTo(e); // sent twice already
+
+    const api = await admin();
+    const res = await api.get(`/api/payroll/payslip.pdf?employeeId=${e.id}&month=${MONTH}`).buffer(true).parse((r, cb) => {
+      const chunks = [];
+      r.on('data', (c) => chunks.push(c));
+      r.on('end', () => cb(null, Buffer.concat(chunks)));
+    });
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/application\/pdf/);
+    expect(res.headers['content-disposition']).toMatch(/attachment; filename="payslip-2026-07-/);
+    expect(res.body.subarray(0, 5).toString()).toBe('%PDF-');
+    expect(hasMark(res.body)).toBe(false);
+
+    const employeeApi = as(await login(e));
+    expect((await employeeApi.get(`/api/payroll/payslip.pdf?employeeId=${e.id}&month=${MONTH}`)).status).toBe(403);
+  });
+
+  it('survives a name in another alphabet: unsupported characters become question marks', async () => {
+    const e = await paidEmployee({ email: 'ann@kdmarketing.in', name: 'கார்த்திக் Kumar' });
+    await payroll.generate({ month: MONTH });
+    const m = await sendTo(e);
+    expect(m.attachments[0].content.subarray(0, 5).toString()).toBe('%PDF-');
+  });
+});

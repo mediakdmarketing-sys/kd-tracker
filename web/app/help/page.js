@@ -271,6 +271,8 @@ const SECTIONS = [
       'A bulk upload is all or nothing: if any row is wrong, nothing is saved and the screen lists the rows to fix. Upload again once the sheet is corrected.',
       'Payslip: open Payroll, then Payslip on a person’s row. It shows total hours, full days, half days, other hours, the earnings, bonuses and net pay, and can be printed or saved as a PDF. It warns you if a rate or shift changed after the month was generated.',
       'Email: Email all payslips sends everyone’s for the month; the Email button on a row sends one. Each person gets only their own, at the address on their record. A large send runs in the background, so you can leave the page: each row shows Sent, Queued or Failed (hover Failed for the reason). Email must be set up on the server first; Settings tells you if it is not.',
+      'Every email carries the payslip as a PDF. The first time, the PDF is clean. If you send the same payslip to the same person again, the PDF is stamped DUPLICATE across the page and the email says "duplicate copy", so nobody can pass a repeat off as a new payslip. If the figures changed since the last send (a correction), the new one is not stamped. A send that failed does not count as sent. The row shows Sent ×2, ×3 and so on; you are asked to confirm before a repeat.',
+      'Download PDF on a payslip gives you your own copy of the PDF. It is never stamped DUPLICATE. In the PDF, characters outside basic Latin letters (for example Tamil) appear as question marks.',
     ],
   },
   {

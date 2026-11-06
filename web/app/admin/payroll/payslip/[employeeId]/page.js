@@ -52,6 +52,9 @@ export default async function PayslipPage({ params, searchParams }) {
         <div className="btn-row">
           <Link className="btn" href={`/admin/payroll?month=${month}`}>Back to payroll</Link>
           <Link className="btn" href="/admin/settings#payslip-look">Change the look</Link>
+          <a className="btn" href={`/bff/api/payroll/payslip.pdf?employeeId=${employeeId}&month=${month}`}>
+            Download PDF
+          </a>
           <EmailPayslipButton
             month={month}
             employeeId={employeeId}
@@ -63,7 +66,8 @@ export default async function PayslipPage({ params, searchParams }) {
       </div>
       {sentStatus?.status === 'sent' && (
         <div className="notice notice-info no-print" style={{ marginBottom: 14 }}>
-          Emailed to {sentStatus.email} on {new Date(sentStatus.sentAt).toLocaleString('en-US', { timeZone: 'America/New_York' })}.
+          Emailed to {sentStatus.email} on {new Date(sentStatus.sentAt).toLocaleString('en-US', { timeZone: 'America/New_York' })}
+          {sentStatus.timesSent > 1 ? ` (sent ${sentStatus.timesSent} times)` : ''}. Sending it again attaches a PDF marked DUPLICATE.
         </div>
       )}
       {sentStatus?.status === 'failed' && (

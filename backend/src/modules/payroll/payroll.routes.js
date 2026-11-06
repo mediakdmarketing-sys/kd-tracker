@@ -288,6 +288,30 @@ router.get(
 
 // --- Payslip ------------------------------------------------------------------------------
 
+// HR's own copy as a PDF. Never stamped DUPLICATE: that mark belongs to a repeat email to the
+// employee, not to HR opening the payslip.
+router.get(
+  '/payslip.pdf',
+  validate(z.object({ employeeId: UUID, month: MONTH }), 'query'),
+  asyncHandler(async (req, res) => {
+    const slip = await pay.payslip(q(req));
+    await audit.record(req, {
+      action: audit.ACTIONS.VIEWED_PAYSLIP,
+      targetEmployeeId: slip.employee.id,
+      targetType: 'payslip',
+      details: { month: slip.month, pdf: true },
+    });
+    const pdf = await mail.buildPdf(slip);
+    const who = slip.employee.name.replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'employee';
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="payslip-${slip.month}-${who}.pdf"`,
+      'Cache-Control': 'no-store',
+    });
+    res.send(pdf);
+  })
+);
+
 router.get(
   '/payslip',
   validate(z.object({ employeeId: UUID, month: MONTH }), 'query'),

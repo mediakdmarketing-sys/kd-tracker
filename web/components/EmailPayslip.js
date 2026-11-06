@@ -8,12 +8,16 @@ const POLL_MS = 3000;
 const POLL_LIMIT = 200; // about ten minutes, then it just waits for the next page load
 
 /** What happened last time this person's payslip was emailed. */
-export function EmailStatus({ status, error, sentAt }) {
+export function EmailStatus({ status, error, sentAt, timesSent = 0 }) {
   if (!status) return <span className="faint">—</span>;
   if (status === 'sent') {
+    const when = sentAt ? `Last sent ${new Date(sentAt).toLocaleString()}` : '';
     return (
-      <span className="pill pill-working" title={sentAt ? `Sent ${new Date(sentAt).toLocaleString()}` : undefined}>
-        Sent
+      <span
+        className="pill pill-working"
+        title={`${when}${timesSent > 1 ? ` · sent ${timesSent} times: every repeat has a DUPLICATE mark` : ''}`.trim() || undefined}
+      >
+        {timesSent > 1 ? `Sent ×${timesSent}` : 'Sent'}
       </span>
     );
   }
@@ -59,6 +63,14 @@ export function EmailPayslipButton({ month, employeeId, label = 'Email', status 
   const pending = status === 'queued' || status === 'sending';
 
   async function send() {
+    if (
+      status === 'sent' &&
+      !window.confirm(
+        'This payslip was already emailed. Sending it again attaches a PDF marked DUPLICATE (unless its figures have changed since). Send again?'
+      )
+    ) {
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -83,7 +95,7 @@ export function EmailPayslipButton({ month, employeeId, label = 'Email', status 
 }
 
 /** Email everyone's payslip for the month. */
-export function EmailAllPayslips({ month, count, emailConfigured, pending }) {
+export function EmailAllPayslips({ month, count, emailConfigured, pending, alreadySent = 0 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [active, setActive] = useState(pending > 0);
@@ -92,7 +104,17 @@ export function EmailAllPayslips({ month, count, emailConfigured, pending }) {
   useFollowSend(month, active || pending > 0, sends);
 
   async function send() {
-    if (!window.confirm(`Email a payslip for ${month} to ${count} ${count === 1 ? 'person' : 'people'}? Each one gets only their own, at the address on their record.`)) return;
+    const repeat =
+      alreadySent > 0
+        ? `\n\n${alreadySent} ${alreadySent === 1 ? 'person has' : 'people have'} already been sent this month's payslip. They get another copy with the PDF marked DUPLICATE (unless their figures changed since).`
+        : '';
+    if (
+      !window.confirm(
+        `Email a payslip for ${month} to ${count} ${count === 1 ? 'person' : 'people'}? Each one gets only their own, at the address on their record.${repeat}`
+      )
+    ) {
+      return;
+    }
     setBusy(true);
     setMessage(null);
     try {

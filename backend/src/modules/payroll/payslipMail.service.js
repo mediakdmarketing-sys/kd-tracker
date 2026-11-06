@@ -8,8 +8,11 @@
 // sent or failed, and a restart in the middle just leaves the unsent rows queued for the next run.
 // A person is only ever emailed at the address on their own employee record.
 
+const crypto = require('crypto');
 const config = require('../../config');
 const settings = require('../../services/settings');
+const branding = require('../../services/branding');
+const { renderPayslipPdf } = require('./payslipPdf');
 const { FONTS } = require('../../services/payslipTemplate');
 const mailer = require('../../services/mailer');
 const pay = require('./pay.service');
@@ -76,8 +79,13 @@ const DEFAULT_NOTE =
   'All amounts are in US dollars. A full day pays the daily rate, a half day pays half of it, and other work is paid by the hour; breaks are not counted. Bonuses are added on top. If something looks wrong, please reply to HR.';
 
 /** The message for one payslip (see pay.service.payslip for its shape). */
-function buildEmail(slip, { company = companyName(), logo = logoUrl(), template = settings.get().payslip } = {}) {
+function buildEmail(
+  slip,
+  { company = companyName(), logo = logoUrl(), template = settings.get().payslip, duplicate = false, pdf = false } = {}
+) {
   const title = monthTitle(slip.month);
+  const DUPLICATE_LINE = 'DUPLICATE COPY: you were sent this payslip before, and nothing in it has changed.';
+  const PDF_LINE = 'A PDF copy is attached.';
   const { colors, show, font } = template;
   // A plain grey rule: 8-digit hex colours are not understood by every email program.
   const cell = 'padding:8px 10px;border-bottom:1px solid #d9d7e6;';
@@ -111,13 +119,15 @@ ${show.logo && logo ? `<img src="${esc(logo)}" alt="" width="52" height="52" sty
 ${details.length ? `<div style="margin:4px 0 0;font-size:12px;opacity:.7;">${details.map(esc).join(' · ')}</div>` : ''}
 </td></tr>
 <tr><td style="padding:20px 24px 24px;">
+${duplicate ? `<p style="margin:0 0 14px;padding:8px 10px;border-radius:6px;background:#fdecea;color:#a30d33;font-weight:700;">${esc(DUPLICATE_LINE)}</p>` : ''}
 <p style="margin:0 0 14px;">Hello ${esc(slip.employee.name)},</p>
-<p style="margin:0 0 14px;">Here is your ${esc(template.title.toLowerCase())} for ${esc(title)}. ${esc(summaryLine(slip, show))}</p>
+<p style="margin:0 0 14px;">Here is your ${esc(template.title.toLowerCase())} for ${esc(title)}. ${esc(summaryLine(slip, show))}${pdf ? ` ${PDF_LINE}` : ''}</p>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">${rows}</table>
 ${show.rulesNote ? `<p style="font-size:12px;margin:18px 0 0;opacity:.75;">${esc(note)}</p>` : ''}
 </td></tr></table></td></tr></table></body></html>`;
 
   const text = [
+    ...(duplicate ? [DUPLICATE_LINE, ''] : []),
     `${company}: ${template.title.toLowerCase()} for ${title}`,
     ...(details.length ? [details.join(' · ')] : []),
     '',
@@ -130,7 +140,11 @@ ${show.rulesNote ? `<p style="font-size:12px;margin:18px 0 0;opacity:.75;">${esc
     ...(show.rulesNote ? ['', note] : []),
   ].join('\n');
 
-  return { subject: `Your ${template.title.toLowerCase()} for ${title}`, html, text };
+  return {
+    subject: `Your ${template.title.toLowerCase()} for ${title}${duplicate ? ' (duplicate copy)' : ''}`,
+    html,
+    text,
+  };
 }
 
 // --- Queueing -----------------------------------------------------------------------------
@@ -242,13 +256,74 @@ async function processQueue() {
   return result;
 }
 
+/** A short fingerprint of what a payslip says, so a re-send can tell "the same" from "corrected". */
+function fingerprint(slip) {
+  const core = {
+    month: slip.month,
+    employee: slip.employee.id,
+    daysWorked: slip.daysWorked,
+    fullDays: slip.fullDays,
+    halfDays: slip.halfDays,
+    otherHours: slip.otherHours,
+    lines: slip.lines.map((l) => [l.kind, l.dailyRate, l.days, l.hours, l.amount]),
+    bonuses: slip.bonuses.map((b) => [b.reason, b.amount]),
+    basePay: slip.basePay,
+    netPay: slip.netPay,
+  };
+  return crypto.createHash('sha256').update(JSON.stringify(core)).digest('hex');
+}
+
+/** The logo as PNG or JPEG bytes for the PDF (it cannot draw WebP), or null. */
+async function pdfLogo() {
+  const logo = await branding.readLogo();
+  return logo && (logo.contentType === 'image/png' || logo.contentType === 'image/jpeg') ? logo.buffer : null;
+}
+
+/** The payslip as a PDF in the current template, with the company logo when there is one. */
+async function buildPdf(slip, { duplicate = false } = {}) {
+  return renderPayslipPdf(slip, {
+    company: companyName(),
+    template: settings.get().payslip,
+    logo: await pdfLogo(),
+    duplicate,
+  });
+}
+
 async function sendOne(row, attempt) {
   const finish = (patch) => db()('payslip_emails').where({ id: row.id }).update({ ...patch, updated_at: t.now() });
 
   try {
     const slip = await pay.payslip({ employeeId: row.employee_id, month: row.month });
-    const info = await mailer.send({ to: row.to_email, ...buildEmail(slip) });
-    await finish({ status: 'sent', error: null, provider_id: info?.id || null, sent_at: t.now() });
+
+    // The same figures sent to the same person again are a duplicate and the PDF says so. A payslip
+    // whose figures changed since the last delivery (a correction) is a different payslip, and is
+    // not stamped. A send that never arrived does not count as "sent before".
+    const digest = fingerprint(slip);
+    const duplicate = Number(row.times_sent) > 0 && row.last_sent_digest === digest;
+
+    let attachment;
+    try {
+      attachment = {
+        filename: `payslip-${slip.month}${duplicate ? '-duplicate' : ''}.pdf`,
+        content: await buildPdf(slip, { duplicate }),
+      };
+    } catch (err) {
+      throw new Error(`Could not create the PDF: ${err.message}`);
+    }
+
+    const info = await mailer.send({
+      to: row.to_email,
+      ...buildEmail(slip, { duplicate, pdf: true }),
+      attachments: [attachment],
+    });
+    await finish({
+      status: 'sent',
+      error: null,
+      provider_id: info?.id || null,
+      sent_at: t.now(),
+      times_sent: Number(row.times_sent || 0) + 1,
+      last_sent_digest: digest,
+    });
     return 'sent';
   } catch (err) {
     const message = String(err.message || err).slice(0, 500);
@@ -287,8 +362,10 @@ async function status(month) {
       status: r.status,
       error: r.error,
       sentAt: toIso(r.sent_at),
+      // How many times this month's payslip has been delivered to them.
+      timesSent: Number(r.times_sent) || 0,
     })),
   };
 }
 
-module.exports = { queue, processQueue, kick, status, buildEmail, setPace };
+module.exports = { queue, processQueue, kick, status, buildEmail, buildPdf, setPace };

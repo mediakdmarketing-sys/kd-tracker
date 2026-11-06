@@ -43,6 +43,7 @@ export default async function PayrollPage({ searchParams }) {
               count={result.rows.length}
               emailConfigured={mail.emailConfigured}
               pending={pendingMail}
+              alreadySent={mail.rows.filter((r) => r.status === 'sent').length}
             />
           ) : null}
           {result.rows.length ? (

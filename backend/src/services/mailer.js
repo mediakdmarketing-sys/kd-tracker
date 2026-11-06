@@ -12,7 +12,8 @@ const ENDPOINT = 'https://api.resend.com/emails';
 const TIMEOUT_MS = 20_000;
 
 /**
- * @typedef {{ to: string, subject: string, html: string, text?: string }} Message
+ * @typedef {{ to: string, subject: string, html: string, text?: string,
+ *            attachments?: Array<{ filename: string, content: Buffer }> }} Message
  * @typedef {(message: Message) => Promise<{ id: string|null }>} Transport
  */
 
@@ -59,6 +60,15 @@ async function send(message) {
         subject: message.subject,
         html: message.html,
         text: message.text,
+        // Files travel as base64 text in the request.
+        ...(message.attachments?.length
+          ? {
+              attachments: message.attachments.map((a) => ({
+                filename: a.filename,
+                content: Buffer.from(a.content).toString('base64'),
+              })),
+            }
+          : {}),
       }),
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
