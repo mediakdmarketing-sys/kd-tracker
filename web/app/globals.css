@@ -374,6 +374,81 @@ h3 {
   border-bottom: 1px solid var(--border);
 }
 
+/* Year calendar: Sundays shaded, holidays coloured. */
+.cal-year {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 16px;
+}
+.cal-title {
+  font-weight: 650;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+.cal-head {
+  text-align: center;
+  font-size: 10px;
+  color: var(--text-muted);
+  padding-bottom: 2px;
+}
+.cal-day {
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text);
+  text-align: center;
+  padding: 4px 0;
+  border-radius: 6px;
+}
+button.cal-day {
+  cursor: pointer;
+}
+button.cal-day:hover {
+  border-color: var(--accent, #5b3fd6);
+}
+.cal-sun {
+  background: var(--surface-3, #e6e2f8);
+  color: var(--text-muted);
+}
+.cal-head.cal-sun {
+  background: transparent;
+}
+.cal-holiday {
+  background: #a30d33;
+  color: #fff;
+  font-weight: 650;
+}
+.cal-copied {
+  outline: 2px dashed #f59e0b;
+  outline-offset: -2px;
+}
+.cal-today {
+  box-shadow: 0 0 0 2px var(--accent, #5b3fd6);
+}
+.cal-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+.cal-key {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  vertical-align: -2px;
+  margin-right: 4px;
+}
+
 /* Payslip: a few facts in a row, and a clean sheet when printed or saved as PDF. */
 .kv-grid {
   display: grid;

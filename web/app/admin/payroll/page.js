@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { api, requireUser } from '@/lib/api';
 import RangeFilter from '@/components/RangeFilter';
 import GeneratePayroll from './GeneratePayroll';
+import FinalizeControls from '@/components/FinalizeControls';
 import { currentMonth, dateLabel } from '@/lib/format';
 import { money } from '@/lib/money';
 import { EmailAllPayslips, EmailPayslipButton, EmailStatus } from '@/components/EmailPayslip';
@@ -14,9 +15,10 @@ export default async function PayrollPage({ searchParams }) {
   const user = await requireUser({ adminOnly: true });
 
   const month = /^\d{4}-\d{2}$/.test(params.month || '') ? params.month : currentMonth(user.timezone);
-  const [result, mail] = await Promise.all([
+  const [result, mail, closing] = await Promise.all([
     api(`/api/payroll?month=${month}`),
     api(`/api/payroll/payslips/status?month=${month}`),
+    api(`/api/payroll/finalize/status?month=${month}`),
   ]);
   const mailByEmployee = Object.fromEntries(mail.rows.map((r) => [r.employeeId, r]));
   const pendingMail = mail.rows.filter((r) => r.status === 'queued' || r.status === 'sending').length;
@@ -36,7 +38,9 @@ export default async function PayrollPage({ searchParams }) {
         <div className="btn-row">
           <Link className="btn" href="/admin/payroll/rates">Pay rates</Link>
           <Link className="btn" href={`/admin/payroll/bonuses?month=${month}`}>Bonuses</Link>
-          <GeneratePayroll month={month} hasRows={result.rows.length > 0} />
+          <Link className="btn" href={`/admin/payroll/holidays?year=${month.slice(0, 4)}`}>Holidays</Link>
+          <GeneratePayroll month={month} hasRows={result.rows.length > 0} locked={closing.final} />
+          <FinalizeControls month={month} final={closing.final} hasRows={result.rows.length > 0} />
           {result.rows.length ? (
             <EmailAllPayslips
               month={month}
@@ -62,6 +66,19 @@ export default async function PayrollPage({ searchParams }) {
             />
           </Suspense>
         </div>
+
+        {closing.final ? (
+          <div className="notice notice-info">
+            <strong>{month} is finalized</strong> on {new Date(closing.finalizedAt).toLocaleDateString('en-US', { timeZone: 'America/New_York' })}
+            {' '}({closing.employees} payslips, {money(closing.netTotal)} in all). Payslips are frozen and employees can
+            see theirs. To change anything, use <strong>Reopen month</strong>.
+          </div>
+        ) : result.rows.length > 0 ? (
+          <div className="notice notice-warn">
+            <strong>{month} is not finalized yet.</strong> Employees cannot see their payslips until you finalize it.
+            Finalize after you have checked the figures, added bonuses and sent or printed what you need.
+          </div>
+        ) : null}
 
         {missingRates.length > 0 && (
           <div className="notice notice-warn">
@@ -124,6 +141,7 @@ export default async function PayrollPage({ searchParams }) {
                       <th>Full</th>
                       <th>Half</th>
                       <th>Other hrs</th>
+                      <th>Leave / holiday</th>
                       <th>Base pay</th>
                       <th>Bonus</th>
                       <th>Net pay</th>
@@ -155,6 +173,9 @@ export default async function PayrollPage({ searchParams }) {
                           ) : null}
                         </td>
                         <td className="num">{money(row.basePay)}</td>
+                        <td className="num" title={`${row.paidLeaveDays} paid leave, ${row.holidayDays} holiday`}>
+                          {row.paidLeaveDays + row.holidayDays ? row.paidLeaveDays + row.holidayDays : <span className="faint">—</span>}
+                        </td>
                         <td className="num">{row.bonusTotal ? money(row.bonusTotal) : <span className="faint">—</span>}</td>
                         <td className="num"><strong>{money(row.netPay)}</strong></td>
                         <td className="num muted">{row.idleFormatted}</td>

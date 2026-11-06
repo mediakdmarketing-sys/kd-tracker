@@ -14,7 +14,7 @@ const COLUMNS = [
   { key: 'reason', label: 'Reason', aliases: ['note', 'description'], required: true },
 ];
 
-export default function BonusManager({ month, rows, employees }) {
+export default function BonusManager({ month, rows, employees, locked = false }) {
   const router = useRouter();
   const [employeeId, setEmployeeId] = useState('');
   const [amount, setAmount] = useState('');
@@ -82,7 +82,7 @@ export default function BonusManager({ month, rows, employees }) {
               </div>
             </div>
             <div className="inline">
-              <button type="submit" className="btn btn-primary" disabled={busy || !employeeId}>{busy ? 'Saving…' : 'Add bonus'}</button>
+              <button type="submit" className="btn btn-primary" disabled={busy || locked || !employeeId}>{busy ? 'Saving…' : 'Add bonus'}</button>
               <BulkUpload
                 title="Upload bonuses"
                 endpoint="/api/payroll/bonuses/bulk"
@@ -114,7 +114,7 @@ export default function BonusManager({ month, rows, employees }) {
                   <td>{r.name}<div className="faint" style={{ fontSize: 12 }}>{r.email}</div></td>
                   <td>{r.reason}</td>
                   <td className="num">{money(r.amount)}</td>
-                  <td><button type="button" className="btn btn-danger" onClick={() => remove(r)} disabled={busy}>Remove</button></td>
+                  <td><button type="button" className="btn btn-danger" onClick={() => remove(r)} disabled={busy || locked}>Remove</button></td>
                 </tr>
               ))}
               {rows.length === 0 && (

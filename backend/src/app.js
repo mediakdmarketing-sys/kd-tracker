@@ -123,6 +123,8 @@ function createApp() {
   app.use('/api/leader', leaderRoutes);
   app.use('/api/payroll', payrollRoutes);
 app.use('/api/branding', require('./modules/branding/branding.routes'));
+app.use('/api/payslips', require('./modules/payroll/mypayslips.routes'));
+app.use('/api/calendar', require('./modules/calendar/calendar.routes'));
 
   app.use(notFoundHandler);
   app.use(errorHandler);

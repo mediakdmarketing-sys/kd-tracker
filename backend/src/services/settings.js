@@ -46,10 +46,23 @@ function defaults() {
       deductIdle: config.payroll.deductIdle,
       fullDaySeconds: config.payroll.fullDaySeconds,
       halfDaySeconds: config.payroll.halfDaySeconds,
+      paidLeaveTypes: config.payroll.paidLeaveTypes,
+      workDays: config.payroll.workDays,
     },
     company: { name: null, logoKey: null, logoContentType: null, logoUpdatedAt: null },
     payslip: payslipTemplate.normalise(null),
   };
+}
+
+/** A JSON array stored in a text column; the fallback when it is missing or unreadable. */
+function jsonList(text, fallback) {
+  if (!text) return fallback;
+  try {
+    const list = JSON.parse(text);
+    return Array.isArray(list) ? list : fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 function rowToSettings(row) {
@@ -71,6 +84,9 @@ function rowToSettings(row) {
       deductIdle: toBool(row.payroll_deduct_idle),
       fullDaySeconds: row.payroll_full_day_seconds,
       halfDaySeconds: row.payroll_half_day_seconds,
+      paidLeaveTypes: jsonList(row.payroll_paid_leave_types, config.payroll.paidLeaveTypes),
+      // Sunday is always a day off, so it can never be a working day.
+      workDays: jsonList(row.payroll_work_days, config.payroll.workDays).filter((d) => d !== 0),
     },
     company: {
       name: row.company_name || null,
@@ -101,6 +117,8 @@ function settingsToRow(s) {
     payroll_deduct_idle: s.payroll.deductIdle,
     payroll_full_day_seconds: s.payroll.fullDaySeconds,
     payroll_half_day_seconds: s.payroll.halfDaySeconds,
+    payroll_paid_leave_types: JSON.stringify(s.payroll.paidLeaveTypes),
+    payroll_work_days: JSON.stringify(s.payroll.workDays),
   };
 }
 

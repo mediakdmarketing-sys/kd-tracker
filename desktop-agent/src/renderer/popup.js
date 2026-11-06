@@ -146,10 +146,18 @@ function signedInView() {
       </div>
     </div>
 
+    ${
+      out && shift.dayOff
+        ? `<div class="card" style="margin-bottom:12px"><strong>${
+            shift.dayOff.kind === 'sunday' ? 'Today is Sunday, a day off.' : `Today is a company holiday (${escape(shift.dayOff.name)}).`
+          }</strong><div class="muted" style="margin-top:4px">Punching in is closed.</div></div>`
+        : ''
+    }
+
     <div class="row" style="margin-bottom:12px">
       ${
         out
-          ? `<button class="primary" data-punch="punchIn" ${busy ? 'disabled' : ''}>Punch in</button>`
+          ? `<button class="primary" data-punch="punchIn" ${busy || shift.dayOff ? 'disabled' : ''}>Punch in</button>`
           : `
             <button data-punch="${onBreak ? 'breakEnd' : 'breakStart'}" ${busy ? 'disabled' : ''}>
               ${onBreak ? 'End break' : 'Start break'}

@@ -121,6 +121,14 @@ function draw(doc, slip, { company, template, logo, duplicate }) {
     ]);
   }
 
+  // Paid without working: approved leave of a paid type, and company holidays.
+  if (slip.paidLeaveDays || slip.holidayDays) {
+    facts([
+      ['Paid leave days', String(slip.paidLeaveDays || 0)],
+      ['Holidays', String(slip.holidayDays || 0)],
+    ]);
+  }
+
   // Earnings table.
   const col = { desc: MARGIN + 8, qty: MARGIN + 250, rate: MARGIN + 330, amountRight: right - 8 };
   const row = (cells, { bold = false, size = 10, colour = colors.text, rule = true, pad = 8 } = {}) => {
@@ -139,6 +147,8 @@ function draw(doc, slip, { company, template, logo, duplicate }) {
   for (const l of slip.lines) {
     if (l.kind === 'full') row(['Full days', String(l.days), `${MONEY.format(l.dailyRate)} / day`, MONEY.format(l.amount)]);
     else if (l.kind === 'half') row(['Half days', String(l.days), `${MONEY.format(l.dailyRate / 2)} / half day`, MONEY.format(l.amount)]);
+    else if (l.kind === 'leave') row(['Paid leave', String(l.days), `${MONEY.format(l.dailyRate)} / day`, MONEY.format(l.amount)]);
+    else if (l.kind === 'holiday') row(['Holidays', String(l.days), `${MONEY.format(l.dailyRate)} / day`, MONEY.format(l.amount)]);
     else row([`Other hours (over ${l.days} day${l.days === 1 ? '' : 's'})`, `${l.hours} h`, `${MONEY.format(l.hourlyRate)} / hour`, MONEY.format(l.amount)]);
   }
   if (!slip.lines.length) row(['No paid days this month.', undefined, undefined, '']);

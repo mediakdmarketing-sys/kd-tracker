@@ -62,6 +62,8 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 function lineLabel(l) {
   if (l.kind === 'full') return `Full ${l.days === 1 ? 'day' : 'days'}: ${l.days} × ${MONEY.format(l.dailyRate)}`;
   if (l.kind === 'half') return `Half ${l.days === 1 ? 'day' : 'days'}: ${l.days} × ${MONEY.format(l.dailyRate / 2)}`;
+  if (l.kind === 'leave') return `Paid leave: ${l.days} ${l.days === 1 ? 'day' : 'days'} × ${MONEY.format(l.dailyRate)}`;
+  if (l.kind === 'holiday') return `Holidays: ${l.days} ${l.days === 1 ? 'day' : 'days'} × ${MONEY.format(l.dailyRate)}`;
   return `Other hours: ${l.hours} h at ${MONEY.format(l.hourlyRate)}/h`;
 }
 
@@ -72,7 +74,13 @@ function summaryLine(slip, show = { dayBreakdown: true, totalHours: true }) {
   let line = `You worked ${plural(slip.daysWorked, 'day')}`;
   if (show.dayBreakdown) line += `: ${parts.join(', ')}`;
   if (show.totalHours) line += ` (total ${slip.totalHours} hours)`;
-  return `${line}.`;
+  line += '.';
+  const extras = [
+    slip.paidLeaveDays ? plural(slip.paidLeaveDays, 'day') + ' of paid leave' : null,
+    slip.holidayDays ? plural(slip.holidayDays, 'holiday') : null,
+  ].filter(Boolean);
+  if (extras.length) line += ` You were also paid for ${extras.join(' and ')}.`;
+  return line;
 }
 
 const DEFAULT_NOTE =

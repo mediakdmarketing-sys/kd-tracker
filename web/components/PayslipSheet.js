@@ -90,6 +90,13 @@ export default function PayslipSheet({ slip, company, template, monthTitle }) {
           </div>
         )}
 
+        {(slip.paidLeaveDays > 0 || slip.holidayDays > 0) && (
+          <div className="kv-grid" style={{ marginBottom: 18 }}>
+            <div><div style={label}>Paid leave days</div><strong>{slip.paidLeaveDays || 0}</strong></div>
+            <div><div style={label}>Holidays</div><strong>{slip.holidayDays || 0}</strong></div>
+          </div>
+        )}
+
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
           <thead>
             <tr style={{ color: colors.accent }}>
@@ -105,11 +112,13 @@ export default function PayslipSheet({ slip, company, template, monthTitle }) {
                 <td style={cell}>
                   {l.kind === 'full' && 'Full days'}
                   {l.kind === 'half' && 'Half days'}
+                  {l.kind === 'leave' && 'Paid leave'}
+                  {l.kind === 'holiday' && 'Holidays'}
                   {l.kind === 'partial' && `Other hours (over ${l.days} day${l.days === 1 ? '' : 's'})`}
                 </td>
                 <td style={num}>{l.kind === 'partial' ? `${l.hours} h` : l.days}</td>
                 <td style={num}>
-                  {l.kind === 'full' && `${money(l.dailyRate)} / day`}
+                  {(l.kind === 'full' || l.kind === 'leave' || l.kind === 'holiday') && `${money(l.dailyRate)} / day`}
                   {l.kind === 'half' && `${money(l.dailyRate / 2)} / half day`}
                   {l.kind === 'partial' && `${money(l.hourlyRate)} / hour`}
                 </td>

@@ -9,6 +9,8 @@
 // Money is whole cents internally and dollars (two decimals) at the API edge.
 
 const settings = require('../../services/settings');
+const lock = require('./payrollLock');
+const calendar = require('../../services/holidayCalendar');
 const { db } = require('../../db');
 const { uuid } = require('../../utils/ids');
 const t = require('../../utils/time');
@@ -123,17 +125,23 @@ async function ratesFor(employeeIds) {
  * Returns one line per kind and rate, the counts, and how many days had no rate at all (those pay
  * nothing and are reported so HR can fix them).
  *
+ * Paid leave and company holidays ("credits") are paid on top, at the same daily rate, but only
+ * for the part of the day that was not worked: someone who works a half day on a half-day leave
+ * gets one whole day in all, never more.
+ *
  * @param {Array<{date: string, worked: number}>} days
  * @param {Array} rates   the employee's rates, ascending by start date
  * @param {{fullSeconds: number, halfSeconds: number}} limits
+ * @param {Array<{date: string, kind: 'leave'|'holiday', fraction: number}>} credits
  */
-function priceDays(days, rates, limits = currentLimits()) {
+function priceDays(days, rates, limits = currentLimits(), credits = []) {
   const groups = new Map(); // "kind|rate" -> { kind, rate, days, seconds }
   let fullDays = 0;
   let halfDays = 0;
   let partialDays = 0;
   let partialSeconds = 0;
   let unpricedDays = 0;
+  const workedFraction = new Map(); // date -> how much of a day was worked, 0..1
 
   for (const { date, worked } of days) {
     const kind = dayKind(worked, limits);
@@ -143,6 +151,7 @@ function priceDays(days, rates, limits = currentLimits()) {
       partialDays += 1;
       partialSeconds += worked;
     }
+    workedFraction.set(date, kind === 'full' ? 1 : kind === 'half' ? 0.5 : Math.min(1, worked / limits.fullSeconds));
 
     const rate = rateOn(rates, date);
     if (!rate) {
@@ -156,20 +165,37 @@ function priceDays(days, rates, limits = currentLimits()) {
     groups.set(key, g);
   }
 
-  const ORDER = { full: 0, half: 1, partial: 2 };
+  // Leave and holidays: paid for what was not worked, at the rate in force that day.
+  let leaveDays = 0;
+  let holidayDays = 0;
+  for (const { date, kind, fraction } of credits) {
+    const paid = Math.min(fraction, Math.max(0, 1 - (workedFraction.get(date) || 0)));
+    const rate = paid > 0 ? rateOn(rates, date) : null;
+    if (!rate) continue;
+    const key = `${kind}|${rate.daily_rate_cents}`;
+    const g = groups.get(key) || { kind, rate: rate.daily_rate_cents, days: 0, seconds: 0 };
+    g.days += paid;
+    groups.set(key, g);
+    if (kind === 'leave') leaveDays += paid;
+    else holidayDays += paid;
+  }
+
+  const ORDER = { full: 0, half: 1, partial: 2, leave: 3, holiday: 4 };
   const lines = [...groups.values()]
     .sort((a, b) => ORDER[a.kind] - ORDER[b.kind] || a.rate - b.rate)
     .map((g) => ({
       kind: g.kind,
       dailyRateCents: g.rate,
-      days: g.days,
+      days: Math.round(g.days * 100) / 100,
       seconds: g.seconds,
       amountCents:
         g.kind === 'full'
           ? g.rate * g.days
           : g.kind === 'half'
             ? Math.round((g.rate * g.days) / 2)
-            : Math.round((g.rate * g.seconds) / limits.fullSeconds),
+            : g.kind === 'partial'
+              ? Math.round((g.rate * g.seconds) / limits.fullSeconds)
+              : Math.round(g.rate * g.days), // leave and holidays: the share of a day, at the daily rate
     }));
 
   return {
@@ -178,10 +204,85 @@ function priceDays(days, rates, limits = currentLimits()) {
     halfDays,
     partialDays,
     partialSeconds,
+    leaveDays: Math.round(leaveDays * 100) / 100,
+    holidayDays: Math.round(holidayDays * 100) / 100,
     pricedDays: days.length - unpricedDays,
     unpricedDays,
     baseCents: lines.reduce((s, l) => s + l.amountCents, 0),
   };
+}
+
+// --- Paid leave and holidays ----------------------------------------------------------------
+
+/** Every date from `start` to `end`, inclusive, as "YYYY-MM-DD". */
+function datesBetween(start, end) {
+  const out = [];
+  for (let d = new Date(`${start}T00:00:00Z`); d.toISOString().slice(0, 10) <= end; d = new Date(d.getTime() + t.DAY_MS)) {
+    out.push(d.toISOString().slice(0, 10));
+  }
+  return out;
+}
+
+// Sunday is never a working day, whatever the setting says: nothing is paid for leave or a holiday on it.
+const isWorkingDay = (date, workDays) => {
+  const day = new Date(`${date}T00:00:00Z`).getUTCDay();
+  return day !== 0 && workDays.includes(day);
+};
+
+/**
+ * The days a person is paid for without working them, within [start, end]:
+ *  - a company holiday on a working day: a whole day, for every active employee who had joined;
+ *  - approved leave of a paid type on a working day: a whole day, or half for a half-day leave.
+ * A holiday wins over a leave on the same date (it is never paid twice).
+ *
+ * @param {object} opts
+ * @param {string[]} [opts.employeeIds]  limit to these people; omit for everyone eligible
+ * @returns {Promise<Map<string, Array<{date: string, kind: 'leave'|'holiday', fraction: number}>>>}
+ */
+async function creditDays({ start, end, employeeIds }) {
+  const { paidLeaveTypes, workDays } = settings.get().payroll;
+  const byEmployee = new Map(); // employee id -> Map(date -> credit)
+  const put = (employeeId, credit) => {
+    if (!byEmployee.has(employeeId)) byEmployee.set(employeeId, new Map());
+    byEmployee.get(employeeId).set(credit.date, credit);
+  };
+
+  if (paidLeaveTypes.length) {
+    const query = db()('leave_requests')
+      .where({ status: 'approved' })
+      .whereIn('type', paidLeaveTypes)
+      .andWhere('start_date', '<=', end)
+      .andWhere('end_date', '>=', start);
+    if (employeeIds) query.whereIn('employee_id', employeeIds);
+    for (const leave of await query.select('employee_id', 'start_date', 'end_date', 'day_part')) {
+      const from = leave.start_date > start ? leave.start_date : start;
+      const to = leave.end_date < end ? leave.end_date : end;
+      const fraction = leave.day_part === 'full' || !leave.day_part ? 1 : 0.5;
+      for (const date of datesBetween(from, to)) {
+        if (!isWorkingDay(date, workDays)) continue;
+        const existing = byEmployee.get(leave.employee_id)?.get(date);
+        put(leave.employee_id, { date, kind: 'leave', fraction: Math.min(1, Math.max(fraction, existing?.fraction || 0)) });
+      }
+    }
+  }
+
+  const holidays = (await calendar.holidaysBetween(start, end))
+    .map((h) => h.date)
+    .filter((date) => isWorkingDay(date, workDays));
+  if (holidays.length) {
+    const query = db()('employees').where({ status: 'active' });
+    if (employeeIds) query.whereIn('id', employeeIds);
+    for (const e of await query.select('id', 'created_at')) {
+      const joined = t.localDate(Number(e.created_at));
+      for (const date of holidays) {
+        if (date >= joined) put(e.id, { date, kind: 'holiday', fraction: 1 });
+      }
+    }
+  }
+
+  const out = new Map();
+  for (const [id, byDate] of byEmployee) out.set(id, [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date)));
+  return out;
 }
 
 // --- Rates --------------------------------------------------------------------------------
@@ -398,6 +499,7 @@ async function listBonuses({ month, employeeId }) {
 async function addBonus({ employeeId, month, amount, reason, actorId }) {
   if (!isRealMonth(month)) throw badRequest('month must be YYYY-MM');
   const cents = positiveCents(amount, MAX_BONUS_CENTS, 'amount');
+  await lock.assertOpen(month, 'add a bonus');
   const employee = await db()('employees').where({ id: employeeId }).first('id');
   if (!employee) throw notFound('Employee not found');
 
@@ -417,6 +519,7 @@ async function addBonus({ employeeId, month, amount, reason, actorId }) {
 async function deleteBonus(id) {
   const row = await db()('payroll_bonuses').where({ id }).first('id', 'employee_id', 'month', 'amount_cents', 'reason');
   if (!row) throw notFound('Bonus not found');
+  await lock.assertOpen(row.month, 'remove a bonus');
   await db()('payroll_bonuses').where({ id }).del();
   return { id, employeeId: row.employee_id, month: row.month, amount: toDollars(row.amount_cents), reason: row.reason };
 }
@@ -451,6 +554,7 @@ async function bulkAddBonuses(rows, actorId) {
   });
 
   if (errors.length) throw bulkFailed(errors);
+  for (const month of new Set(clean.map((r) => r.month))) await lock.assertOpen(month, 'add bonuses');
 
   const nowMs = t.now();
   await db().transaction(async (trx) => {
@@ -492,13 +596,19 @@ async function payslip({ employeeId, month }) {
   const summary = await db()('payroll_summary').where({ employee_id: employeeId, month }).first();
   if (!summary) throw notFound(`No payroll for ${month} yet. Generate the month first.`);
 
+  // A finalized month is read back exactly as it was frozen, whatever has changed since.
+  if (summary.snapshot) {
+    return { ...JSON.parse(summary.snapshot), finalized: true, finalizedAt: toIso(summary.finalized_at), stale: false };
+  }
+
   const { start, end } = t.monthBounds(month);
   const days = (await payableDays({ start, end, employeeIds: [employeeId] })).get(employeeId) || [];
   const rates = (await ratesFor([employeeId])).get(employeeId) || [];
   // The limits the month was generated with, not today's: changing them later must not alter a
   // payslip that was already produced.
   const limits = { fullSeconds: summary.full_day_seconds, halfSeconds: summary.half_day_seconds };
-  const priced = priceDays(days, rates, limits);
+  const credits = (await creditDays({ start, end, employeeIds: [employeeId] })).get(employeeId) || [];
+  const priced = priceDays(days, rates, limits, credits);
   const totalSeconds = days.reduce((s, d) => s + d.worked, 0);
 
   const bonuses = await listBonuses({ month, employeeId });
@@ -521,6 +631,9 @@ async function payslip({ employeeId, month }) {
     halfDays: priced.halfDays,
     otherDays: priced.partialDays,
     otherHours: hours(priced.partialSeconds),
+    // Paid without working: approved leave of a paid type, and company holidays (in days).
+    paidLeaveDays: priced.leaveDays,
+    holidayDays: priced.holidayDays,
     totalHours: hours(totalSeconds),
     dayLimits: { fullDayHours: hours(limits.fullSeconds), halfDayHours: hours(limits.halfSeconds) },
     lines: priced.lines.map((l) => ({
@@ -550,6 +663,7 @@ module.exports = {
   isRealDate,
   isRealMonth,
   rateOn,
+  creditDays,
   currentLimits,
   dayKind,
   payableDays,

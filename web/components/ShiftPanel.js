@@ -239,6 +239,14 @@ export default function ShiftPanel({ initial, timezone }) {
           </div>
         )}
 
+        {out && status.dayOff && (
+          <div className="notice notice-info" style={{ marginBottom: 14 }} role="status">
+            {status.dayOff.kind === 'sunday'
+              ? 'Today is Sunday, a day off. Punching in is closed.'
+              : `Today is a company holiday (${status.dayOff.name}). Punching in is closed.`}
+          </div>
+        )}
+
         <div className="punch">
           {/* Clock section re-renders every second in isolation */}
           <div>

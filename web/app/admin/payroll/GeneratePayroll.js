@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { post } from '@/lib/client';
 
-export default function GeneratePayroll({ month, hasRows }) {
+export default function GeneratePayroll({ month, hasRows, locked = false }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -33,7 +33,13 @@ export default function GeneratePayroll({ month, hasRows }) {
 
   return (
     <>
-      <button type="button" className="btn" onClick={run} disabled={busy}>
+      <button
+        type="button"
+        className="btn"
+        onClick={run}
+        disabled={busy || locked}
+        title={locked ? 'This month is finalized. Reopen it first.' : undefined}
+      >
         {busy ? 'Generating…' : hasRows ? 'Regenerate' : 'Generate'}
       </button>
       {error ? (

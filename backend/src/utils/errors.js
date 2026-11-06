@@ -37,6 +37,11 @@ const accountDeactivated = (message = 'Account is deactivated') =>
 const passwordChangeRequired = () =>
   new ApiError(403, 'PASSWORD_CHANGE_REQUIRED', 'You must choose a new password before you continue.');
 const notFound = (message = 'Not found') => new ApiError(404, 'NOT_FOUND', message);
+/**
+ * A day nobody works (Sunday or a company holiday). Its own code, so a client can say "today is a
+ * holiday" and a queued punch-in is dropped rather than retried.
+ */
+const dayOff = (message, details) => new ApiError(409, 'DAY_OFF', message, details);
 /** 409: the request was well-formed but the current state does not allow it. */
 const conflict = (message, details) => new ApiError(409, 'CONFLICT', message, details);
 const payloadTooLarge = (message) => new ApiError(413, 'PAYLOAD_TOO_LARGE', message);
@@ -50,6 +55,7 @@ module.exports = {
   accountDeactivated,
   passwordChangeRequired,
   notFound,
+  dayOff,
   conflict,
   payloadTooLarge,
   notImplemented,

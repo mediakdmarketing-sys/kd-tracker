@@ -126,6 +126,22 @@ const config = {
     // half-day limit a HALF day; less than that is paid by the hour. Editable in Settings.
     fullDaySeconds: int('PAYROLL_FULL_DAY_SECONDS', 9 * 3600),
     halfDaySeconds: int('PAYROLL_HALF_DAY_SECONDS', 4.5 * 3600),
+    // Approved leave of these types is paid (at the daily rate, on working days). Editable in Settings.
+    paidLeaveTypes: str('PAYROLL_PAID_LEAVE_TYPES', 'vacation')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean),
+    // Working days of the week, 0 = Sunday ... 6 = Saturday. Leave and holidays are only paid on these.
+    workDays: str('PAYROLL_WORK_DAYS', '1,2,3,4,5')
+      .split(',')
+      .map((s) => Number(s.trim()))
+      .filter((n) => Number.isInteger(n) && n >= 0 && n <= 6),
+  },
+
+  calendar: {
+    // Refuse punch-ins on Sundays and company holidays. Off in the test suite only, which runs on
+    // whatever weekday it is; the tests that cover the rule switch it on.
+    enforceDayOff: bool('ENFORCE_DAY_OFF', !isTest),
   },
 
   // Outgoing email (payslips), through Resend's HTTP API: SMTP ports are blocked on some hosts,

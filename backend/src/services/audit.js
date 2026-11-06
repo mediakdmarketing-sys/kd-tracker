@@ -56,6 +56,12 @@ const ACTIONS = {
   UPLOADED_BONUSES: 'uploaded_bonuses',
   VIEWED_PAYSLIP: 'viewed_payslip',
   EMAILED_PAYSLIPS: 'emailed_payslips',
+  FINALIZED_PAYROLL: 'finalized_payroll',
+  REOPENED_PAYROLL: 'reopened_payroll',
+  ADDED_HOLIDAY: 'added_holiday',
+  REMOVED_HOLIDAY: 'removed_holiday',
+  UPDATED_HOLIDAY: 'updated_holiday',
+  UPLOADED_HOLIDAYS: 'uploaded_holidays',
 };
 
 module.exports = { record, ACTIONS };

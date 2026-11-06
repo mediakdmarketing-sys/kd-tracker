@@ -5,6 +5,8 @@ const { z } = require('zod');
 const service = require('./payroll.service');
 const pay = require('./pay.service');
 const mail = require('./payslipMail.service');
+const finalizeService = require('./finalize.service');
+const holidays = require('./holidays.service');
 const { authenticate } = require('../../middleware/auth');
 const { requireAdmin } = require('../../middleware/rbac');
 const { validate, q } = require('../../middleware/validate');
@@ -248,6 +250,106 @@ router.delete(
       targetId: bonus.id,
       details: { month: bonus.month, amount: bonus.amount, reason: bonus.reason },
     });
+    res.json({ deleted: true });
+  })
+);
+
+// --- Finalizing a month -------------------------------------------------------------------
+
+router.get(
+  '/finalize/status',
+  validate(z.object({ month: MONTH }), 'query'),
+  asyncHandler(async (req, res) => {
+    res.json(await finalizeService.status(q(req).month));
+  })
+);
+
+router.post(
+  '/finalize',
+  validate(z.object({ month: MONTH, force: z.boolean().optional() })),
+  asyncHandler(async (req, res) => {
+    const result = await finalizeService.finalize({ ...req.body, actorId: req.user.id });
+    await audit.record(req, {
+      action: audit.ACTIONS.FINALIZED_PAYROLL,
+      targetType: 'payroll',
+      details: { month: result.month, employees: result.employees, netTotal: result.netTotal, warnings: result.warnings.length },
+    });
+    res.json(result);
+  })
+);
+
+router.post(
+  '/reopen',
+  validate(z.object({ month: MONTH, reason: z.string().trim().min(5, 'Say why in a few words').max(255) })),
+  asyncHandler(async (req, res) => {
+    const result = await finalizeService.reopen(req.body);
+    await audit.record(req, {
+      action: audit.ACTIONS.REOPENED_PAYROLL,
+      targetType: 'payroll',
+      details: { month: result.month, reason: req.body.reason },
+    });
+    res.json(result);
+  })
+);
+
+// --- Company holidays ---------------------------------------------------------------------
+
+router.get(
+  '/holidays',
+  validate(z.object({ year: z.string().regex(/^\d{4}$/) }), 'query'),
+  asyncHandler(async (req, res) => {
+    res.json({ year: q(req).year, rows: await holidays.list(q(req)) });
+  })
+);
+
+router.post(
+  '/holidays/bulk',
+  validate(z.object({ rows: z.array(z.object({ date: DATE, name: z.string().trim().min(1).max(120) })).min(1).max(400) })),
+  asyncHandler(async (req, res) => {
+    const result = await holidays.bulkAdd(req.body.rows, req.user.id);
+    await audit.record(req, { action: audit.ACTIONS.UPLOADED_HOLIDAYS, targetType: 'holiday', details: result });
+    res.status(201).json(result);
+  })
+);
+
+router.post(
+  '/holidays',
+  validate(z.object({ date: DATE, name: z.string().trim().min(1).max(120), repeats: z.boolean().optional() })),
+  asyncHandler(async (req, res) => {
+    const holiday = await holidays.add({ ...req.body, actorId: req.user.id });
+    await audit.record(req, { action: audit.ACTIONS.ADDED_HOLIDAY, targetType: 'holiday', targetId: holiday.id, details: holiday });
+    res.status(201).json(holiday);
+  })
+);
+
+// Rename, move to another date, switch "repeats every year" on or off, or just confirm that a
+// holiday copied from last year is right (keep).
+router.patch(
+  '/holidays/:id',
+  validate(z.object({ id: UUID }), 'params'),
+  validate(
+    z
+      .object({
+        name: z.string().trim().min(1).max(120).optional(),
+        date: DATE.optional(),
+        repeats: z.boolean().optional(),
+        keep: z.boolean().optional(),
+      })
+      .refine((b) => Object.keys(b).length > 0, 'Nothing to change')
+  ),
+  asyncHandler(async (req, res) => {
+    const holiday = await holidays.update(req.params.id, req.body);
+    await audit.record(req, { action: audit.ACTIONS.UPDATED_HOLIDAY, targetType: 'holiday', targetId: holiday.id, details: holiday });
+    res.json(holiday);
+  })
+);
+
+router.delete(
+  '/holidays/:id',
+  validate(z.object({ id: UUID }), 'params'),
+  asyncHandler(async (req, res) => {
+    const holiday = await holidays.remove(req.params.id);
+    await audit.record(req, { action: audit.ACTIONS.REMOVED_HOLIDAY, targetType: 'holiday', targetId: holiday.id, details: holiday });
     res.json({ deleted: true });
   })
 );

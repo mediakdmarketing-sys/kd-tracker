@@ -193,6 +193,8 @@ const USER_GROUP = {
     { href: '/me', label: 'My shift', icon: Icon.me },
     { href: '/me/history', label: 'My history', icon: Icon.history },
     { href: '/me/leave', label: 'Leave', icon: Icon.leave },
+    { href: '/me/payslips', label: 'Payslips', icon: Icon.payroll },
+    { href: '/me/calendar', label: 'Holidays', icon: Icon.history },
     { href: '/notifications', label: 'Notifications', icon: Icon.bell },
     // Same group for every role: right under the links people use every day, not after the
     // team/admin sections where it was easy to miss.

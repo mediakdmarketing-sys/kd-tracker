@@ -4,6 +4,16 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { patch } from '@/lib/client';
 
+const LEAVE_TYPES = [
+  ['vacation', 'Company Vacation'],
+  ['sick', 'Sick'],
+  ['bereavement', 'Bereavement'],
+  ['personal', 'Personal'],
+  ['emergency', 'Emergency'],
+];
+// Sunday is always a day off and cannot be chosen.
+const WEEKDAYS = [[1, 'Mon'], [2, 'Tue'], [3, 'Wed'], [4, 'Thu'], [5, 'Fri'], [6, 'Sat']];
+
 /**
  * Values are edited in whatever unit a human actually thinks in (minutes, hours, days) and
  * converted to/from the API's seconds-everywhere shape only at the edges — load and submit.
@@ -26,6 +36,8 @@ export default function SettingsForm({ initial }) {
     deductIdle: initial.payroll.deductIdle,
     fullDayHours: initial.payroll.fullDaySeconds / 3600,
     halfDayHours: initial.payroll.halfDaySeconds / 3600,
+    paidLeaveTypes: initial.payroll.paidLeaveTypes,
+    workDays: initial.payroll.workDays,
   }));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -33,6 +45,12 @@ export default function SettingsForm({ initial }) {
 
   function set(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
+    setSaved(false);
+  }
+
+  /** Ticks or unticks one entry of a list setting (a leave type, a weekday). */
+  function toggle(field, item, on) {
+    setForm((f) => ({ ...f, [field]: on ? [...new Set([...f[field], item])] : f[field].filter((x) => x !== item) }));
     setSaved(false);
   }
 
@@ -60,6 +78,8 @@ export default function SettingsForm({ initial }) {
           deductIdle: form.deductIdle,
           fullDaySeconds: Math.round(form.fullDayHours * 3600),
           halfDaySeconds: Math.round(form.halfDayHours * 3600),
+          paidLeaveTypes: form.paidLeaveTypes,
+          workDays: form.workDays,
         },
       });
       setSaved(true);
@@ -212,6 +232,43 @@ export default function SettingsForm({ initial }) {
           on a day that is neither full nor half is paid by the hour (the daily rate spread over a
           full day&apos;s hours). A month&apos;s payslips keep the limits they were generated with.
         </p>
+
+        <div style={{ fontWeight: 650, fontSize: 13, margin: '4px 0 6px' }}>Paid leave</div>
+        <p className="faint" style={{ margin: '0 0 8px', fontSize: 12 }}>
+          Approved leave of these types is paid at the daily rate (half for a half-day leave), only on working days.
+        </p>
+        <div className="inline" style={{ flexWrap: 'wrap', gap: 14, marginBottom: 16 }}>
+          {LEAVE_TYPES.map(([key, label]) => (
+            <label key={key} className="inline" style={{ gap: 6, cursor: busy ? 'default' : 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={form.paidLeaveTypes.includes(key)}
+                disabled={busy}
+                onChange={(e) => toggle('paidLeaveTypes', key, e.target.checked)}
+              />
+              {label}
+            </label>
+          ))}
+        </div>
+
+        <div style={{ fontWeight: 650, fontSize: 13, margin: '4px 0 6px' }}>Working days</div>
+        <p className="faint" style={{ margin: '0 0 8px', fontSize: 12 }}>
+          Paid leave and holidays only count on these days, so a vacation that covers a weekend does not pay the weekend.
+          Sunday is always a day off: nobody can punch in on it and it is never paid.
+        </p>
+        <div className="inline" style={{ flexWrap: 'wrap', gap: 14, marginBottom: 16 }}>
+          {WEEKDAYS.map(([n, label]) => (
+            <label key={n} className="inline" style={{ gap: 6, cursor: busy ? 'default' : 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={form.workDays.includes(n)}
+                disabled={busy}
+                onChange={(e) => toggle('workDays', n, e.target.checked)}
+              />
+              {label}
+            </label>
+          ))}
+        </div>
 
         <label className="inline" style={{ gap: 8, cursor: busy ? 'default' : 'pointer' }}>
           <input

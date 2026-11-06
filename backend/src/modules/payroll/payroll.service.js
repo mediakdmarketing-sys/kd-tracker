@@ -2,6 +2,7 @@
 
 const settings = require('../../services/settings');
 const pay = require('./pay.service');
+const lock = require('./payrollLock');
 const { db } = require('../../db');
 const { uuid } = require('../../utils/ids');
 const t = require('../../utils/time');
@@ -19,6 +20,7 @@ const { badRequest, notImplemented } = require('../../utils/errors');
  */
 async function generate({ month }) {
   if (!t.isMonthString(month)) throw badRequest('month must be YYYY-MM');
+  await lock.assertOpen(month, 'regenerate it');
 
   const { start, end } = t.monthBounds(month);
   const generatedOn = t.now();
@@ -45,7 +47,17 @@ async function generate({ month }) {
 
   // Pay: each day is a full day, a half day or plain hours by how much work it held (breaks already
   // taken out), priced at the daily rate in force that day. The limits used are kept on the row.
-  const employeeIds = aggregates.map((a) => a.employee_id);
+  // Paid leave and company holidays are paid on top, so a person with no shifts at all in the month
+  // (a week of vacation, a holiday) still gets a row when it earns something.
+  const credits = await pay.creditDays({ start, end });
+  const workedIds = new Set(aggregates.map((a) => a.employee_id));
+  const creditOnly = [...credits.keys()].filter((id) => !workedIds.has(id));
+  const rows = [
+    ...aggregates,
+    ...creditOnly.map((id) => ({ employee_id: id, worked: 0, breaks: 0, idle: 0, days: 0 })),
+  ];
+
+  const employeeIds = rows.map((a) => a.employee_id);
   const days = await pay.payableDays({ start, end, employeeIds });
   const rates = await pay.ratesFor(employeeIds);
   const limits = pay.currentLimits();
@@ -54,14 +66,21 @@ async function generate({ month }) {
   // When PAYROLL_DEDUCT_IDLE=true, idle time is subtracted from billable hours.
   // The raw worked_seconds and idle_seconds are always stored so HR can audit the
   // deduction or regenerate with a different setting later.
-  const records = aggregates.map((row) => {
+  const allRecords = rows.map((row) => {
     const workedSeconds = Number(row.worked) || 0;
     const idleSeconds   = Number(row.idle)   || 0;
     const billableSeconds = settings.get().payroll.deductIdle
       ? Math.max(0, workedSeconds - idleSeconds)
       : workedSeconds;
-    const priced = pay.priceDays(days.get(row.employee_id) || [], rates.get(row.employee_id) || [], limits);
+    const priced = pay.priceDays(
+      days.get(row.employee_id) || [],
+      rates.get(row.employee_id) || [],
+      limits,
+      credits.get(row.employee_id) || []
+    );
     return {
+      leave_days: priced.leaveDays,
+      holiday_days: priced.holidayDays,
       base_pay_cents: priced.baseCents,
       priced_days: priced.pricedDays,
       rate_missing_days: priced.unpricedDays,
@@ -84,6 +103,8 @@ async function generate({ month }) {
       generated_on: generatedOn,
     };
   });
+  // A person who only has leave or a holiday in the month and earns nothing from it (no rate) gets no row.
+  const records = allRecords.filter((r) => workedIds.has(r.employee_id) || r.base_pay_cents > 0);
 
   // Single bulk upsert: one INSERT for all employees, ON CONFLICT updates the existing row.
   // Replaces the old per-row SELECT + INSERT/UPDATE loop (was N*2 round-trips; now 1).
@@ -109,6 +130,8 @@ async function generate({ month }) {
         partial_seconds:      db().raw('excluded.partial_seconds'),
         full_day_seconds:     db().raw('excluded.full_day_seconds'),
         half_day_seconds:     db().raw('excluded.half_day_seconds'),
+        leave_days:           db().raw('excluded.leave_days'),
+        holiday_days:         db().raw('excluded.holiday_days'),
         generated_on:         db().raw('excluded.generated_on'),
         synced_to_payroll:    false,
         synced_at:            null,
@@ -167,6 +190,9 @@ function shape(row, bonusCents = 0) {
     halfDays: Number(row.half_days) || 0,
     otherDays: Number(row.partial_days) || 0,
     otherHours: Math.round(((Number(row.partial_seconds) || 0) / 3600) * 100) / 100,
+    paidLeaveDays: Number(row.leave_days) || 0,
+    holidayDays: Number(row.holiday_days) || 0,
+    finalized: Boolean(row.finalized_at),
     id: row.id,
     employeeId: row.employee_id,
     name: row.name,

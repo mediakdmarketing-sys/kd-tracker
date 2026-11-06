@@ -7,7 +7,14 @@ const { uuid } = require('../../utils/ids');
 const t = require('../../utils/time');
 const { toBool, toIso } = require('../../utils/http');
 const { resolvePunchTime } = require('../../utils/eventTime');
-const { conflict, notFound, forbidden } = require('../../utils/errors');
+const { conflict, notFound, forbidden, dayOff } = require('../../utils/errors');
+const config = require('../../config');
+const calendar = require('../../services/holidayCalendar');
+
+/** The day-off check, unless switched off (the test suite runs on any weekday, Sundays included). */
+async function dayOffOn(date) {
+  return config.calendar.enforceDayOff ? calendar.dayOff(date) : null;
+}
 
 /** The one shift an employee may have open at a time, or null. */
 async function openShift(employeeId, trx = db()) {
@@ -136,6 +143,19 @@ async function punchIn({ employee, at, requestedAt }) {
   const resolved = queued
     ? resolvePunchTime({ requested: requestedAt, field: 'at', now: receivedAt })
     : { at: at ?? receivedAt, capped: false, reason: null };
+
+  // Nobody works on a Sunday or a company holiday: the punch is refused, whichever app it came from.
+  // Judged by the day the punch belongs to, so a late-night queued punch from Saturday is still Saturday's.
+  const punchDate = t.localDate(resolved.at);
+  const off = await dayOffOn(punchDate);
+  if (off) {
+    throw dayOff(
+      off.kind === 'sunday'
+        ? 'Sunday is a day off, so you cannot punch in.'
+        : `${off.name} is a company holiday, so you cannot punch in.`,
+      { date: punchDate, kind: off.kind, name: off.name }
+    );
+  }
 
   const attemptInsert = async (trx) => {
     const existing = await openShift(employee.id, trx);
@@ -372,13 +392,16 @@ async function currentStatus(employee) {
       .orderBy('punch_in', 'desc')
       .first();
     const today = t.localDate(t.now());
+    const off = await dayOffOn(today);
     return {
       state: 'punched_out',
+      // Set on a Sunday or a company holiday: the apps show it instead of the Punch in button.
+      dayOff: off ? { kind: off.kind, name: off.name } : null,
       shift: last ? shape(last) : null,
       // Everything worked so far today, so the portal can show what is left of the target.
       workedSeconds: await closedWorkedOnDate(employee.id, today),
       shiftTargetSeconds: settings.get().shift.targetSeconds,
-      canPunchIn: employee.consentMonitoring,
+      canPunchIn: employee.consentMonitoring && !off,
       consentRequired: !employee.consentMonitoring,
     };
   }

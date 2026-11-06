@@ -343,7 +343,8 @@ function refreshTray() {
     { type: 'separator' },
     {
       label: 'Punch in',
-      enabled: state.signedIn && state.shiftState === 'punched_out',
+      // Not on a Sunday or a company holiday: the server would refuse it anyway.
+      enabled: state.signedIn && state.shiftState === 'punched_out' && !state.status?.dayOff,
       click: () => agent.punch('punchIn'),
     },
     {

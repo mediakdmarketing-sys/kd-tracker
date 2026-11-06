@@ -1,4 +1,4 @@
-'use strict';
+﻿'use strict';
 
 const bcrypt = require('bcryptjs');
 const request = require('supertest');
@@ -26,6 +26,9 @@ async function truncate() {
     'job_runs',
     'payroll_summary',
     'payslip_emails',
+    'company_holidays',
+    'holiday_years',
+    'payroll_months',
     'payroll_bonuses',
     'pay_rates',
     'audit_logs',

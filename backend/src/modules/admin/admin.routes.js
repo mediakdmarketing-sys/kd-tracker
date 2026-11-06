@@ -388,6 +388,10 @@ const settingsPatchSchema = z.object({
       deductIdle: z.boolean().optional(),
       fullDaySeconds: z.number().int().min(3600).max(57600).optional(),
       halfDaySeconds: z.number().int().min(900).max(43200).optional(),
+      // Which approved leave is paid, and which weekdays are working days (0 = Sunday).
+      paidLeaveTypes: z.array(z.enum(['sick', 'bereavement', 'personal', 'emergency', 'vacation'])).max(5).optional(),
+      // 1 = Monday ... 6 = Saturday. Sunday is always a day off and cannot be chosen.
+      workDays: z.array(z.number().int().min(1).max(6)).min(1).max(6).optional(),
     })
     .optional(),
   // An empty name clears it; the portal then falls back to its default.

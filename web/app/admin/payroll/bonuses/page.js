@@ -12,9 +12,10 @@ export default async function BonusesPage({ searchParams }) {
   const user = await requireUser({ adminOnly: true });
 
   const month = /^\d{4}-\d{2}$/.test(params.month || '') ? params.month : currentMonth(user.timezone);
-  const [bonuses, employees] = await Promise.all([
+  const [bonuses, employees, closing] = await Promise.all([
     api(`/api/payroll/bonuses?month=${month}`),
     api('/api/payroll/rates'),
+    api(`/api/payroll/finalize/status?month=${month}`),
   ]);
 
   return (
@@ -36,7 +37,13 @@ export default async function BonusesPage({ searchParams }) {
             <RangeFilter fields={[{ name: 'month', label: 'Month', type: 'month', defaultValue: month }]} />
           </Suspense>
         </div>
+        {closing.final && (
+          <div className="notice notice-warn">
+            {month} is finalized, so its bonuses are frozen. Reopen the month on the Payroll page to change them.
+          </div>
+        )}
         <BonusManager
+          locked={closing.final}
           month={month}
           rows={bonuses.rows}
           employees={employees.rows.map((e) => ({ id: e.employeeId, name: e.name, email: e.email }))}
