@@ -228,7 +228,7 @@ const SECTIONS = [
       'Live board shows everyone working, on a break or out right now.',
       'Productivity scores people for a period: 60+ is Good, 50–59 Average, below 50 Review. Treat it as a conversation starter, not a verdict.',
       'Reports: pick a date range and optionally a department, then Export CSV.',
-      'Payroll: choose the month, Generate to summarise closed shifts, then Export CSV. Generating again for the same month is safe, it updates rather than duplicates. Review flagged and auto-closed shifts first.',
+      'Payroll: choose the month, Generate to work out each person’s full days, half days, other hours and pay from closed shifts and their pay rates, then print or email payslips and Export CSV. Generating again for the same month is safe, it updates rather than duplicates. Review flagged and auto-closed shifts first. See "For admins: pay rates, bonuses and payslips".',
       'Leave requests shows every request in the company, with proof files, for approval or rejection.',
     ],
   },
@@ -252,8 +252,48 @@ const SECTIONS = [
       '1. After the last working day, open Live board and make sure nobody is still punched in.',
       '2. Go through the flagged and auto-closed shifts for the month (they are marked on each employee’s attendance). Confirm the real end time with the employee or their leader.',
       '3. Approve or reject any pending Leave requests for the month, so leave is counted correctly.',
-      '4. Open Payroll, choose the month and click Generate. Generating again for the same month updates the figures, it never duplicates them.',
-      '5. Export CSV and keep the file with your payroll records.',
+      '4. Check that everyone has a pay rate (Payroll → Pay rates) and add the month’s bonuses (Payroll → Bonuses).',
+      '5. Open Payroll, choose the month and click Generate. Generating again for the same month updates the figures, it never duplicates them. If you change a rate or fix a shift afterwards, click Regenerate.',
+      '6. Look for the orange "no pay rate" warning: days with no rate are paid nothing until a rate that covers them is set and the month is regenerated.',
+      '7. Open a few payslips to check them, then use Email all payslips (or Email on one row). Every row shows Sent, Queued or Failed.',
+      '8. Export CSV and keep the file with your payroll records.',
+    ],
+  },
+  {
+    id: 'admin-pay',
+    title: 'For admins: pay rates, bonuses and payslips',
+    roles: ADMIN,
+    body: [
+      'Pay rates (Payroll → Pay rates): each person has a daily rate in US dollars. Click Set rate or Raise / history, enter the new daily rate and the date it starts. A raise is simply a new rate with a later start date: every day is paid at the rate in force on that day, so a raise in the middle of a month splits the month correctly.',
+      'Entered a rate wrongly? Open the person’s history and Edit it. A rate dated in the past applies to old days once you regenerate that month.',
+      'Many at once: Upload a spreadsheet. Download the template, fill one row per person and start date (email, daily_rate, effective_from as YYYY-MM-DD, optional note), save as CSV and upload it. People are matched by email. A row for a date that already has a rate replaces it.',
+      'Bonuses (Payroll → Bonuses): pick the month, choose the person, an amount and a reason. Several bonuses for one person are fine, and you can remove a wrong one. Bonuses are added when read, so one added after generating still shows without regenerating. They can also be uploaded as a CSV (email, month, amount, reason).',
+      'A bulk upload is all or nothing: if any row is wrong, nothing is saved and the screen lists the rows to fix. Upload again once the sheet is corrected.',
+      'Payslip: open Payroll, then Payslip on a person’s row. It shows total hours, full days, half days, other hours, the earnings, bonuses and net pay, and can be printed or saved as a PDF. It warns you if a rate or shift changed after the month was generated.',
+      'Email: Email all payslips sends everyone’s for the month; the Email button on a row sends one. Each person gets only their own, at the address on their record. A large send runs in the background, so you can leave the page: each row shows Sent, Queued or Failed (hover Failed for the reason). Email must be set up on the server first; Settings tells you if it is not.',
+    ],
+  },
+  {
+    id: 'admin-pay-rules',
+    title: 'For admins: how pay is worked out',
+    roles: ADMIN,
+    body: [
+      'Each day’s work is the worked time of that date with breaks already taken out. Break time is never counted as work and never paid.',
+      'Full day: at least 9 hours of work (the default). Pays the whole daily rate.',
+      'Half day: at least 4.5 hours of work, under a full day. Pays half the daily rate.',
+      'Other hours: less than a half day. Paid by the hour: the daily rate spread over a full day’s hours. The payslip shows the total of these hours.',
+      'So someone who takes a break and stays late to finish 9 hours of work, and someone who takes no break and leaves after 9 hours, both get a full day. Someone with 8 hours of work gets a half day under the default limits: if your normal day is shorter, lower the full-day limit in Settings.',
+      'Two shifts on the same date are added together before the day’s kind is decided. Open shifts are not counted until they are closed.',
+      'A month keeps the limits it was generated with, so changing them later never alters a payslip that was already produced. Regenerate the month to apply new limits or new rates.',
+    ],
+  },
+  {
+    id: 'admin-branding',
+    title: 'For admins: company logo and name',
+    roles: ADMIN,
+    body: [
+      'Settings → Company: upload your logo (PNG, JPEG or WebP, up to 1 MB, square works best) and set the company name. They appear on payslips and in payslip emails. Replace or Remove the logo at any time.',
+      'If the logo does not show in emails, the server needs its public address set (PUBLIC_API_URL). Ask whoever looks after the server.',
     ],
   },
   {
@@ -272,7 +312,7 @@ const SECTIONS = [
     title: 'For admins: settings',
     roles: ADMIN,
     body: [
-      'Settings control screenshot and audio timing, target shift length, break allowance, idle threshold, auto-close time, retention days and whether idle time is deducted from payroll. Changes apply to everyone, and agents pick them up with no reinstall.',
+      'Settings control the company name and logo, screenshot and audio timing, target shift length, break allowance, idle threshold, auto-close time, retention days, the full-day and half-day limits for pay, and whether idle time is deducted from payroll. Changes apply to everyone, and agents pick them up with no reinstall.',
     ],
   },
   {
@@ -287,6 +327,7 @@ const SECTIONS = [
       'Auto-closed: a shift the system ended for you because you never punched out. HR confirms the real end time.',
       'Idle: no keyboard or mouse activity for a set time (10 minutes by default).',
       'No Pay Leave: sick, bereavement or emergency leave taken without proof.',
+      'Full day, half day, other hours: how a day of work is paid. A full day is at least 9 hours of work (breaks not counted), a half day at least 4.5, and less than that is counted as hours. HR can change these limits.',
       'Pending / Approved / Rejected / Cancelled: the status of a leave request.',
     ],
   },
@@ -299,6 +340,7 @@ const SECTIONS = [
       'Is my password or what I type recorded? No. Only the count of keystrokes and mouse actions is kept, never the content.',
       'I forgot to punch in. Tell your leader or HR; they can correct the day. Do not punch in late and leave it.',
       'My internet dropped. The agent keeps screenshots and punches in a queue on your computer and uploads them when you are back online.',
+      'Is my break paid? No: a break is not counted as work. A full day needs 9 hours of work (HR can change this), so if you take a break you finish your 9 hours of work after it; if you take none you are done after 9 hours. Either way it is a full day.',
       'Can I use WorkBuddy on my phone? You can open the portal to view history and request leave, but screenshots only come from the desktop agent.',
     ],
   },
@@ -343,7 +385,7 @@ const QUICK_START = {
       'Settings: confirm shift length, break allowance, capture timing and retention.',
       'Departments, then Employees, then assign a leader to each department.',
       'Give employees the agent installer link and check one pilot account’s screenshots.',
-      'Each month: review flags, then Payroll → Generate → Export CSV.',
+      'Set each person’s pay rate (Payroll → Pay rates), then each month: review flags, add bonuses, Payroll → Generate, check payslips, email them, Export CSV.',
     ],
   },
 };
@@ -351,7 +393,17 @@ const QUICK_START = {
 // Sections each role should read first, in this order. Everything else follows in page order.
 const ROLE_FIRST = {
   leader: ['team', 'leader-leave', 'leader-day', 'leader-flags', 'leader-privacy'],
-  admin: ['admin-people', 'admin-rollout', 'admin-reports', 'admin-payroll-check', 'admin-settings', 'admin-offboarding'],
+  admin: [
+    'admin-people',
+    'admin-rollout',
+    'admin-reports',
+    'admin-payroll-check',
+    'admin-pay',
+    'admin-pay-rules',
+    'admin-settings',
+    'admin-branding',
+    'admin-offboarding',
+  ],
 };
 
 function sectionsFor(role) {
