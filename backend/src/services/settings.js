@@ -21,6 +21,7 @@
 const { db } = require('../db');
 const config = require('../config');
 const { toBool } = require('../utils/http');
+const payslipTemplate = require('./payslipTemplate');
 const logger = require('../utils/logger');
 
 const ROW_ID = 'default';
@@ -47,6 +48,7 @@ function defaults() {
       halfDaySeconds: config.payroll.halfDaySeconds,
     },
     company: { name: null, logoKey: null, logoContentType: null, logoUpdatedAt: null },
+    payslip: payslipTemplate.normalise(null),
   };
 }
 
@@ -76,11 +78,13 @@ function rowToSettings(row) {
       logoContentType: row.logo_content_type || null,
       logoUpdatedAt: row.logo_updated_at == null ? null : Number(row.logo_updated_at),
     },
+    payslip: payslipTemplate.parse(row.payslip_template),
   };
 }
 
 function settingsToRow(s) {
   return {
+    payslip_template: JSON.stringify(s.payslip),
     company_name: s.company.name,
     logo_key: s.company.logoKey,
     logo_content_type: s.company.logoContentType,
@@ -164,6 +168,7 @@ async function update(patch, { updatedBy } = {}) {
     retention: { ...cache.retention, ...patch.retention },
     payroll: { ...cache.payroll, ...patch.payroll },
     company: { ...cache.company, ...patch.company },
+    payslip: payslipTemplate.merge(cache.payslip, patch.payslip),
   };
 
   const now = Date.now();

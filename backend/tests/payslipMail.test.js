@@ -8,6 +8,7 @@ const mail = require('../src/modules/payroll/payslipMail.service');
 const mailer = require('../src/services/mailer');
 const branding = require('../src/services/branding');
 const settings = require('../src/services/settings');
+const payslipTemplate = require('../src/services/payslipTemplate');
 const { uuid } = require('../src/utils/ids');
 
 const MONTH = '2026-07';
@@ -26,6 +27,7 @@ beforeEach(async () => {
   await truncate();
   await branding.removeLogo({});
   await settings.update({ company: { name: null } });
+  await settings.update({ payslip: payslipTemplate.DEFAULT_TEMPLATE });
   sent = [];
   mailer.setTransport(async (message) => {
     sent.push(message);
@@ -243,5 +245,80 @@ describe('the send API', () => {
     for (let i = 0; i < 50 && sent.length < 7; i += 1) await new Promise((r) => setTimeout(r, 20));
     expect(sent).toHaveLength(7);
     expect((await mail.status(MONTH)).rows.every((r) => r.status === 'sent')).toBe(true);
+  });
+});
+
+describe('the payslip template', () => {
+  it('fills in anything missing or invalid from the defaults, field by field', () => {
+    const t = payslipTemplate.normalise({
+      title: '  ',
+      font: 'comic',
+      colors: { accent: 'red', text: '#ABCDEF' },
+      show: { logo: false, email: 'yes' },
+      evil: '<script>',
+    });
+    expect(t.title).toBe('Payslip');
+    expect(t.font).toBe('sans');
+    expect(t.colors.accent).toBe(payslipTemplate.DEFAULT_TEMPLATE.colors.accent); // not a #rrggbb colour
+    expect(t.colors.text).toBe('#abcdef');
+    expect(t.show.logo).toBe(false);
+    expect(t.show.email).toBe(true); // not a boolean
+    expect(t.evil).toBeUndefined();
+  });
+
+  it('is saved by admins, merged with what is there, and refuses bad colours', async () => {
+    const api = await admin();
+
+    const first = await api.patch('/api/admin/settings').send({ payslip: { colors: { accent: '#0b6e4f' }, title: 'Salary slip' } });
+    expect(first.status).toBe(200);
+    const second = await api.patch('/api/admin/settings').send({ payslip: { show: { department: false }, font: 'serif' } });
+    expect(second.body.payslip).toMatchObject({
+      title: 'Salary slip', // kept from the first save
+      font: 'serif',
+      colors: { accent: '#0b6e4f', background: '#ffffff' },
+      show: { department: false, email: true },
+    });
+
+    expect((await api.patch('/api/admin/settings').send({ payslip: { colors: { accent: 'green' } } })).status).toBe(400);
+    expect((await api.patch('/api/admin/settings').send({ payslip: { font: 'wingdings' } })).status).toBe(400);
+
+    const got = (await api.get('/api/admin/settings')).body;
+    expect(got.payslip.title).toBe('Salary slip');
+    expect(got.payslipDefaults.title).toBe('Payslip');
+
+    // Back to the standard look by sending the defaults.
+    const reset = await api.patch('/api/admin/settings').send({ payslip: got.payslipDefaults });
+    expect(reset.body.payslip).toEqual(payslipTemplate.DEFAULT_TEMPLATE);
+  });
+
+  it('shapes the email: colours, font, title, closing note, and which details show', async () => {
+    const e = await paidEmployee({ email: 'ann@kdmarketing.in', department: 'Sales' });
+    await payroll.generate({ month: MONTH });
+    const slip = await pay.payslip({ employeeId: e.id, month: MONTH });
+
+    const template = payslipTemplate.normalise({
+      title: 'Salary slip <b>',
+      footerNote: 'Paid on the 5th. Questions: hr@example.com',
+      font: 'serif',
+      colors: { background: '#fffbe6', headerBackground: '#0b6e4f', text: '#222222', accent: '#a30d33' },
+      show: { email: false, department: true, rulesNote: true, totalHours: false, dayBreakdown: false },
+    });
+    const built = mail.buildEmail(slip, { logo: null, template });
+
+    expect(built.subject).toBe('Your salary slip <b> for July 2026');
+    expect(built.html).toMatch(/background:#fffbe6/);
+    expect(built.html).toMatch(/background:#0b6e4f/);
+    expect(built.html).toMatch(/color:#a30d33/);
+    expect(built.html).toMatch(/Georgia/);
+    expect(built.html).toMatch(/Salary slip &lt;b&gt; for July 2026/); // escaped, never markup
+    expect(built.html).toMatch(/Paid on the 5th/);
+    expect(built.html).not.toMatch(/All amounts are in US dollars/); // the custom note replaces the default
+    expect(built.html).toMatch(/Sales/);
+    expect(built.html).not.toMatch(/ann@kdmarketing\.in/); // email hidden
+    expect(built.text).toMatch(/You worked 1 day\./); // no breakdown, no total hours
+
+    const quiet = mail.buildEmail(slip, { logo: null, template: payslipTemplate.normalise({ show: { rulesNote: false } }) });
+    expect(quiet.html).not.toMatch(/All amounts are in US dollars/);
+    expect(quiet.text).not.toMatch(/All amounts are in US dollars/);
   });
 });

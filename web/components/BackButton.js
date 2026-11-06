@@ -19,7 +19,7 @@ export default function BackButton() {
   return (
     <button
       type="button"
-      className="btn"
+      className="btn no-print"
       onClick={() => router.back()}
       style={{ marginBottom: 14 }}
     >

@@ -1,6 +1,7 @@
 import { api, requireUser } from '@/lib/api';
 import SettingsForm from './SettingsForm';
 import BrandingCard from './BrandingCard';
+import PayslipTemplateCard from './PayslipTemplateCard';
 
 export const metadata = { title: 'Settings · WorkBuddy' };
 
@@ -25,6 +26,7 @@ export default async function AdminSettingsPage() {
 
       <div className="stack">
         <BrandingCard company={settings.company} emailConfigured={Boolean(settings.email?.configured)} />
+        <PayslipTemplateCard template={settings.payslip} defaults={settings.payslipDefaults} company={settings.company} />
         <SettingsForm initial={settings} />
       </div>
     </>

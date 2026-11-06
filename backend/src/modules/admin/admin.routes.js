@@ -5,6 +5,7 @@ const { z } = require('zod');
 const service = require('./admin.service');
 const settings = require('../../services/settings');
 const mailer = require('../../services/mailer');
+const payslipTemplate = require('../../services/payslipTemplate');
 const projectService = require('../projects/project.service');
 const leaveService = require('../leave/leave.service');
 const { micLog } = require('../capture/micLog');
@@ -362,6 +363,8 @@ router.delete(
 // CORS, port, and cron schedules stay in .env; see backend/src/services/settings.js's own
 // comment for the full reasoning.
 
+const HEX_COLOUR = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Use a colour like #1a2b3c');
+
 const settingsPatchSchema = z.object({
   capture: z
     .object({
@@ -389,6 +392,33 @@ const settingsPatchSchema = z.object({
     .optional(),
   // An empty name clears it; the portal then falls back to its default.
   company: z.object({ name: z.string().trim().max(120).optional() }).optional(),
+  // The look of a payslip. Any part can be sent alone; the rest is kept.
+  payslip: z
+    .object({
+      title: z.string().trim().min(1).max(40).optional(),
+      footerNote: z.string().trim().max(600).optional(),
+      font: z.enum(['sans', 'serif', 'mono']).optional(),
+      colors: z
+        .object({
+          background: HEX_COLOUR.optional(),
+          headerBackground: HEX_COLOUR.optional(),
+          text: HEX_COLOUR.optional(),
+          accent: HEX_COLOUR.optional(),
+        })
+        .optional(),
+      show: z
+        .object({
+          logo: z.boolean().optional(),
+          employeeId: z.boolean().optional(),
+          email: z.boolean().optional(),
+          department: z.boolean().optional(),
+          totalHours: z.boolean().optional(),
+          dayBreakdown: z.boolean().optional(),
+          rulesNote: z.boolean().optional(),
+        })
+        .optional(),
+    })
+    .optional(),
 });
 
 /** Settings as the portal sees them: the logo's storage key stays internal. */
@@ -400,7 +430,12 @@ function publicSettings(s) {
 router.get(
   '/settings',
   asyncHandler(async (req, res) => {
-    res.json({ ...publicSettings(settings.get()), email: { configured: mailer.isConfigured() } });
+    res.json({
+      ...publicSettings(settings.get()),
+      email: { configured: mailer.isConfigured() },
+      // So the "Reset to standard" button needs no copy of the defaults in the portal.
+      payslipDefaults: payslipTemplate.DEFAULT_TEMPLATE,
+    });
   })
 );
 

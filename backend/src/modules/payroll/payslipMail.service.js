@@ -10,6 +10,7 @@
 
 const config = require('../../config');
 const settings = require('../../services/settings');
+const { FONTS } = require('../../services/payslipTemplate');
 const mailer = require('../../services/mailer');
 const pay = require('./pay.service');
 const { db } = require('../../db');
@@ -62,16 +63,32 @@ function lineLabel(l) {
 }
 
 /** "You worked 21 days: 18 full, 2 half, and 5.5 hours on 1 other day (total 170.5 hours)." */
-function summaryLine(slip) {
+function summaryLine(slip, show = { dayBreakdown: true, totalHours: true }) {
   const parts = [`${slip.fullDays} full`, `${slip.halfDays} half`];
   if (slip.otherDays) parts.push(`${slip.otherHours} hours on ${plural(slip.otherDays, 'other day')}`);
-  return `You worked ${plural(slip.daysWorked, 'day')}: ${parts.join(', ')} (total ${slip.totalHours} hours).`;
+  let line = `You worked ${plural(slip.daysWorked, 'day')}`;
+  if (show.dayBreakdown) line += `: ${parts.join(', ')}`;
+  if (show.totalHours) line += ` (total ${slip.totalHours} hours)`;
+  return `${line}.`;
 }
 
+const DEFAULT_NOTE =
+  'All amounts are in US dollars. A full day pays the daily rate, a half day pays half of it, and other work is paid by the hour; breaks are not counted. Bonuses are added on top. If something looks wrong, please reply to HR.';
+
 /** The message for one payslip (see pay.service.payslip for its shape). */
-function buildEmail(slip, { company = companyName(), logo = logoUrl() } = {}) {
+function buildEmail(slip, { company = companyName(), logo = logoUrl(), template = settings.get().payslip } = {}) {
   const title = monthTitle(slip.month);
-  const cell = 'padding:8px 10px;border-bottom:1px solid #e6e3f5;';
+  const { colors, show, font } = template;
+  // A plain grey rule: 8-digit hex colours are not understood by every email program.
+  const cell = 'padding:8px 10px;border-bottom:1px solid #d9d7e6;';
+  const note = template.footerNote || DEFAULT_NOTE;
+
+  // Employee details the template allows, as one line each under the heading.
+  const details = [
+    show.employeeId && slip.employee.employeeCode ? `ID ${slip.employee.employeeCode}` : null,
+    show.department && slip.employee.department ? slip.employee.department : null,
+    show.email ? slip.employee.email : null,
+  ].filter(Boolean);
 
   const rows = [
     ...slip.lines.map(
@@ -81,36 +98,39 @@ function buildEmail(slip, { company = companyName(), logo = logoUrl() } = {}) {
     ...slip.bonuses.map(
       (b) => `<tr><td style="${cell}">Bonus: ${esc(b.reason)}</td><td style="${cell}text-align:right;">${MONEY.format(b.amount)}</td></tr>`
     ),
-    `<tr><td style="padding:12px 10px;font-size:16px;"><strong>Net pay</strong></td><td style="padding:12px 10px;font-size:16px;text-align:right;"><strong>${MONEY.format(slip.netPay)}</strong></td></tr>`,
+    `<tr><td style="padding:12px 10px;font-size:16px;color:${colors.accent};"><strong>Net pay</strong></td><td style="padding:12px 10px;font-size:16px;text-align:right;color:${colors.accent};"><strong>${MONEY.format(slip.netPay)}</strong></td></tr>`,
   ].join('');
 
-  const html = `<!doctype html><html><body style="margin:0;background:#f5f4fc;font-family:Arial,Helvetica,sans-serif;color:#1a1b2e;">
+  const html = `<!doctype html><html><body style="margin:0;background:#f5f4fc;font-family:${FONTS[font]};color:${colors.text};">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:24px 12px;">
-<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border-radius:12px;padding:24px;">
-<tr><td>
-${logo ? `<img src="${esc(logo)}" alt="" width="52" height="52" style="display:inline-block;vertical-align:middle;margin-right:12px;border-radius:8px;object-fit:contain;">` : ''}
-<span style="font-size:20px;font-weight:700;vertical-align:middle;">${esc(company)}</span>
-<div style="color:#625f78;margin:6px 0 18px;">Payslip for ${esc(title)}</div>
+<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:${colors.background};border-radius:12px;">
+<tr><td style="background:${colors.headerBackground};border-radius:12px 12px 0 0;padding:20px 24px;border-bottom:2px solid ${colors.accent};">
+${show.logo && logo ? `<img src="${esc(logo)}" alt="" width="52" height="52" style="display:inline-block;vertical-align:middle;margin-right:12px;border-radius:8px;object-fit:contain;">` : ''}
+<span style="font-size:20px;font-weight:700;vertical-align:middle;color:${colors.accent};">${esc(company)}</span>
+<div style="margin:6px 0 0;opacity:.8;">${esc(template.title)} for ${esc(title)}</div>
+${details.length ? `<div style="margin:4px 0 0;font-size:12px;opacity:.7;">${details.map(esc).join(' · ')}</div>` : ''}
+</td></tr>
+<tr><td style="padding:20px 24px 24px;">
 <p style="margin:0 0 14px;">Hello ${esc(slip.employee.name)},</p>
-<p style="margin:0 0 14px;">Here is your payslip for ${esc(title)}. ${esc(summaryLine(slip))}</p>
+<p style="margin:0 0 14px;">Here is your ${esc(template.title.toLowerCase())} for ${esc(title)}. ${esc(summaryLine(slip, show))}</p>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">${rows}</table>
-<p style="color:#625f78;font-size:12px;margin:18px 0 0;">All amounts are in US dollars. A full day pays the daily rate, a half day pays half of it, and other work is paid by the hour; breaks are not counted. Bonuses are added on top. If something looks wrong, please reply to HR.</p>
+${show.rulesNote ? `<p style="font-size:12px;margin:18px 0 0;opacity:.75;">${esc(note)}</p>` : ''}
 </td></tr></table></td></tr></table></body></html>`;
 
   const text = [
-    `${company}: payslip for ${title}`,
+    `${company}: ${template.title.toLowerCase()} for ${title}`,
+    ...(details.length ? [details.join(' · ')] : []),
     '',
     `Hello ${slip.employee.name},`,
-    summaryLine(slip),
+    summaryLine(slip, show),
     ...slip.lines.map((l) => `  ${lineLabel(l)} = ${MONEY.format(l.amount)}`),
     `Base pay: ${MONEY.format(slip.basePay)}`,
     ...slip.bonuses.map((b) => `Bonus (${b.reason}): ${MONEY.format(b.amount)}`),
     `Net pay: ${MONEY.format(slip.netPay)}`,
-    '',
-    'All amounts are in US dollars. Breaks are not counted. If something looks wrong, please reply to HR.',
+    ...(show.rulesNote ? ['', note] : []),
   ].join('\n');
 
-  return { subject: `Your payslip for ${title}`, html, text };
+  return { subject: `Your ${template.title.toLowerCase()} for ${title}`, html, text };
 }
 
 // --- Queueing -----------------------------------------------------------------------------

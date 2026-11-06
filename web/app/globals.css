@@ -381,7 +381,21 @@ h3 {
   gap: 14px;
 }
 
+/* A margin of 0 on the page itself is what stops the browser stamping its own date, page title,
+   web address and page number in the corners of the PDF; the sheet's own padding below replaces it. */
+@page {
+  size: A4 portrait;
+  margin: 0;
+}
+
 @media print {
+  html,
+  body {
+    background: #fff !important;
+  }
+  .shell {
+    display: block !important;
+  }
   .sidebar-rail,
   .topbar,
   .clock-corner,
@@ -390,10 +404,26 @@ h3 {
   }
   .main {
     padding: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
   }
   .payslip {
+    /* Fill the sheet of paper, so a chosen background colour covers the whole page. A little short
+       of A4's 297mm, or the page would spill onto a second, blank sheet. */
+    min-height: 290mm;
     box-shadow: none !important;
     border: none !important;
+    border-radius: 0 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  /* The page margin is 0 (see @page), so the sheet's own bands keep a clear edge. The coloured
+     header band runs to the edge of the paper. */
+  .payslip-head {
+    padding: 14mm 16mm 8mm !important;
+  }
+  .payslip-body {
+    padding: 8mm 16mm !important;
   }
 }
 
