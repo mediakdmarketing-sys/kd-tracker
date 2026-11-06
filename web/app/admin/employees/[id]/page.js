@@ -10,6 +10,9 @@ import LeaderActions from './LeaderActions';
 import { duration, time, timeSec, dateLabel, todayIn, workedSecondsOf, isOpenShift } from '@/lib/format';
 import { averageActivity } from '@/lib/activity';
 
+// Month and day only: the year of birth is not shown anywhere.
+const BIRTHDAY = new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' });
+
 /**
  * Fetch the employee record once per render pass and share the result between
  * generateMetadata and the page component. React's cache() deduplicates calls
@@ -95,7 +98,8 @@ export default async function EmployeeDetailPage({ params, searchParams }) {
           <h1>{employee.name}</h1>
           <p>
             {employee.email}
-            {employee.department ? ` · ${employee.department}` : ''}{' '}
+            {employee.department ? ` · ${employee.department}` : ''}
+            {employee.birthday ? ` · Birthday ${BIRTHDAY.format(new Date(`${employee.birthday}T00:00:00Z`))}` : ''}{' '}
             <Link href="/admin/employees" className="btn" style={{ marginLeft: 8 }}>
               ← All employees
             </Link>

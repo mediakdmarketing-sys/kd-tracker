@@ -1,6 +1,7 @@
 import { requireUser } from '@/lib/api';
 import CopyCommand from '@/components/CopyCommand';
 import OpenOnHash from '@/components/OpenOnHash';
+import HelpSearch from '@/components/HelpSearch';
 import { latestBuilds } from '@/lib/latestBuilds';
 
 export const metadata = { title: 'Help · WorkBuddy' };
@@ -163,6 +164,7 @@ const SECTIONS = [
       'My team lists the departments you lead and how many members are working now. Live board shows who is working, on a break or out.',
       'Click a member to see their attendance, screenshots, audio samples, and activity counts for a date or date range.',
       'Leave requests → Pending, Approved, Rejected or All. Open a request, check the dates, reason and proof, then Approve or Reject.',
+      'Birthdays: you get a notification the day before and on the day for people in the departments you lead, so you can wish them. HR sets the birthdays.',
       'Captured media is sensitive. Open it only when you need to.',
       'If My team says you do not lead a department yet, ask HR to assign you.',
     ],
@@ -271,6 +273,8 @@ const SECTIONS = [
       'Holidays: Payroll → Holidays shows a year calendar (Sundays shaded, holidays coloured). Click a day to mark it as a holiday, or click a holiday to change it; you can also upload a CSV (date, name). Nobody can punch in on a holiday. Each holiday is paid at the daily rate to everyone who is active, has a pay rate and had joined by that date. A holiday on a day that is not a working day is not paid.',
       'Holidays repeat every year: the next year’s calendar fills itself in with the same dates the first time anyone looks at it (the calendar, payroll for that year, or a punch-in). Those copies are marked "Copied from last year": check the date (a festival that moves, say), then click Keep or Edit. Untick Repeats for a one-off. Removing a holiday also removes it from later years that have not been created yet.',
       'Everyone can see the company calendar under Holidays in the menu.',
+      'Birthdays: open an employee, choose Edit details and set the Birthday (you can also give it when adding the employee). It shows on the Holidays calendar for HR as a gold dot, with the name on hover, and in the Birthdays list under it. Only active employees appear: deactivate someone and their birthday leaves the calendar. Clear the date to remove it. The year of birth is never shown on the calendar.',
+      'Birthday reminders: HR and the employee’s team leader get a notification the day before and again on the day (the red number next to Notifications). The birthday person is not told. A leader’s or HR’s own birthday goes to HR only. On 29 February birthdays, non-leap years use 28 February.',
       'A day is never paid more than once: leave or a holiday only pays the part of the day that was not worked, and a holiday that falls inside a vacation is paid once.',
       'These appear on the payslip as Paid leave and Holidays. Someone with no shifts in the month but paid leave or a holiday still gets a payroll row. Regenerate the month after changing leave, holidays or these settings.',
     ],
@@ -588,12 +592,14 @@ export default async function HelpPage() {
       </div>
 
       <div className="stack">
-        <div className="card card-pad">
+        <HelpSearch />
+
+        <div className="card card-pad" data-help-extra>
           <div style={{ fontWeight: 650, fontSize: 15 }}>{quickStart.title}</div>
           <Steps items={quickStart.steps} />
         </div>
 
-        <div className="card card-pad">
+        <div className="card card-pad" data-help-extra>
           <div style={{ fontWeight: 650, fontSize: 15 }}>Install the desktop agent</div>
           <p className="faint" style={{ margin: '4px 0 12px', fontSize: 13 }}>
             Screenshots and activity come from a small app on your computer or phone. Pick your
@@ -618,7 +624,7 @@ export default async function HelpPage() {
           </div>
         </div>
 
-        <div className="card card-pad">
+        <div className="card card-pad" data-help-extra>
           <div className="faint" style={{ marginBottom: 8, fontSize: 13 }}>
             Jump to
           </div>
@@ -632,7 +638,7 @@ export default async function HelpPage() {
         </div>
 
         {sections.map((s, i) => (
-          <details key={s.id} id={s.id} className="card card-pad" open={i === 0}>
+          <details key={s.id} id={s.id} className="card card-pad" open={i === 0} data-help-section>
             <summary style={{ cursor: 'pointer', fontWeight: 650, fontSize: 15 }}>
               {s.title}
               {s.badge && <Badge>{s.badge}</Badge>}

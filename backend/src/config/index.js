@@ -159,6 +159,9 @@ const config = {
     enabled: bool('ENABLE_SCHEDULER', true) && !isTest,
     purgeCron: str('CRON_PURGE', '15 2 * * *'),
     payrollCron: str('CRON_PAYROLL', '0 3 1 * *'),
+    // Birthday reminders: hourly through the working day (company time). Each reminder is written
+    // once, so the repeats are harmless and cover a server that was asleep at the first run.
+    birthdayCron: str('CRON_BIRTHDAYS', '5 8-20 * * *'),
     closeShiftsCron: str('CRON_CLOSE_SHIFTS', '10 * * * *'),
   },
 };

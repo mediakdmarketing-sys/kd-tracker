@@ -19,6 +19,7 @@ const { sendCsv } = require('../../utils/csv');
 const { badRequest } = require('../../utils/errors');
 const audit = require('../../services/audit');
 const notifications = require('../../services/notifications');
+const birthdays = require('../../services/birthdays');
 
 const router = express.Router();
 
@@ -178,6 +179,7 @@ const createEmployeeSchema = z.object({
   role: z.enum(['admin', 'leader', 'user']).optional(),
   department: z.string().max(120).optional(),
   employeeCode: z.string().max(50).optional(),
+  birthday: DATE.nullable().optional(),
   timezone: z.string().max(64).optional(),
 });
 
@@ -191,6 +193,7 @@ const updateEmployeeSchema = z.object({
   status: z.enum(['active', 'inactive']).optional(),
   department: z.string().max(120).nullable().optional(),
   employeeCode: z.string().max(50).nullable().optional(),
+  birthday: DATE.nullable().optional(),
   timezone: z.string().max(64).optional(),
   // HR can switch audio off, and back on for someone who has already accepted monitoring consent
   // (see admin.service). The employee is told either way.
@@ -211,6 +214,16 @@ router.get(
       offset: page.offset,
     });
     res.json(paged(rows, total, page));
+  })
+);
+
+// Birthdays of active employees in a year, for the HR calendar.
+router.get(
+  '/birthdays',
+  validate(z.object({ year: z.string().regex(/^\d{4}$/) }), 'query'),
+  asyncHandler(async (req, res) => {
+    const year = q(req).year;
+    res.json({ year, rows: await birthdays.listYear(Number(year)) });
   })
 );
 

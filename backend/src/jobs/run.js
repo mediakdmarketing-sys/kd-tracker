@@ -13,6 +13,7 @@ const t = require('../utils/time');
 const JOBS = {
   purge: () => purge(),
   'close-shifts': () => closeStaleShifts(),
+  birthdays: () => require('../services/birthdays').sendReminders(),
   payroll: async () => {
     // `npm run job:payroll -- 2026-08` overrides the default of "last month".
     const month = process.argv[3] || t.previousMonth();

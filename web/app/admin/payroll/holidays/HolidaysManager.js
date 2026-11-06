@@ -15,7 +15,9 @@ const DAY = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', '
 
 const weekday = (date) => DAY[new Date(`${date}T00:00:00Z`).getUTCDay()];
 
-export default function HolidaysManager({ year, rows, workDays, today }) {
+const SHORT_DATE = new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
+
+export default function HolidaysManager({ year, rows, birthdays = [], workDays, today }) {
   const router = useRouter();
   const nameInput = useRef(null);
   const [date, setDate] = useState('');
@@ -69,8 +71,36 @@ export default function HolidaysManager({ year, rows, workDays, today }) {
             Click a day to mark it as a holiday, or click a holiday to change it. Holidays you mark come back
             on the same date every year: next year&apos;s calendar fills itself in, and you change what is different.
           </p>
-          <YearCalendar year={Number(year)} holidays={rows} onPick={pick} todayKey={today} />
+          <YearCalendar year={Number(year)} holidays={rows} birthdays={birthdays} onPick={pick} todayKey={today} />
         </div>
+      </div>
+
+      <div className="card">
+        <div className="card-head"><h2>Birthdays in {year}</h2><span className="muted">{birthdays.length}</span></div>
+        <div className="card-pad">
+          <p className="muted" style={{ marginTop: 0 }}>
+            Active employees only. HR and the person&apos;s leader are told the day before and on the day. Set or
+            change a birthday on the employee&apos;s page (Edit details).
+          </p>
+        </div>
+        {birthdays.length === 0 ? (
+          <div className="empty">No birthdays have been added yet.</div>
+        ) : (
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>Date</th><th>Employee</th><th>Department</th></tr></thead>
+              <tbody>
+                {birthdays.map((b) => (
+                  <tr key={b.employeeId} style={b.date === today ? { fontWeight: 650 } : undefined}>
+                    <td>{SHORT_DATE.format(new Date(`${b.date}T00:00:00Z`))}{b.date === today ? ' · today' : ''}</td>
+                    <td><a href={`/admin/employees/${b.employeeId}`}>{b.name}</a></td>
+                    <td className="muted">{b.department || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <div className="card">

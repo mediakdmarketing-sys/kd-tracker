@@ -8,6 +8,7 @@ const { purge } = require('./retention.job');
 const { closeStaleShifts } = require('./closeShifts.job');
 const payrollService = require('../modules/payroll/payroll.service');
 const payslipMail = require('../modules/payroll/payslipMail.service');
+const birthdays = require('../services/birthdays');
 const t = require('../utils/time');
 
 const tasks = [];
@@ -23,22 +24,27 @@ function start() {
     return [];
   }
 
-  const register = (name, expression, fn) => {
+  const register = (name, expression, fn, options) => {
     if (!cron.validate(expression)) {
       logger.error(`Invalid cron expression for ${name}; job not scheduled`, { expression });
       return;
     }
     // A throwing job must not take the API process down with it.
     tasks.push(
-      cron.schedule(expression, () => {
-        runJob(name, fn).catch((err) => logger.error(`Scheduled job ${name} failed`, { message: err.message }));
-      })
+      cron.schedule(
+        expression,
+        () => {
+          runJob(name, fn).catch((err) => logger.error(`Scheduled job ${name} failed`, { message: err.message }));
+        },
+        options
+      )
     );
     logger.info(`Scheduled job: ${name}`, { expression });
   };
 
   register('purge', config.jobs.purgeCron, () => purge());
   register('close-shifts', config.jobs.closeShiftsCron, () => closeStaleShifts());
+  register('birthdays', config.jobs.birthdayCron, () => birthdays.sendReminders(), { timezone: config.timezone });
   register('payroll', config.jobs.payrollCron, async () => {
     // Runs on the 1st, so the month to close is the previous one.
     const month = t.previousMonth();

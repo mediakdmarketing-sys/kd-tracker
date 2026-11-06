@@ -10,7 +10,11 @@ export default async function HolidaysPage({ searchParams }) {
   const user = await requireUser({ adminOnly: true });
 
   const year = /^\d{4}$/.test(params.year || '') ? params.year : currentMonth(user.timezone).slice(0, 4);
-  const [holidays, settings] = await Promise.all([api(`/api/payroll/holidays?year=${year}`), api('/api/admin/settings')]);
+  const [holidays, settings, birthdays] = await Promise.all([
+    api(`/api/payroll/holidays?year=${year}`),
+    api('/api/admin/settings'),
+    api(`/api/admin/birthdays?year=${year}`),
+  ]);
   const y = Number(year);
 
   return (
@@ -31,7 +35,13 @@ export default async function HolidaysPage({ searchParams }) {
       </div>
 
       <div className="stack">
-        <HolidaysManager year={year} rows={holidays.rows} workDays={settings.payroll.workDays} today={todayIn(user.timezone)} />
+        <HolidaysManager
+          year={year}
+          rows={holidays.rows}
+          birthdays={birthdays.rows}
+          workDays={settings.payroll.workDays}
+          today={todayIn(user.timezone)}
+        />
         <div className="notice notice-info">
           <strong>Sundays are always a day off:</strong> nobody can punch in on a Sunday or on a holiday, and Sundays
           are not paid. Holidays that fall on a day that is not a working day are not paid. Working days and which

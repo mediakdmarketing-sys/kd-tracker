@@ -6,7 +6,7 @@
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const HEAD = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
-function Month({ year, month, byDate, onPick, todayKey }) {
+function Month({ year, month, byDate, bdays, onPick, todayKey }) {
   const first = new Date(Date.UTC(year, month, 1));
   const days = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
   const blanks = first.getUTCDay(); // Sunday-first, so the Sunday column is the left one
@@ -29,7 +29,13 @@ function Month({ year, month, byDate, onPick, todayKey }) {
           if (holiday) classes.push('cal-holiday');
           if (holiday?.autoCopied) classes.push('cal-copied');
           if (key === todayKey) classes.push('cal-today');
-          const title = holiday ? holiday.name + (holiday.autoCopied ? ' (copied from last year: check the date)' : '') : sunday ? 'Sunday: day off' : undefined;
+          const birthdays = bdays[key];
+          if (birthdays) classes.push('cal-bday');
+          const parts = [];
+          if (holiday) parts.push(holiday.name + (holiday.autoCopied ? ' (copied from last year: check the date)' : ''));
+          else if (sunday) parts.push('Sunday: day off');
+          if (birthdays) parts.push(`Birthday: ${birthdays.map((b) => b.name).join(', ')}`);
+          const title = parts.length ? parts.join(' · ') : undefined;
           const props = { className: classes.join(' '), title };
           return onPick ? (
             <button type="button" key={key} {...props} onClick={() => onPick(key, holiday)}>{day}</button>
@@ -46,21 +52,25 @@ function Month({ year, month, byDate, onPick, todayKey }) {
  * @param {object} props
  * @param {number} props.year
  * @param {Array<{date: string, name: string, autoCopied?: boolean}>} props.holidays
+ * @param {Array<{date: string, name: string}>} [props.birthdays]  marked with a dot, name on hover
  * @param {(date: string, holiday?: object) => void} [props.onPick]
  * @param {string} [props.todayKey]   "YYYY-MM-DD" to ring
  */
-export default function YearCalendar({ year, holidays, onPick, todayKey }) {
+export default function YearCalendar({ year, holidays, birthdays = [], onPick, todayKey }) {
   const byDate = Object.fromEntries(holidays.map((h) => [h.date, h]));
+  const bdays = {};
+  for (const b of birthdays) (bdays[b.date] ||= []).push(b);
   return (
     <div>
       <div className="cal-legend">
         <span><i className="cal-key cal-sun" /> Sunday (always a day off)</span>
         <span><i className="cal-key cal-holiday" /> Holiday</span>
         <span><i className="cal-key cal-holiday cal-copied" /> Copied from last year: check the date</span>
+        {birthdays.length > 0 && <span><i className="cal-key cal-bday" /> Birthday</span>}
       </div>
       <div className="cal-year">
         {MONTHS.map((_, m) => (
-          <Month key={m} year={year} month={m} byDate={byDate} onPick={onPick} todayKey={todayKey} />
+          <Month key={m} year={year} month={m} byDate={byDate} bdays={bdays} onPick={onPick} todayKey={todayKey} />
         ))}
       </div>
     </div>

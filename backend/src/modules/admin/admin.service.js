@@ -11,6 +11,7 @@ const { toBool, toIso } = require('../../utils/http');
 const { conflict, notFound, badRequest } = require('../../utils/errors');
 const { publicEmployee } = require('../auth/auth.service');
 const { generateTemporaryPassword } = require('../../utils/password');
+const birthdays = require('../../services/birthdays');
 
 /**
  * Story D-1 — "who is working right now".
@@ -301,6 +302,7 @@ async function createEmployee(input) {
     role: input.role || 'user',
     department: input.department || null,
     employee_code: input.employeeCode || null,
+    birth_date: birthdays.parse(input.birthday ?? null),
     status: 'active',
     timezone: input.timezone || t.DEFAULT_TIMEZONE,
     consent_monitoring: false,
@@ -343,6 +345,7 @@ async function updateEmployee(id, input) {
   }
   if (input.department !== undefined) patch.department = input.department;
   if (input.employeeCode !== undefined) patch.employee_code = input.employeeCode;
+  if (input.birthday !== undefined) patch.birth_date = birthdays.parse(input.birthday);
   if (input.role !== undefined) patch.role = input.role;
   if (input.status !== undefined) patch.status = input.status;
   if (input.timezone !== undefined) patch.timezone = input.timezone;

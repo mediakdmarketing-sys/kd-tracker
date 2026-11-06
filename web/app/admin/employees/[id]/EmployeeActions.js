@@ -106,6 +106,7 @@ export default function EmployeeActions({ employee, departments = [] }) {
   const [editEmail, setEditEmail] = useState(employee.email);
   const [editRole, setEditRole] = useState(employee.role);
   const [editDept, setEditDept] = useState(employee.department || '');
+  const [editBirthday, setEditBirthday] = useState(employee.birthday || '');
   const [editError, setEditError] = useState(null);
 
   // Returns a Promise that resolves true/false based on user choice.
@@ -282,6 +283,7 @@ export default function EmployeeActions({ employee, departments = [] }) {
               setEditEmail(employee.email);
               setEditRole(employee.role);
               setEditDept(employee.department || '');
+              setEditBirthday(employee.birthday || '');
               setEditError(null);
               setShowEdit((v) => !v);
             }}
@@ -431,6 +433,7 @@ export default function EmployeeActions({ employee, departments = [] }) {
                   email: editEmail.trim(),
                   role: editRole,
                   department: editDept || null,
+                  birthday: editBirthday || null,
                 });
                 setShowEdit(false);
                 router.refresh();
@@ -517,6 +520,22 @@ export default function EmployeeActions({ employee, departments = [] }) {
                   disabled={busy === 'edit'}
                 />
               )}
+            </div>
+
+            <div className="field" style={{ margin: 0 }}>
+              <label htmlFor="ea-birthday">Birthday</label>
+              <input
+                id="ea-birthday"
+                type="date"
+                min="1900-01-01"
+                max={new Date().toISOString().slice(0, 10)}
+                value={editBirthday}
+                onChange={(e) => setEditBirthday(e.target.value)}
+                disabled={busy === 'edit'}
+              />
+              <span className="faint" style={{ fontSize: 12 }}>
+                Shows on the HR calendar while the person is active. HR and their leader are reminded the day before and on the day. Clear it to remove.
+              </span>
             </div>
 
             {editError && (

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { post, call } from '@/lib/client';
 import InviteCard from '@/components/InviteCard';
 
-const EMPTY = { name: '', email: '', password: '', department: '', role: 'user' };
+const EMPTY = { name: '', email: '', password: '', department: '', role: 'user', birthday: '' };
 
 /**
  * @param {{ departments: string[] }} props
@@ -50,6 +50,7 @@ export default function NewEmployeeForm({ departments = [] }) {
         password: form.password || undefined,
         role: form.role,
         department: form.department || undefined,
+        birthday: form.birthday || undefined,
       });
 
       // 2. If leader role + departments selected → assign leader assignments
@@ -150,6 +151,19 @@ export default function NewEmployeeForm({ departments = [] }) {
                 value={form.password}
                 onChange={set('password')}
                 placeholder="Leave empty to generate one"
+                disabled={busy}
+              />
+            </div>
+
+            <div className="field">
+              <label htmlFor="ne-birthday">Birthday (optional)</label>
+              <input
+                id="ne-birthday"
+                type="date"
+                min="1900-01-01"
+                max={new Date().toISOString().slice(0, 10)}
+                value={form.birthday}
+                onChange={set('birthday')}
                 disabled={busy}
               />
             </div>

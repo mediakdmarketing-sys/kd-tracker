@@ -432,6 +432,14 @@ button.cal-day:hover {
 .cal-today {
   box-shadow: 0 0 0 2px var(--accent, #5b3fd6);
 }
+/* A birthday: a gold dot under the number, so it also shows on a holiday or a Sunday. */
+.cal-bday {
+  background-image: radial-gradient(circle at 50% 84%, #f59e0b 0 2.2px, transparent 2.8px);
+  font-weight: 650;
+}
+.cal-key.cal-bday {
+  border: 1px solid var(--border-strong);
+}
 .cal-legend {
   display: flex;
   flex-wrap: wrap;

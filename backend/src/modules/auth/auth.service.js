@@ -89,6 +89,7 @@ function publicEmployee(row) {
     role: row.role,
     department: row.department,
     employeeCode: row.employee_code,
+    birthday: row.birth_date || null,
     timezone: config.timezone,
     status: row.status,
     // True while the password is a temporary one from HR; the portal sends the person to
