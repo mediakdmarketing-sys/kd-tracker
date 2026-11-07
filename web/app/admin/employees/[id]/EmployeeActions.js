@@ -158,8 +158,9 @@ export default function EmployeeActions({ employee, departments = [] }) {
     e.preventDefault();
     setResetError(null);
 
-    if (newPassword.length < 8) {
-      setResetError('Password must be at least 8 characters.');
+    const minLength = employee.role === 'admin' ? 12 : 8;
+    if (newPassword.length < minLength) {
+      setResetError(`Password must be at least ${minLength} characters.`);
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -380,6 +381,7 @@ export default function EmployeeActions({ employee, departments = [] }) {
               <PasswordField
                 id="reset-pw"
                 label="New password"
+                minLength={employee.role === 'admin' ? 12 : 8}
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 disabled={busy === 'reset'}
@@ -391,6 +393,7 @@ export default function EmployeeActions({ employee, departments = [] }) {
               <PasswordField
                 id="reset-pw-confirm"
                 label="Confirm new password"
+                minLength={employee.role === 'admin' ? 12 : 8}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 disabled={busy === 'reset'}

@@ -50,6 +50,11 @@ export default async function PayrollPage({ searchParams }) {
               alreadySent={mail.rows.filter((r) => r.status === 'sent').length}
             />
           ) : null}
+          {closing.final ? (
+            <a className="btn btn-info" href={`/bff/api/payroll/payment-list?month=${month}`} title="Who is paid how much this month, from the frozen payslips">
+              Payment list (CSV)
+            </a>
+          ) : null}
           {result.rows.length ? (
             <a className="btn btn-primary" href={`/bff/api/payroll/export?month=${month}`}>
               Export CSV

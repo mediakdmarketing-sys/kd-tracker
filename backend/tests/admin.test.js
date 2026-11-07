@@ -154,7 +154,7 @@ describe('employee administration', () => {
     const res = await as(adminToken).post('/api/admin/employees').send({
       name: 'New Joiner',
       email: 'new.joiner@kdmarketing.in',
-      password: 'Password123!',
+      password: 'Quiet-River-42',
       department: 'Support',
     });
 
@@ -171,7 +171,7 @@ describe('employee administration', () => {
 
     const res = await as(adminToken)
       .post('/api/admin/employees')
-      .send({ name: 'Dup', email: 'taken@kdmarketing.in', password: 'Password123!' });
+      .send({ name: 'Dup', email: 'taken@kdmarketing.in', password: 'Quiet-River-42' });
 
     expect(res.status).toBe(409);
   });

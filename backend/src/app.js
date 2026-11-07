@@ -13,6 +13,7 @@ const { apiLimiter } = require('./middleware/rateLimit');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const { asyncHandler } = require('./utils/http');
 const { lastRuns } = require('./jobs/jobRunner');
+const { forbidden } = require('./utils/errors');
 
 const authRoutes = require('./modules/auth/auth.routes');
 const attendanceRoutes = require('./modules/attendance/attendance.routes');
@@ -38,7 +39,8 @@ function createApp() {
         // No Origin header: the desktop agent and server-to-server calls. Browsers always
         // send one, so this does not weaken the browser-facing policy.
         if (!origin || config.corsOrigins.includes(origin)) return callback(null, true);
-        return callback(new Error(`Origin ${origin} is not allowed`));
+        // An expected refusal (403), not a server fault: it must not log a stack or answer 500.
+        return callback(forbidden('This origin is not allowed'));
       },
       credentials: true,
     })

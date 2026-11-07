@@ -17,6 +17,19 @@ async function forward(request, params) {
     );
   }
 
+  // The session cookie is SameSite=Lax, which already keeps other sites from making a signed-in
+  // browser POST here. This is the second lock: a request that changes something must say it came
+  // from this portal. (Calls without an Origin header, such as curl, carry no cookie of a browser.)
+  if (!['GET', 'HEAD'].includes(request.method)) {
+    const origin = request.headers.get('origin');
+    if (origin && origin !== new URL(request.url).origin) {
+      return NextResponse.json(
+        { error: { code: 'FORBIDDEN', message: 'Cross-site requests are not allowed' } },
+        { status: 403 }
+      );
+    }
+  }
+
   const jar = await cookies();
   const token = jar.get(ACCESS_COOKIE)?.value;
   const search = new URL(request.url).search;

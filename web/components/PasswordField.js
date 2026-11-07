@@ -16,6 +16,7 @@ export default function PasswordField({
   disabled = false,
   autoComplete = 'current-password',
   placeholder,
+  minLength = 8,
   inputStyle = {},
 }) {
   const [show, setShow] = useState(false);
@@ -38,7 +39,7 @@ export default function PasswordField({
           onChange={onChange}
           autoComplete={autoComplete}
           placeholder={placeholder}
-          minLength={8}
+          minLength={minLength}
           required
           disabled={disabled}
           style={{

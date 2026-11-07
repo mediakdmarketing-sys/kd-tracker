@@ -4,7 +4,9 @@ import { useState } from 'react';
 import { post } from '@/lib/client';
 import PasswordField from '@/components/PasswordField';
 
-export default function ChangePasswordForm({ temporary, email }) {
+export default function ChangePasswordForm({ temporary, email, role }) {
+  // HR / admin accounts can read everyone's screenshots, audio and pay, so they need a longer one.
+  const minLength = role === 'admin' ? 12 : 8;
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
   const [again, setAgain] = useState('');
@@ -15,8 +17,8 @@ export default function ChangePasswordForm({ temporary, email }) {
     event.preventDefault();
     setError(null);
 
-    if (next.length < 8) {
-      setError('The new password must be at least 8 characters.');
+    if (next.length < minLength) {
+      setError(`The new password must be at least ${minLength} characters.`);
       return;
     }
     if (next !== again) {
@@ -75,10 +77,17 @@ export default function ChangePasswordForm({ temporary, email }) {
           value={next}
           onChange={(e) => setNext(e.target.value)}
           autoComplete="new-password"
-          placeholder="At least 8 characters"
+          placeholder={`At least ${minLength} characters`}
+          minLength={minLength}
           disabled={busy}
           inputStyle={{ fontSize: 14, padding: '10px 36px 10px 12px' }}
         />
+        <p className="faint" style={{ margin: '6px 0 0', fontSize: 12 }}>
+          {role === 'admin'
+            ? 'A few words you will remember work well, for example "blue-tea-morning-bus". '
+            : ''}
+          Not a common password, and not your name or email.
+        </p>
       </div>
 
       <div className="field">

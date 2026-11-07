@@ -117,6 +117,61 @@ async function reopen({ month }) {
   return { month, final: false };
 }
 
+/**
+ * Who is to be paid how much for a finalized month: the month-end payment list.
+ *
+ * Built only from the frozen payslips, so it is exactly what employees were shown and can never
+ * drift from them. A month that is not finalized has no payment list (its figures can still change).
+ * Someone whose net pay is nothing is left off the list and counted in `skipped`.
+ *
+ * @returns {Promise<{ month, finalizedAt, rows: object[], skipped: number, totalCents: number, total: number }>}
+ */
+async function paymentList({ month, department }) {
+  if (!pay.isRealMonth(month)) throw badRequest('month must be YYYY-MM');
+  const closed = await db()('payroll_months').where({ month }).first();
+  if (!closed) {
+    throw conflict(`Payroll for ${month} is not finalized yet. Finalize the month first: the payment list is built from the frozen payslips.`);
+  }
+
+  const query = db()('payroll_summary as p')
+    .join('employees as e', 'e.id', 'p.employee_id')
+    .where('p.month', month)
+    .whereNotNull('p.snapshot');
+  if (department) query.andWhere('e.department', department);
+  const stored = await query.select('p.snapshot');
+
+  const slips = stored.map((r) => JSON.parse(r.snapshot)).sort((a, b) => a.employee.name.localeCompare(b.employee.name));
+  const payable = slips.filter((s) => pay.toCents(s.netPay) > 0);
+  const rows = payable.map((s, i) => ({
+    number: i + 1,
+    employeeId: s.employee.id,
+    employeeCode: s.employee.employeeCode || '',
+    name: s.employee.name,
+    email: s.employee.email,
+    department: s.employee.department || '',
+    daysWorked: s.daysWorked,
+    fullDays: s.fullDays,
+    halfDays: s.halfDays,
+    otherHours: s.otherHours,
+    paidLeaveDays: s.paidLeaveDays || 0,
+    holidayDays: s.holidayDays || 0,
+    basePay: s.basePay,
+    bonusTotal: s.bonusTotal,
+    netPay: s.netPay,
+    cents: pay.toCents(s.netPay),
+  }));
+  const totalCents = rows.reduce((sum, r) => sum + r.cents, 0);
+
+  return {
+    month,
+    finalizedAt: toIso(closed.finalized_at),
+    rows,
+    skipped: slips.length - payable.length,
+    totalCents,
+    total: pay.toDollars(totalCents),
+  };
+}
+
 /** Months an employee can see: finalized ones in which they have a payslip, newest first. */
 async function monthsFor(employeeId) {
   const rows = await db()('payroll_summary as p')
@@ -131,4 +186,4 @@ async function monthsFor(employeeId) {
   });
 }
 
-module.exports = { status, finalize, reopen, monthsFor };
+module.exports = { status, finalize, reopen, monthsFor, paymentList };

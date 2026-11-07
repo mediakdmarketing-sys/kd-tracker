@@ -8,6 +8,7 @@ const { uuid, randomToken, sha256 } = require('../../utils/ids');
 const { now } = require('../../utils/time');
 const { toBool } = require('../../utils/http');
 const logger = require('../../utils/logger');
+const passwordPolicy = require('../../utils/passwordPolicy');
 const { unauthorized, forbidden, notFound, badRequest } = require('../../utils/errors');
 
 /** The disclosure shown before the first punch-in (story A-4). Versioned so a change re-prompts. */
@@ -50,7 +51,7 @@ function signAccessToken(employee) {
   return jwt.sign(
     { sub: employee.id, role: employee.role, type: 'access' },
     config.auth.jwtSecret,
-    { expiresIn: config.auth.expiresIn }
+    { expiresIn: config.auth.expiresIn, algorithm: 'HS256' }
   );
 }
 
@@ -227,6 +228,8 @@ async function changePassword(employeeId, { currentPassword, newPassword }) {
   if (currentPassword === newPassword) {
     throw badRequest('Choose a password that is different from the current one.');
   }
+  const weakness = passwordPolicy.check(newPassword, { role: row.role, email: row.email, name: row.name });
+  if (weakness) throw badRequest(weakness);
 
   await db()('employees')
     .where({ id: employeeId })

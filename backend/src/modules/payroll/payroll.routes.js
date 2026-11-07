@@ -94,6 +94,63 @@ router.get(
   })
 );
 
+// The month-end payment list: everyone to be paid, and how much, from the frozen payslips of a
+// finalized month. The last three columns are left empty for HR to fill in as they pay.
+router.get(
+  '/payment-list',
+  validate(
+    z.object({
+      month: MONTH,
+      department: z.string().max(120).optional(),
+      format: z.enum(['csv', 'json']).optional(),
+    }),
+    'query'
+  ),
+  asyncHandler(async (req, res) => {
+    const query = q(req);
+    const list = await finalizeService.paymentList(query);
+
+    await audit.record(req, {
+      action: audit.ACTIONS.EXPORTED_PAYROLL,
+      targetType: 'payroll',
+      details: { month: query.month, department: query.department || null, rows: list.rows.length, kind: 'payment-list', total: list.total },
+    });
+
+    if (query.format === 'json') {
+      return res.json({ ...list, rows: list.rows.map(({ cents, ...row }) => row) });
+    }
+
+    const rows = list.rows.map((r) => ({ ...r, month: query.month, paidOn: '', method: '', reference: '' }));
+    // A closing line so the sheet adds up on its own. Every other cell stays empty.
+    rows.push({ name: `TOTAL (${list.rows.length} ${list.rows.length === 1 ? 'person' : 'people'})`, netPay: list.total });
+    return sendCsv(
+      res,
+      `payment-list_${query.month}.csv`,
+      [
+        { key: 'number', label: 'No.' },
+        { key: 'employeeCode', label: 'Employee Code' },
+        { key: 'name', label: 'Employee' },
+        { key: 'email', label: 'Email' },
+        { key: 'department', label: 'Department' },
+        { key: 'month', label: 'Month' },
+        { key: 'daysWorked', label: 'Days Worked' },
+        { key: 'fullDays', label: 'Full Days' },
+        { key: 'halfDays', label: 'Half Days' },
+        { key: 'otherHours', label: 'Other Hours' },
+        { key: 'paidLeaveDays', label: 'Paid Leave Days' },
+        { key: 'holidayDays', label: 'Holidays' },
+        { key: 'basePay', label: 'Base Pay (USD)' },
+        { key: 'bonusTotal', label: 'Bonus (USD)' },
+        { key: 'netPay', label: 'Amount To Pay (USD)' },
+        { key: 'paidOn', label: 'Paid On' },
+        { key: 'method', label: 'Payment Method' },
+        { key: 'reference', label: 'Reference' },
+      ],
+      rows
+    );
+  })
+);
+
 router.post(
   '/mark-synced',
   validate(z.object({ month: MONTH, employeeIds: z.array(z.string().uuid()).optional() })),

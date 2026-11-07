@@ -12,6 +12,7 @@ const { conflict, notFound, badRequest } = require('../../utils/errors');
 const { publicEmployee } = require('../auth/auth.service');
 const { generateTemporaryPassword } = require('../../utils/password');
 const birthdays = require('../../services/birthdays');
+const passwordPolicy = require('../../utils/passwordPolicy');
 
 /**
  * Story D-1 — "who is working right now".
@@ -287,6 +288,12 @@ async function createEmployee(input) {
     .first();
   if (existing) throw conflict('An employee with that work email already exists');
 
+  // A password HR types is held to the same rules as one a person picks (a generated one is not).
+  if (input.password) {
+    const weakness = passwordPolicy.check(input.password, { role: input.role || 'user', email: input.email, name: input.name });
+    if (weakness) throw badRequest(weakness);
+  }
+
   const nowMs = t.now();
   // No password given: make one, so every invitation has something to send. It is temporary
   // either way (unless the caller, such as the first-admin script, says otherwise): the
@@ -349,8 +356,20 @@ async function updateEmployee(id, input) {
   if (input.role !== undefined) patch.role = input.role;
   if (input.status !== undefined) patch.status = input.status;
   if (input.timezone !== undefined) patch.timezone = input.timezone;
+  const newRole = input.role !== undefined ? input.role : row.role;
+  if (input.password && !input.generatePassword) {
+    const weakness = passwordPolicy.check(input.password, {
+      role: newRole,
+      email: input.email !== undefined ? input.email : row.email,
+      name: input.name !== undefined ? input.name : row.name,
+    });
+    if (weakness) throw badRequest(weakness);
+  }
   // A new password from HR (typed, or generated for an invitation) is a temporary one.
   const temporaryPassword = input.generatePassword ? generateTemporaryPassword() : input.password;
+  // Becoming an admin raises the bar to 12 characters, and the old password was only judged against
+  // 8: so they choose a new one at their next request.
+  if (newRole === 'admin' && row.role !== 'admin') patch.must_change_password = true;
   if (temporaryPassword) {
     patch.password_hash = await bcrypt.hash(temporaryPassword, config.auth.bcryptRounds);
     patch.must_change_password = true;

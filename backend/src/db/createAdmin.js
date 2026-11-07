@@ -13,8 +13,7 @@ const config = require('../config');
 const { db, destroy } = require('./index');
 const adminService = require('../modules/admin/admin.service');
 const t = require('../utils/time');
-
-const MIN_PASSWORD_LENGTH = 12;
+const passwordPolicy = require('../utils/passwordPolicy');
 
 async function resetPassword(email, password) {
   const row = await db()('employees').whereRaw('LOWER(email) = ?', [email.toLowerCase()]).first();
@@ -43,8 +42,9 @@ async function main() {
     console.error('ADMIN_EMAIL is not a valid email address.');
     process.exit(2);
   }
-  if (password.length < MIN_PASSWORD_LENGTH) {
-    console.error(`ADMIN_PASSWORD must be at least ${MIN_PASSWORD_LENGTH} characters.`);
+  const weakness = passwordPolicy.check(password, { role: 'admin', email, name });
+  if (weakness) {
+    console.error(`ADMIN_PASSWORD is not accepted: ${weakness}`);
     process.exit(2);
   }
 

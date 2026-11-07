@@ -41,7 +41,9 @@ async function authenticate(req, res, next) {
 
     let payload;
     try {
-      payload = jwt.verify(token, config.auth.jwtSecret);
+      // Pinned to the one algorithm tokens are signed with, so a token claiming another ("none",
+      // or an asymmetric one) is never even considered.
+      payload = jwt.verify(token, config.auth.jwtSecret, { algorithms: ['HS256'] });
     } catch (err) {
       throw unauthorized(err.name === 'TokenExpiredError' ? 'Token expired' : 'Invalid token');
     }

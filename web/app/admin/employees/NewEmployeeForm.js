@@ -147,10 +147,10 @@ export default function NewEmployeeForm({ departments = [] }) {
               <input
                 id="ne-password"
                 type="text"
-                minLength={8}
+                minLength={form.role === 'admin' ? 12 : 8}
                 value={form.password}
                 onChange={set('password')}
-                placeholder="Leave empty to generate one"
+                placeholder={form.role === 'admin' ? 'Leave empty to generate one (12+ if typed)' : 'Leave empty to generate one'}
                 disabled={busy}
               />
             </div>

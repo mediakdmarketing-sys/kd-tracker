@@ -23,6 +23,7 @@ export default async function CompanyCalendarPage({ searchParams }) {
           <p>Company holidays and Sundays. Nobody works on these days, and punching in is closed.</p>
         </div>
         <div className="btn-row">
+          <Link className="btn" href="/calendar">Month view</Link>
           <Link className="btn" href={`/me/calendar?year=${y - 1}`}>← {y - 1}</Link>
           <Link className="btn" href={`/me/calendar?year=${y + 1}`}>{y + 1} →</Link>
         </div>
