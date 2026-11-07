@@ -11,7 +11,7 @@ const MONTH_NAME = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'nume
 export default async function PayslipPage({ params, searchParams }) {
   const { employeeId } = await params;
   const query = await searchParams;
-  await requireUser({ adminOnly: true });
+  await requireUser({ accountAdminOnly: true });
 
   const month = /^\d{4}-\d{2}$/.test(query.month || '') ? query.month : null;
   if (!month) {

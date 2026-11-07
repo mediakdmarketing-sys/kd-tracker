@@ -8,7 +8,7 @@ const mail = require('./payslipMail.service');
 const finalizeService = require('./finalize.service');
 const holidays = require('./holidays.service');
 const { authenticate } = require('../../middleware/auth');
-const { requireAdmin } = require('../../middleware/rbac');
+const { requireAdmin, requireAccountAdmin } = require('../../middleware/rbac');
 const { validate, q } = require('../../middleware/validate');
 const { asyncHandler } = require('../../utils/http');
 const { sendCsv } = require('../../utils/csv');
@@ -16,6 +16,10 @@ const audit = require('../../services/audit');
 
 const router = express.Router();
 router.use(authenticate, requireAdmin);
+// Everything here is payroll and payments, so it is for account admins only, EXCEPT the company
+// holidays: those are the company calendar and HR admins keep them. Gating by default means a
+// route added later is protected until someone decides otherwise.
+router.use((req, res, next) => (req.path === '/holidays' || req.path.startsWith('/holidays/') ? next() : requireAccountAdmin(req, res, next)));
 
 const MONTH = z.string().regex(/^\d{4}-\d{2}$/, 'month must be YYYY-MM');
 
@@ -108,15 +112,27 @@ router.get(
   ),
   asyncHandler(async (req, res) => {
     const query = q(req);
-    const list = await finalizeService.paymentList(query);
+    // The CSV is the file for the bank, so it carries the full account numbers; the JSON view (the
+    // screen, a quick look) only ever shows them masked as ****1234.
+    const asCsv = query.format !== 'json';
+    const list = await finalizeService.paymentList({ ...query, accountNumbers: asCsv });
 
     await audit.record(req, {
       action: audit.ACTIONS.EXPORTED_PAYROLL,
       targetType: 'payroll',
-      details: { month: query.month, department: query.department || null, rows: list.rows.length, kind: 'payment-list', total: list.total },
+      details: {
+        month: query.month,
+        department: query.department || null,
+        rows: list.rows.length,
+        kind: 'payment-list',
+        total: list.total,
+        accountNumbersIncluded: asCsv,
+        missingBankDetails: list.missingBank,
+      },
     });
 
-    if (query.format === 'json') {
+    res.set('Cache-Control', 'no-store');
+    if (!asCsv) {
       return res.json({ ...list, rows: list.rows.map(({ cents, ...row }) => row) });
     }
 
@@ -133,6 +149,11 @@ router.get(
         { key: 'email', label: 'Email' },
         { key: 'department', label: 'Department' },
         { key: 'month', label: 'Month' },
+        { key: 'bank', label: 'Bank' },
+        { key: 'branch', label: 'Branch' },
+        { key: 'accountName', label: 'Account Name' },
+        { key: 'accountNumber', label: 'Account Number' },
+        { key: 'bankNote', label: 'Note' },
         { key: 'daysWorked', label: 'Days Worked' },
         { key: 'fullDays', label: 'Full Days' },
         { key: 'halfDays', label: 'Half Days' },

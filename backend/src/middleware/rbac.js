@@ -20,6 +20,18 @@ const requireAdmin = requireRole('admin');
 const requireAdminOrLeader = requireRole('admin', 'leader');
 
 /**
+ * Payroll and payments: an admin who has been made an account admin. An ordinary HR admin is an
+ * admin for everything else but is turned away here (see migration 20261114000100_account_admin).
+ */
+function requireAccountAdmin(req, res, next) {
+  if (!req.user) return next(unauthorized());
+  if (req.user.role !== 'admin' || !req.user.isAccountAdmin) {
+    return next(forbidden('Only an account admin can see payroll and payments'));
+  }
+  return next();
+}
+
+/**
  * Allows access when the caller is the subject of the request, or an admin.
  */
 function requireSelfOrAdmin(paramName = 'employeeId') {
@@ -138,6 +150,7 @@ function loadLeaderDepts() {
 module.exports = {
   requireRole,
   requireAdmin,
+  requireAccountAdmin,
   requireAdminOrLeader,
   requireSelfOrAdmin,
   requireSelfOrAdminOrLeader,

@@ -58,6 +58,8 @@ async function main() {
         email,
         password,
         role: 'admin',
+        // The person setting the system up is its first account admin (payroll and payments).
+        accountAdmin: true,
         mustChangePassword: false,
       });
       console.log(`Admin created: ${admin.email}`);

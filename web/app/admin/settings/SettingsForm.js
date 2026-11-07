@@ -20,7 +20,7 @@ const WEEKDAYS = [[1, 'Mon'], [2, 'Tue'], [3, 'Wed'], [4, 'Thu'], [5, 'Fri'], [6
  * The API itself stays in seconds throughout (matches config.js's existing units, and every
  * other backend consumer of these values already expects seconds).
  */
-export default function SettingsForm({ initial }) {
+export default function SettingsForm({ initial, showPayroll = true }) {
   const router = useRouter();
 
   const [form, setForm] = useState(() => ({
@@ -33,11 +33,16 @@ export default function SettingsForm({ initial }) {
     idleThresholdMinutes: initial.shift.idleThresholdSeconds / 60,
     autoCloseHours: initial.shift.autoCloseHours,
     retentionDays: initial.retention.days,
-    deductIdle: initial.payroll.deductIdle,
-    fullDayHours: initial.payroll.fullDaySeconds / 3600,
-    halfDayHours: initial.payroll.halfDaySeconds / 3600,
-    paidLeaveTypes: initial.payroll.paidLeaveTypes,
-    workDays: initial.payroll.workDays,
+    // Only account admins are sent the payroll rules (see the settings page).
+    ...(showPayroll
+      ? {
+          deductIdle: initial.payroll.deductIdle,
+          fullDayHours: initial.payroll.fullDaySeconds / 3600,
+          halfDayHours: initial.payroll.halfDaySeconds / 3600,
+          paidLeaveTypes: initial.payroll.paidLeaveTypes,
+          workDays: initial.payroll.workDays,
+        }
+      : {}),
   }));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -74,13 +79,17 @@ export default function SettingsForm({ initial }) {
           autoCloseHours: Math.round(form.autoCloseHours),
         },
         retention: { days: Math.round(form.retentionDays) },
-        payroll: {
-          deductIdle: form.deductIdle,
-          fullDaySeconds: Math.round(form.fullDayHours * 3600),
-          halfDaySeconds: Math.round(form.halfDayHours * 3600),
-          paidLeaveTypes: form.paidLeaveTypes,
-          workDays: form.workDays,
-        },
+        ...(showPayroll
+          ? {
+              payroll: {
+                deductIdle: form.deductIdle,
+                fullDaySeconds: Math.round(form.fullDayHours * 3600),
+                halfDaySeconds: Math.round(form.halfDayHours * 3600),
+                paidLeaveTypes: form.paidLeaveTypes,
+                workDays: form.workDays,
+              },
+            }
+          : {}),
       });
       setSaved(true);
       router.refresh();
@@ -201,6 +210,7 @@ export default function SettingsForm({ initial }) {
         />
       </div>
 
+      {showPayroll && (
       <div className="card card-pad">
         <div style={{ fontWeight: 650, fontSize: 14, marginBottom: 12 }}>Payroll</div>
 
@@ -284,6 +294,7 @@ export default function SettingsForm({ initial }) {
           after communicating the policy to employees.
         </p>
       </div>
+      )}
 
       {error && <div className="notice notice-danger" role="alert">{error}</div>}
       {saved && !error && (

@@ -12,7 +12,7 @@ export const metadata = { title: 'Payroll · WorkBuddy' };
 
 export default async function PayrollPage({ searchParams }) {
   const params = await searchParams;
-  const user = await requireUser({ adminOnly: true });
+  const user = await requireUser({ accountAdminOnly: true });
 
   const month = /^\d{4}-\d{2}$/.test(params.month || '') ? params.month : currentMonth(user.timezone);
   const [result, mail, closing] = await Promise.all([
@@ -20,6 +20,12 @@ export default async function PayrollPage({ searchParams }) {
     api(`/api/payroll/payslips/status?month=${month}`),
     api(`/api/payroll/finalize/status?month=${month}`),
   ]);
+  // Once the month is final the payment file is the next step: who to be paid has no bank details?
+  let noBank = [];
+  if (closing.final) {
+    const onFile = new Set((await api('/api/admin/bank-details/status')).rows.map((r) => r.employeeId));
+    noBank = result.rows.filter((r) => r.netPay > 0 && !onFile.has(r.employeeId));
+  }
   const mailByEmployee = Object.fromEntries(mail.rows.map((r) => [r.employeeId, r]));
   const pendingMail = mail.rows.filter((r) => r.status === 'queued' || r.status === 'sending').length;
 
@@ -84,6 +90,20 @@ export default async function PayrollPage({ searchParams }) {
             Finalize after you have checked the figures, added bonuses and sent or printed what you need.
           </div>
         ) : null}
+
+        {noBank.length > 0 && (
+          <div className="notice notice-warn">
+            <strong>{noBank.length}</strong> {noBank.length === 1 ? 'person to be paid has' : 'people to be paid have'} no
+            bank details, so the payment file cannot pay {noBank.length === 1 ? 'them' : 'them'}:{' '}
+            {noBank.map((r, i) => (
+              <span key={r.employeeId}>
+                {i > 0 ? ', ' : ''}
+                <Link href={`/admin/employees/${r.employeeId}`}>{r.name}</Link>
+              </span>
+            ))}
+            . Add their bank details on their employee page, then download the Payment list (CSV).
+          </div>
+        )}
 
         {missingRates.length > 0 && (
           <div className="notice notice-warn">

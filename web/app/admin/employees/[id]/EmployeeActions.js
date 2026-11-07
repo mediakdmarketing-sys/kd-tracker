@@ -85,8 +85,9 @@ function ConfirmDialog({ title, message, confirmLabel = 'Confirm', danger = fals
 // ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
-export default function EmployeeActions({ employee, departments = [] }) {
+export default function EmployeeActions({ employee, departments = [], viewer = {} }) {
   const router = useRouter();
+  const canGrant = Boolean(viewer.isAccountAdmin);
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState(null);
 
@@ -107,6 +108,7 @@ export default function EmployeeActions({ employee, departments = [] }) {
   const [editRole, setEditRole] = useState(employee.role);
   const [editDept, setEditDept] = useState(employee.department || '');
   const [editBirthday, setEditBirthday] = useState(employee.birthday || '');
+  const [editAccountAdmin, setEditAccountAdmin] = useState(Boolean(employee.isAccountAdmin));
   const [editError, setEditError] = useState(null);
 
   // Returns a Promise that resolves true/false based on user choice.
@@ -229,6 +231,11 @@ export default function EmployeeActions({ employee, departments = [] }) {
         />
       ) : null}
 
+      {employee.isAccountAdmin && !canGrant ? (
+        <div className="notice notice-info">
+          <strong>Account admin.</strong> Only an account admin can change this account (password, role, status).
+        </div>
+      ) : (
       <div>
         <div className="btn-row">
           {employee.status === 'active' ? (
@@ -285,6 +292,7 @@ export default function EmployeeActions({ employee, departments = [] }) {
               setEditRole(employee.role);
               setEditDept(employee.department || '');
               setEditBirthday(employee.birthday || '');
+              setEditAccountAdmin(Boolean(employee.isAccountAdmin));
               setEditError(null);
               setShowEdit((v) => !v);
             }}
@@ -437,6 +445,8 @@ export default function EmployeeActions({ employee, departments = [] }) {
                   role: editRole,
                   department: editDept || null,
                   birthday: editBirthday || null,
+                  // Only account admins may give or take the right; an HR admin never sends it.
+                  ...(canGrant && editRole === 'admin' ? { accountAdmin: editAccountAdmin } : {}),
                 });
                 setShowEdit(false);
                 router.refresh();
@@ -525,6 +535,25 @@ export default function EmployeeActions({ employee, departments = [] }) {
               )}
             </div>
 
+            {canGrant && editRole === 'admin' && (
+              <label className="inline" style={{ gap: 8, alignItems: 'flex-start' }}>
+                <input
+                  type="checkbox"
+                  checked={editAccountAdmin}
+                  onChange={(e) => setEditAccountAdmin(e.target.checked)}
+                  disabled={busy === 'edit'}
+                  style={{ marginTop: 3 }}
+                />
+                <span>
+                  <strong>Account admin</strong>
+                  <span className="faint" style={{ display: 'block', fontSize: 12 }}>
+                    Can see and run payroll and payments: pay rates, bonuses, payslips, the payment list and bank details.
+                    An HR admin without this cannot see any of it.
+                  </span>
+                </span>
+              </label>
+            )}
+
             <div className="field" style={{ margin: 0 }}>
               <label htmlFor="ea-birthday">Birthday</label>
               <input
@@ -567,6 +596,7 @@ export default function EmployeeActions({ employee, departments = [] }) {
           </div>
         ) : null}
       </div>
+      )}
     </>
   );
 }

@@ -5,7 +5,7 @@ import RatesManager from './RatesManager';
 export const metadata = { title: 'Pay rates · WorkBuddy' };
 
 export default async function RatesPage() {
-  await requireUser({ adminOnly: true });
+  await requireUser({ accountAdminOnly: true });
   const { rows } = await api('/api/payroll/rates');
 
   const withoutRate = rows.filter((r) => r.currentRate === null).length;

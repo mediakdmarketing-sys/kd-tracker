@@ -86,6 +86,7 @@ exports.seed = async function seed(knex) {
     email,
     password_hash: hash,
     role,
+    is_account_admin: role === 'admin',
     department,
     employee_code: `KD${String(101 + i).padStart(4, '0')}`,
     status: 'active',

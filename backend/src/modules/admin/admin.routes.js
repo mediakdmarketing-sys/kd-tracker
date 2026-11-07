@@ -12,14 +12,15 @@ const { micLog } = require('../capture/micLog');
 const { db } = require('../../db');
 const productivityService = require('../productivity/productivity.service');
 const { authenticate } = require('../../middleware/auth');
-const { requireAdmin } = require('../../middleware/rbac');
+const { requireAdmin, requireAccountAdmin } = require('../../middleware/rbac');
 const { validate, q } = require('../../middleware/validate');
-const { asyncHandler, pagination, paged, sendWithRange } = require('../../utils/http');
+const { asyncHandler, pagination, paged, sendWithRange, toBool } = require('../../utils/http');
 const { sendCsv } = require('../../utils/csv');
-const { badRequest } = require('../../utils/errors');
+const { badRequest, forbidden } = require('../../utils/errors');
 const audit = require('../../services/audit');
 const notifications = require('../../services/notifications');
 const birthdays = require('../../services/birthdays');
+const bankDetails = require('../../services/bankDetails');
 
 const router = express.Router();
 
@@ -177,6 +178,8 @@ const createEmployeeSchema = z.object({
   email: z.string().trim().toLowerCase().email(),
   password: z.string().min(8, 'Password must be at least 8 characters').max(200).optional(),
   role: z.enum(['admin', 'leader', 'user']).optional(),
+  // May see payroll and payments. Only an account admin can give it (see the route).
+  accountAdmin: z.boolean().optional(),
   department: z.string().max(120).optional(),
   employeeCode: z.string().max(50).optional(),
   birthday: DATE.nullable().optional(),
@@ -190,6 +193,7 @@ const updateEmployeeSchema = z.object({
   // Make a random temporary password instead of typing one; it comes back once in the response.
   generatePassword: z.boolean().optional(),
   role: z.enum(['admin', 'leader', 'user']).optional(),
+  accountAdmin: z.boolean().optional(),
   status: z.enum(['active', 'inactive']).optional(),
   department: z.string().max(120).nullable().optional(),
   employeeCode: z.string().max(50).nullable().optional(),
@@ -234,10 +238,87 @@ router.get(
   })
 );
 
+// --- Bank details (where pay goes) -----------------------------------------------------------
+// Account admins only (not ordinary HR admins). Every look at one person's details is audited, with
+// whether the account number was shown; saving and removing are audited too (never the values).
+
+const bankSchema = z.object({
+  bank: z.string().trim().min(2, 'Enter the bank').max(100),
+  branch: z.string().trim().max(100).optional().default(''),
+  accountName: z.string().trim().min(2, 'Enter the name on the account').max(100),
+  accountNumber: z
+    .string()
+    .transform((s) => s.replace(/\s+/g, ''))
+    .refine((s) => /^[A-Za-z0-9][A-Za-z0-9-]{3,33}$/.test(s), 'Account number: 4 to 34 letters or digits'),
+});
+
+// Who has bank details on file (not the details): to warn about people who cannot be paid by file.
+router.get(
+  '/bank-details/status',
+  requireAccountAdmin,
+  asyncHandler(async (req, res) => {
+    res.json({ rows: await bankDetails.status() });
+  })
+);
+
+router.get(
+  '/employees/:id/bank',
+  requireAccountAdmin,
+  validate(z.object({ reveal: z.enum(['0', '1']).optional() }), 'query'),
+  asyncHandler(async (req, res) => {
+    await bankDetails.requireEmployee(req.params.id);
+    const revealed = q(req).reveal === '1';
+    const result = revealed ? await bankDetails.reveal(req.params.id) : await bankDetails.getMasked(req.params.id);
+    await audit.record(req, {
+      action: audit.ACTIONS.VIEWED_BANK_DETAILS,
+      targetEmployeeId: req.params.id,
+      targetType: 'bank_details',
+      details: { accountNumberShown: revealed && result.hasDetails },
+    });
+    res.set('Cache-Control', 'no-store');
+    res.json(result);
+  })
+);
+
+router.put(
+  '/employees/:id/bank',
+  requireAccountAdmin,
+  validate(bankSchema),
+  asyncHandler(async (req, res) => {
+    const saved = await bankDetails.save(req.params.id, req.body, req.user.id);
+    await audit.record(req, {
+      action: audit.ACTIONS.UPDATED_BANK_DETAILS,
+      targetEmployeeId: req.params.id,
+      targetType: 'bank_details',
+      details: { bank: req.body.bank },
+    });
+    res.set('Cache-Control', 'no-store');
+    res.json(saved);
+  })
+);
+
+router.delete(
+  '/employees/:id/bank',
+  requireAccountAdmin,
+  asyncHandler(async (req, res) => {
+    await bankDetails.requireEmployee(req.params.id);
+    const removed = await bankDetails.remove(req.params.id);
+    await audit.record(req, {
+      action: audit.ACTIONS.REMOVED_BANK_DETAILS,
+      targetEmployeeId: req.params.id,
+      targetType: 'bank_details',
+    });
+    res.json({ removed: removed > 0 });
+  })
+);
+
 router.post(
   '/employees',
   validate(createEmployeeSchema),
   asyncHandler(async (req, res) => {
+    if (req.body.accountAdmin && !req.user.isAccountAdmin) {
+      throw forbidden('Only an account admin can make someone an account admin');
+    }
     const created = await service.createEmployee(req.body);
     await audit.record(req, {
       action: audit.ACTIONS.CREATED_EMPLOYEE,
@@ -254,6 +335,18 @@ router.patch(
   '/employees/:id',
   validate(updateEmployeeSchema),
   asyncHandler(async (req, res) => {
+    // Giving or taking the account-admin right is for account admins.
+    if (req.body.accountAdmin !== undefined && !req.user.isAccountAdmin) {
+      throw forbidden('Only an account admin can change who is an account admin');
+    }
+    // An ordinary admin must not be able to reset, rename or deactivate an account admin: resetting
+    // a password and signing in as them would be a way round everything above.
+    if (!req.user.isAccountAdmin) {
+      const target = await db()('employees').where({ id: req.params.id }).first('role', 'is_account_admin');
+      if (target && target.role === 'admin' && toBool(target.is_account_admin)) {
+        throw forbidden('Only an account admin can change an account admin');
+      }
+    }
     const updated = await service.updateEmployee(req.params.id, req.body);
     if (req.body.consentAudio !== undefined) {
       await notifications.notify([updated.id], {
@@ -447,12 +540,18 @@ function publicSettings(s) {
 router.get(
   '/settings',
   asyncHandler(async (req, res) => {
-    res.json({
+    const all = {
       ...publicSettings(settings.get()),
       email: { configured: mailer.isConfigured() },
       // So the "Reset to standard" button needs no copy of the defaults in the portal.
       payslipDefaults: payslipTemplate.DEFAULT_TEMPLATE,
-    });
+    };
+    if (req.user.isAccountAdmin) return res.json(all);
+
+    // An ordinary HR admin sees no payroll settings and no payslip template. The working days stay,
+    // because the holiday calendar needs them to say whether a holiday falls on a working day.
+    const { payslip, payslipDefaults, payroll, ...rest } = all;
+    return res.json({ ...rest, payroll: { workDays: payroll.workDays } });
   })
 );
 
@@ -460,6 +559,10 @@ router.patch(
   '/settings',
   validate(settingsPatchSchema),
   asyncHandler(async (req, res) => {
+    // Pay rules and the payslip's look are payroll: for account admins only.
+    if ((req.body.payroll || req.body.payslip) && !req.user.isAccountAdmin) {
+      throw forbidden('Only an account admin can change payroll settings or the payslip template');
+    }
     // zod validates each field's own type/range; a screenshot min > max (or similar
     // cross-field mistake) only becomes checkable once the patch is merged onto whatever is
     // NOT being changed in this request — so that check happens here, against the merged

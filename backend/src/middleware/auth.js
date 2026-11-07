@@ -64,6 +64,7 @@ async function authenticate(req, res, next) {
         email: row.email,
         name: row.name,
         role: row.role,
+        isAccountAdmin: row.role === 'admin' && toBool(row.is_account_admin),
         department: row.department,
         timezone: config.timezone,
         status: row.status,

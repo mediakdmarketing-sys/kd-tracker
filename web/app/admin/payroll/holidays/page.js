@@ -29,7 +29,7 @@ export default async function HolidaysPage({ searchParams }) {
         </div>
         <div className="btn-row">
           <Link className="btn" href="/calendar">Month calendar</Link>
-          <Link className="btn" href="/admin/payroll">Payroll</Link>
+          {user.isAccountAdmin && <Link className="btn" href="/admin/payroll">Payroll</Link>}
           <Link className="btn" href={`/admin/payroll/holidays?year=${y - 1}`}>← {y - 1}</Link>
           <Link className="btn" href={`/admin/payroll/holidays?year=${y + 1}`}>{y + 1} →</Link>
         </div>

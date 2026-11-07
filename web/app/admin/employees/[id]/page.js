@@ -7,6 +7,7 @@ import CaptureSection from '@/components/CaptureSection';
 import MicLogTable from '@/components/MicLogTable';
 import EmployeeActions from './EmployeeActions';
 import LeaderActions from './LeaderActions';
+import BankDetailsCard from './BankDetailsCard';
 import { duration, time, timeSec, dateLabel, todayIn, workedSecondsOf, isOpenShift } from '@/lib/format';
 import { averageActivity } from '@/lib/activity';
 
@@ -46,7 +47,7 @@ export default async function EmployeeDetailPage({ params, searchParams }) {
 
   // requireUser and getEmployee are independent — run in parallel.
   // getEmployee hits the React cache, so generateMetadata's call above is reused.
-  const [, employee] = await Promise.all([
+  const [viewer, employee] = await Promise.all([
     requireUser({ adminOnly: true }),
     getEmployee(id),
   ]);
@@ -74,6 +75,20 @@ export default async function EmployeeDetailPage({ params, searchParams }) {
       api('/api/config'),
       api(`/api/audio/${id}/mic-log?from=${from}&to=${to}`),
     ]);
+
+  // Bank details, masked. Opening this page counts as a look at them, so the server audits it. If
+  // the server has no encryption key the card says so instead of failing the whole page.
+  // Bank details are for account admins; an ordinary HR admin neither sees the card nor asks for it.
+  let bank = { hasDetails: false };
+  let bankUnavailable = null;
+  if (viewer.isAccountAdmin) {
+    try {
+      bank = await api(`/api/admin/employees/${id}/bank`);
+    } catch (err) {
+      if (err?.status !== 503) throw err;
+      bankUnavailable = `${err.message} Ask whoever looks after the server to set it.`;
+    }
+  }
 
   // Departments this employee currently leads.
   const currentLeaderDepts = leaderAssignments
@@ -105,7 +120,7 @@ export default async function EmployeeDetailPage({ params, searchParams }) {
             </Link>
           </p>
         </div>
-        <EmployeeActions employee={employee} departments={allDepts} />
+        <EmployeeActions employee={employee} departments={allDepts} viewer={{ isAccountAdmin: Boolean(viewer.isAccountAdmin) }} />
       </div>
 
       <div className="stack">
@@ -263,6 +278,10 @@ export default async function EmployeeDetailPage({ params, searchParams }) {
           subjectLabel="employee"
           blurScreenshots={employee.blurScreenshots}
         />
+
+        {viewer.isAccountAdmin && (
+          <BankDetailsCard employee={{ id: employee.id, name: employee.name }} initial={bank} unavailable={bankUnavailable} />
+        )}
 
         {/* Leader management — assign/remove this employee as dept leader */}
         <LeaderActions

@@ -238,9 +238,14 @@ export default function AppShell({ user, children }) {
   // "Me" leads for every role, with "Team" sitting right after it for a Leader — the
   // account's own shift/leave links are what a person reaches for first when they open
   // the app, ahead of the department- or company-wide sections below them.
+  // Payroll is for account admins only; an ordinary HR admin does not see the link.
+  const adminGroups = ADMIN_GROUPS.map((group) => ({
+    ...group,
+    links: group.links.filter((link) => link.href !== '/admin/payroll' || user.isAccountAdmin),
+  }));
   const groups =
     user.role === 'admin'
-      ? [USER_GROUP, ...ADMIN_GROUPS]
+      ? [USER_GROUP, ...adminGroups]
       : user.role === 'leader'
       ? [USER_GROUP, ...LEADER_GROUPS]
       : [{ ...USER_GROUP, label: null }];

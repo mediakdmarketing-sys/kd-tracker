@@ -102,6 +102,9 @@ export async function POST(request, { params }) {
 export async function PATCH(request, { params }) {
   return forward(request, params);
 }
+export async function PUT(request, { params }) {
+  return forward(request, params);
+}
 export async function DELETE(request, { params }) {
   return forward(request, params);
 }

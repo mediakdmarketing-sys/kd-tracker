@@ -65,6 +65,17 @@ const config = {
     refreshGraceSeconds: int('REFRESH_GRACE_SECONDS', 120),
   },
 
+  // Key that encrypts employees' bank details: 32 bytes, as 64 hex characters or base64. Make one
+  // with  node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"  and keep it
+  // OUT of git. Lose it and the saved bank details cannot be read again. Left empty in production the
+  // server still starts, but bank details cannot be saved or read until it is set.
+  bank: {
+    dataKey: str(
+      'BANK_DATA_KEY',
+      isProd ? '' : '8f1d2c7b0e5a4d93b6c1f08e27a54d6c3b9e0f71a2c8d4e6b5f3a09c1d7e8b24'
+    ),
+  },
+
   offline: {
     // Timestamps this far ahead of the server are a broken client clock, not a late upload.
     maxClockSkewSeconds: int('MAX_CLOCK_SKEW_SECONDS', 120),

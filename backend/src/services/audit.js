@@ -62,6 +62,9 @@ const ACTIONS = {
   REMOVED_HOLIDAY: 'removed_holiday',
   UPDATED_HOLIDAY: 'updated_holiday',
   UPLOADED_HOLIDAYS: 'uploaded_holidays',
+  VIEWED_BANK_DETAILS: 'viewed_bank_details',
+  UPDATED_BANK_DETAILS: 'updated_bank_details',
+  REMOVED_BANK_DETAILS: 'removed_bank_details',
 };
 
 module.exports = { record, ACTIONS };

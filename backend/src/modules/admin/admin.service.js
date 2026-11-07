@@ -310,6 +310,8 @@ async function createEmployee(input) {
     department: input.department || null,
     employee_code: input.employeeCode || null,
     birth_date: birthdays.parse(input.birthday ?? null),
+    // Only an admin can be an account admin (who may see payroll and payments).
+    is_account_admin: input.role === 'admin' && input.accountAdmin === true,
     status: 'active',
     timezone: input.timezone || t.DEFAULT_TIMEZONE,
     consent_monitoring: false,
@@ -357,6 +359,27 @@ async function updateEmployee(id, input) {
   if (input.status !== undefined) patch.status = input.status;
   if (input.timezone !== undefined) patch.timezone = input.timezone;
   const newRole = input.role !== undefined ? input.role : row.role;
+
+  // Account admin: who may see payroll and payments. Only an admin can hold it, it goes when the
+  // role does, and there must always be somebody who has it, or payroll could never be opened again.
+  if (input.accountAdmin === true && newRole !== 'admin') {
+    throw badRequest('Only an admin can be an account admin. Make the person an admin first.');
+  }
+  const wasHolder = row.role === 'admin' && toBool(row.is_account_admin);
+  const willHold = newRole === 'admin' && (input.accountAdmin !== undefined ? input.accountAdmin : toBool(row.is_account_admin));
+  patch.is_account_admin = willHold;
+  const staysActive = (input.status !== undefined ? input.status : row.status) === 'active';
+  if (wasHolder && !(willHold && staysActive)) {
+    const others = await db()('employees')
+      .where({ role: 'admin', is_account_admin: true, status: 'active' })
+      .whereNot({ id })
+      .count({ c: '*' })
+      .first();
+    if (Number(others.c) === 0) {
+      throw conflict('There must always be at least one active account admin. Make someone else an account admin first.');
+    }
+  }
+
   if (input.password && !input.generatePassword) {
     const weakness = passwordPolicy.check(input.password, {
       role: newRole,

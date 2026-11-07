@@ -6,10 +6,13 @@ import PayslipTemplateCard from './PayslipTemplateCard';
 export const metadata = { title: 'Settings · WorkBuddy' };
 
 export default async function AdminSettingsPage() {
-  const [, settings] = await Promise.all([
+  const [user, settings] = await Promise.all([
     requireUser({ adminOnly: true }),
     api('/api/admin/settings'),
   ]);
+  // Payroll rules and the payslip template are for account admins; the server sends an ordinary HR
+  // admin neither.
+  const payroll = Boolean(user.isAccountAdmin);
 
   return (
     <>
@@ -26,8 +29,8 @@ export default async function AdminSettingsPage() {
 
       <div className="stack">
         <BrandingCard company={settings.company} emailConfigured={Boolean(settings.email?.configured)} />
-        <PayslipTemplateCard template={settings.payslip} defaults={settings.payslipDefaults} company={settings.company} />
-        <SettingsForm initial={settings} />
+        {payroll && <PayslipTemplateCard template={settings.payslip} defaults={settings.payslipDefaults} company={settings.company} />}
+        <SettingsForm initial={settings} showPayroll={payroll} />
       </div>
     </>
   );

@@ -10,7 +10,7 @@ export const metadata = { title: 'Employees · WorkBuddy' };
 
 export default async function EmployeesPage({ searchParams }) {
   const params = await searchParams;
-  await requireUser({ adminOnly: true });
+  const viewer = await requireUser({ adminOnly: true });
 
   const search = params.search || '';
   const status = params.status || '';
@@ -55,7 +55,7 @@ export default async function EmployeesPage({ searchParams }) {
           </Suspense>
         </div>
 
-        <NewEmployeeForm departments={departments} />
+        <NewEmployeeForm departments={departments} canGrantAccountAdmin={Boolean(viewer.isAccountAdmin)} />
 
         <div className="card">
           <div className="table-wrap">

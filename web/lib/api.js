@@ -73,12 +73,14 @@ export async function getSessionUser() {
  * The consent screen has to be unavoidable rather than a link somebody can skip — the
  * employee sees exactly what is captured before any capture is possible.
  */
-export async function requireUser({ adminOnly = false } = {}) {
+export async function requireUser({ adminOnly = false, accountAdminOnly = false } = {}) {
   const user = await getSessionUser();
 
   if (user.mustChangePassword) redirect('/change-password');
   if (user.consent.required) redirect('/consent');
-  if (adminOnly && user.role !== 'admin') redirect('/me');
+  if ((adminOnly || accountAdminOnly) && user.role !== 'admin') redirect('/me');
+  // Payroll and payments: an ordinary HR admin goes back to the dashboard, not to an error.
+  if (accountAdminOnly && !user.isAccountAdmin) redirect('/admin/dashboard');
 
   return user;
 }

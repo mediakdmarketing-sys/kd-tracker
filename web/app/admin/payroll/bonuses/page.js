@@ -9,7 +9,7 @@ export const metadata = { title: 'Bonuses · WorkBuddy' };
 
 export default async function BonusesPage({ searchParams }) {
   const params = await searchParams;
-  const user = await requireUser({ adminOnly: true });
+  const user = await requireUser({ accountAdminOnly: true });
 
   const month = /^\d{4}-\d{2}$/.test(params.month || '') ? params.month : currentMonth(user.timezone);
   const [bonuses, employees, closing] = await Promise.all([

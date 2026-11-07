@@ -15,6 +15,7 @@ const { badRequest, conflict } = require('../../utils/errors');
 const notifications = require('../../services/notifications');
 const pay = require('./pay.service');
 const lock = require('./payrollLock');
+const bankDetails = require('../../services/bankDetails');
 
 const MONTH_NAME = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
 
@@ -124,9 +125,13 @@ async function reopen({ month }) {
  * drift from them. A month that is not finalized has no payment list (its figures can still change).
  * Someone whose net pay is nothing is left off the list and counted in `skipped`.
  *
- * @returns {Promise<{ month, finalizedAt, rows: object[], skipped: number, totalCents: number, total: number }>}
+ * Each row also says where to pay: the bank on file. With `accountNumbers` the full account number
+ * is decrypted and included (the file for the bank); without it only "****1234" is, and nothing is
+ * decrypted. Anyone with no bank details on file is flagged, since the bank file cannot pay them.
+ *
+ * @returns {Promise<{ month, finalizedAt, rows: object[], skipped: number, missingBank: number, totalCents: number, total: number }>}
  */
-async function paymentList({ month, department }) {
+async function paymentList({ month, department, accountNumbers = false }) {
   if (!pay.isRealMonth(month)) throw badRequest('month must be YYYY-MM');
   const closed = await db()('payroll_months').where({ month }).first();
   if (!closed) {
@@ -162,10 +167,26 @@ async function paymentList({ month, department }) {
   }));
   const totalCents = rows.reduce((sum, r) => sum + r.cents, 0);
 
+  // Where to pay each person.
+  const onFile = new Map((await bankDetails.status()).map((s) => [s.employeeId, s]));
+  const full = accountNumbers ? await bankDetails.revealMany(rows.filter((r) => onFile.has(r.employeeId)).map((r) => r.employeeId)) : null;
+  for (const r of rows) {
+    const known = onFile.get(r.employeeId);
+    const d = full?.get(r.employeeId);
+    r.hasBankDetails = Boolean(known);
+    r.bank = d?.bank || known?.bank || '';
+    r.branch = d?.branch || '';
+    r.accountName = d?.accountName || '';
+    r.accountNumberMasked = known?.accountNumberMasked || '';
+    if (full) r.accountNumber = d?.accountNumber || '';
+    r.bankNote = known ? '' : 'NO BANK DETAILS';
+  }
+
   return {
     month,
     finalizedAt: toIso(closed.finalized_at),
     rows,
+    missingBank: rows.filter((r) => !r.hasBankDetails).length,
     skipped: slips.length - payable.length,
     totalCents,
     total: pay.toDollars(totalCents),

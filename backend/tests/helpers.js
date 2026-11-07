@@ -31,6 +31,7 @@ async function truncate() {
     'payroll_months',
     'payroll_bonuses',
     'pay_rates',
+    'employee_bank_details',
     'audit_logs',
     'activity_logs',
     'audio_recordings',
@@ -55,6 +56,9 @@ async function createEmployee(overrides = {}) {
     department: 'Engineering',
     employee_code: null,
     status: 'active',
+    // Tests that are not about the payroll door treat an admin as an account admin too; the tests
+    // for the door itself pass is_account_admin: false.
+    is_account_admin: overrides.role === 'admin',
     timezone: 'Asia/Kolkata',
     consent_monitoring: true,
     consent_audio: false,
