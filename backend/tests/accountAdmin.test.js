@@ -119,13 +119,66 @@ describe('who can be an account admin', () => {
     expect(take.body.isAccountAdmin).toBe(false);
   });
 
-  it('cannot be taken by an HR admin for themselves or anyone else', async () => {
+  it('can be given by an HR admin to someone else, but not to themselves', async () => {
     const { hr, hrApi } = await both();
     const other = await createEmployee({ role: 'admin', is_account_admin: false, email: mail('o') });
     expect((await hrApi.patch(`/api/admin/employees/${hr.id}`).send({ accountAdmin: true })).status).toBe(403);
-    expect((await hrApi.patch(`/api/admin/employees/${other.id}`).send({ accountAdmin: true })).status).toBe(403);
+    expect(Boolean((await db()('employees').where({ id: hr.id }).first()).is_account_admin)).toBe(false);
+
+    const given = await hrApi.patch(`/api/admin/employees/${other.id}`).send({ accountAdmin: true });
+    expect(given.status).toBe(200);
+    expect(given.body.isAccountAdmin).toBe(true);
+    expect((await as(await login(other)).get('/api/payroll/rates')).status).toBe(200);
+  });
+
+  it('can be given by an HR admin when creating an admin, but only an admin can hold it', async () => {
+    const { hrApi } = await both();
     const made = await hrApi.post('/api/admin/employees').send({ name: 'New Admin', email: mail('n'), role: 'admin', accountAdmin: true });
-    expect(made.status).toBe(403);
+    expect(made.status).toBe(201);
+    expect(made.body.isAccountAdmin).toBe(true);
+    const notAdmin = await hrApi.post('/api/admin/employees').send({ name: 'Worker', email: mail('w'), role: 'user', accountAdmin: true });
+    expect(notAdmin.status).toBe(201);
+    expect(notAdmin.body.isAccountAdmin).toBe(false);
+  });
+
+  it('cannot be taken away by an HR admin, only by an account admin', async () => {
+    const { acc, hrApi, accApi } = await both();
+    const second = await createEmployee({ role: 'admin', email: mail('s') }); // another account admin
+    expect((await hrApi.patch(`/api/admin/employees/${second.id}`).send({ accountAdmin: false })).status).toBe(403);
+    expect((await hrApi.patch(`/api/admin/employees/${acc.id}`).send({ accountAdmin: false })).status).toBe(403);
+    expect(Boolean((await db()('employees').where({ id: second.id }).first()).is_account_admin)).toBe(true);
+    expect((await accApi.patch(`/api/admin/employees/${second.id}`).send({ accountAdmin: false })).status).toBe(200);
+  });
+
+  it('is written to the audit log and every other account admin and the person are told', async () => {
+    const { acc, hr, hrApi } = await both();
+    const second = await createEmployee({ role: 'admin', email: mail('s') }); // a second account admin
+    const target = await createEmployee({ role: 'admin', is_account_admin: false, name: 'Meena', email: mail('m') });
+    await hrApi.patch(`/api/admin/employees/${target.id}`).send({ accountAdmin: true });
+
+    const audit = await db()('audit_logs').where({ action: 'granted_account_admin' });
+    expect(audit).toHaveLength(1);
+    expect(audit[0]).toMatchObject({ admin_id: hr.id, target_employee_id: target.id });
+    expect(JSON.parse(audit[0].details)).toEqual({ byAccountAdmin: false });
+
+    const told = async (id) => db()('notifications').where({ employee_id: id, type: 'account_admin_changed' });
+    for (const watcher of [acc, second]) {
+      const rows = await told(watcher.id);
+      expect(rows).toHaveLength(1);
+      expect(rows[0].title).toBe('Meena was made an account admin');
+      expect(rows[0].body).toContain('an HR admin');
+    }
+    expect((await told(target.id))[0].title).toBe('You are now an account admin');
+    expect(await told(hr.id)).toHaveLength(0); // the person who did it is not told about their own act
+  });
+
+  it('records taking it away too, and says nothing when nothing changed', async () => {
+    const { hr, accApi } = await both();
+    await accApi.patch(`/api/admin/employees/${hr.id}`).send({ accountAdmin: true });
+    await accApi.patch(`/api/admin/employees/${hr.id}`).send({ accountAdmin: true }); // already so
+    await accApi.patch(`/api/admin/employees/${hr.id}`).send({ accountAdmin: false });
+    expect(await db()('audit_logs').where({ action: 'granted_account_admin' })).toHaveLength(1);
+    expect(await db()('audit_logs').where({ action: 'revoked_account_admin' })).toHaveLength(1);
   });
 
   it('cannot be got round by changing an account admin’s password, email or status', async () => {

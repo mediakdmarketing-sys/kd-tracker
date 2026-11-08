@@ -55,7 +55,7 @@ export default async function EmployeesPage({ searchParams }) {
           </Suspense>
         </div>
 
-        <NewEmployeeForm departments={departments} canGrantAccountAdmin={Boolean(viewer.isAccountAdmin)} />
+        <NewEmployeeForm departments={departments} viewerIsAccountAdmin={Boolean(viewer.isAccountAdmin)} />
 
         <div className="card">
           <div className="table-wrap">

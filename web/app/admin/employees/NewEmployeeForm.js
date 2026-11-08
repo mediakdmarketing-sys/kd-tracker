@@ -11,7 +11,7 @@ const EMPTY = { name: '', email: '', password: '', department: '', role: 'user',
  * @param {{ departments: string[] }} props
  *   departments — list of department names fetched server-side from /api/admin/departments
  */
-export default function NewEmployeeForm({ departments = [], canGrantAccountAdmin = false }) {
+export default function NewEmployeeForm({ departments = [], viewerIsAccountAdmin = false }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(EMPTY);
@@ -51,7 +51,7 @@ export default function NewEmployeeForm({ departments = [], canGrantAccountAdmin
         role: form.role,
         department: form.department || undefined,
         birthday: form.birthday || undefined,
-        ...(canGrantAccountAdmin && form.role === 'admin' && form.accountAdmin ? { accountAdmin: true } : {}),
+        ...(form.role === 'admin' && form.accountAdmin ? { accountAdmin: true } : {}),
       });
 
       // 2. If leader role + departments selected → assign leader assignments
@@ -216,7 +216,7 @@ export default function NewEmployeeForm({ departments = [], canGrantAccountAdmin
             )}
           </div>
 
-          {canGrantAccountAdmin && form.role === 'admin' && (
+          {form.role === 'admin' && (
             <label className="inline" style={{ gap: 8, marginBottom: 14, alignItems: 'flex-start' }}>
               <input
                 type="checkbox"
@@ -229,6 +229,7 @@ export default function NewEmployeeForm({ departments = [], canGrantAccountAdmin
                 <strong>Account admin</strong>
                 <span className="faint" style={{ display: 'block', fontSize: 12 }}>
                   Can see and run payroll and payments. Leave it off for an HR admin who should not see pay.
+                  Every account admin is told when it is given{viewerIsAccountAdmin ? '' : ', and only an account admin can take it away again'}.
                 </span>
               </span>
             </label>

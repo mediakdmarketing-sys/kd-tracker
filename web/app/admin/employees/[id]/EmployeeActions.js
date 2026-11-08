@@ -87,7 +87,10 @@ function ConfirmDialog({ title, message, confirmLabel = 'Confirm', danger = fals
 // ---------------------------------------------------------------------------
 export default function EmployeeActions({ employee, departments = [], viewer = {} }) {
   const router = useRouter();
+  // An account admin gives and takes the right. An ordinary HR admin can only GIVE it, and never to
+  // themselves (the server enforces this; the box just does not offer what would be refused).
   const canGrant = Boolean(viewer.isAccountAdmin);
+  const canOnlyGive = !canGrant && viewer.id !== employee.id;
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState(null);
 
@@ -447,6 +450,7 @@ export default function EmployeeActions({ employee, departments = [], viewer = {
                   birthday: editBirthday || null,
                   // Only account admins may give or take the right; an HR admin never sends it.
                   ...(canGrant && editRole === 'admin' ? { accountAdmin: editAccountAdmin } : {}),
+                  ...(canOnlyGive && editRole === 'admin' && editAccountAdmin ? { accountAdmin: true } : {}),
                 });
                 setShowEdit(false);
                 router.refresh();
@@ -535,7 +539,7 @@ export default function EmployeeActions({ employee, departments = [], viewer = {
               )}
             </div>
 
-            {canGrant && editRole === 'admin' && (
+            {(canGrant || canOnlyGive) && editRole === 'admin' && (
               <label className="inline" style={{ gap: 8, alignItems: 'flex-start' }}>
                 <input
                   type="checkbox"
@@ -549,6 +553,9 @@ export default function EmployeeActions({ employee, departments = [], viewer = {
                   <span className="faint" style={{ display: 'block', fontSize: 12 }}>
                     Can see and run payroll and payments: pay rates, bonuses, payslips, the payment list and bank details.
                     An HR admin without this cannot see any of it.
+                    {canOnlyGive
+                      ? ' Every account admin is told when you give it, and it is recorded. Only an account admin can take it away.'
+                      : ' Every other account admin is told when it is given or taken away, and it is recorded.'}
                   </span>
                 </span>
               </label>

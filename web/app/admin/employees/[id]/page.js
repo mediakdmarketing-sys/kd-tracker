@@ -120,7 +120,7 @@ export default async function EmployeeDetailPage({ params, searchParams }) {
             </Link>
           </p>
         </div>
-        <EmployeeActions employee={employee} departments={allDepts} viewer={{ isAccountAdmin: Boolean(viewer.isAccountAdmin) }} />
+        <EmployeeActions employee={employee} departments={allDepts} viewer={{ id: viewer.id, isAccountAdmin: Boolean(viewer.isAccountAdmin) }} />
       </div>
 
       <div className="stack">

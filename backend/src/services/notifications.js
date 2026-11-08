@@ -41,6 +41,12 @@ async function adminIds() {
   return rows.map((r) => r.id);
 }
 
+/** Every active account admin: the admins who may see payroll and payments. */
+async function accountAdminIds() {
+  const rows = await db()('employees').where({ role: 'admin', is_account_admin: true, status: 'active' }).select('id');
+  return rows.map((r) => r.id);
+}
+
 /** Active leaders of one department. */
 async function leaderIdsOf(department) {
   if (!department) return [];
@@ -113,6 +119,7 @@ async function markRead(employeeId, { ids, all }) {
 module.exports = {
   notify,
   adminIds,
+  accountAdminIds,
   leaderIdsOf,
   reviewerAudience,
   recentlyNotified,

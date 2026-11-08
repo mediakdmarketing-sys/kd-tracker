@@ -312,14 +312,43 @@ router.delete(
   })
 );
 
+/**
+ * The account-admin right changed hands: write it to the audit log and tell every account admin
+ * (the person who did it excepted) and the person it concerns. Giving someone the right is a big
+ * step, so it never happens quietly. Best effort: a notification that fails never undoes it.
+ */
+async function announceAccountAdminChange(req, target, granted) {
+  await audit.record(req, {
+    action: granted ? audit.ACTIONS.GRANTED_ACCOUNT_ADMIN : audit.ACTIONS.REVOKED_ACCOUNT_ADMIN,
+    targetEmployeeId: target.id,
+    targetType: 'employee',
+    targetId: target.id,
+    details: { byAccountAdmin: Boolean(req.user.isAccountAdmin) },
+  });
+  const refId = `acctadmin:${target.id}:${Date.now()}`;
+  const watchers = (await notifications.accountAdminIds()).filter((id) => id !== req.user.id && id !== target.id);
+  await notifications.notify(watchers, {
+    type: 'account_admin_changed',
+    title: granted ? `${target.name} was made an account admin` : `${target.name} is no longer an account admin`,
+    body: `By ${req.user.name}${req.user.isAccountAdmin ? '' : ' (an HR admin)'}. ${granted ? 'They can now see payroll and payments.' : 'They can no longer see payroll and payments.'}`,
+    link: `/admin/employees/${target.id}`,
+    refId,
+  });
+  await notifications.notify([target.id], {
+    type: 'account_admin_changed',
+    title: granted ? 'You are now an account admin' : 'You are no longer an account admin',
+    body: granted ? 'You can see and run payroll and payments.' : 'You can no longer see payroll and payments.',
+    link: granted ? '/admin/payroll' : '/admin/dashboard',
+    refId: `${refId}:self`,
+  });
+}
+
 router.post(
   '/employees',
   validate(createEmployeeSchema),
   asyncHandler(async (req, res) => {
-    if (req.body.accountAdmin && !req.user.isAccountAdmin) {
-      throw forbidden('Only an account admin can make someone an account admin');
-    }
     const created = await service.createEmployee(req.body);
+    if (created.isAccountAdmin) await announceAccountAdminChange(req, created, true);
     await audit.record(req, {
       action: audit.ACTIONS.CREATED_EMPLOYEE,
       targetEmployeeId: created.id,
@@ -335,19 +364,23 @@ router.patch(
   '/employees/:id',
   validate(updateEmployeeSchema),
   asyncHandler(async (req, res) => {
-    // Giving or taking the account-admin right is for account admins.
+    // Who may change the account-admin right. An account admin gives and takes it. An ordinary HR
+    // admin may only GIVE it, and never to themselves: otherwise they could strip every account
+    // admin and keep payroll for themselves, or simply take it. Every change is audited and every
+    // account admin is told (see announceAccountAdminChange).
     if (req.body.accountAdmin !== undefined && !req.user.isAccountAdmin) {
-      throw forbidden('Only an account admin can change who is an account admin');
+      if (req.body.accountAdmin !== true) throw forbidden('Only an account admin can take the account-admin right away');
+      if (req.params.id === req.user.id) throw forbidden('You cannot make yourself an account admin');
     }
+    const before = await db()('employees').where({ id: req.params.id }).first('role', 'is_account_admin');
+    const wasAccountAdmin = Boolean(before && before.role === 'admin' && toBool(before.is_account_admin));
     // An ordinary admin must not be able to reset, rename or deactivate an account admin: resetting
     // a password and signing in as them would be a way round everything above.
-    if (!req.user.isAccountAdmin) {
-      const target = await db()('employees').where({ id: req.params.id }).first('role', 'is_account_admin');
-      if (target && target.role === 'admin' && toBool(target.is_account_admin)) {
-        throw forbidden('Only an account admin can change an account admin');
-      }
+    if (!req.user.isAccountAdmin && wasAccountAdmin) {
+      throw forbidden('Only an account admin can change an account admin');
     }
     const updated = await service.updateEmployee(req.params.id, req.body);
+    if (updated.isAccountAdmin !== wasAccountAdmin) await announceAccountAdminChange(req, updated, updated.isAccountAdmin);
     if (req.body.consentAudio !== undefined) {
       await notifications.notify([updated.id], {
         type: req.body.consentAudio ? 'audio_on' : 'audio_off',

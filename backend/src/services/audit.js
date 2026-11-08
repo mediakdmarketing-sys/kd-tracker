@@ -65,6 +65,8 @@ const ACTIONS = {
   VIEWED_BANK_DETAILS: 'viewed_bank_details',
   UPDATED_BANK_DETAILS: 'updated_bank_details',
   REMOVED_BANK_DETAILS: 'removed_bank_details',
+  GRANTED_ACCOUNT_ADMIN: 'granted_account_admin',
+  REVOKED_ACCOUNT_ADMIN: 'revoked_account_admin',
 };
 
 module.exports = { record, ACTIONS };
