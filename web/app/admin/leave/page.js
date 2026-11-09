@@ -7,7 +7,7 @@ export default async function AdminLeavePage({ searchParams }) {
   const params = await searchParams;
   const status = params.status || 'pending';
 
-  const [, requests] = await Promise.all([
+  const [user, requests] = await Promise.all([
     requireUser({ adminOnly: true }),
     api(`/api/admin/leave${status === 'all' ? '' : `?status=${status}`}`),
   ]);
@@ -24,7 +24,7 @@ export default async function AdminLeavePage({ searchParams }) {
       <div className="page-head">
         <div>
           <h1>Leave requests</h1>
-          <p>Approve or reject time-off requests from anyone in the company.</p>
+          <p>Approve or reject time-off requests from anyone in the company. Your own request has to be decided by another admin.</p>
         </div>
       </div>
 
@@ -44,7 +44,7 @@ export default async function AdminLeavePage({ searchParams }) {
           </div>
         </div>
 
-        <LeaveQueueTable requests={requests} reviewUrlBase="/api/admin/leave" />
+        <LeaveQueueTable requests={requests} reviewUrlBase="/api/admin/leave" currentUserId={user.id} />
       </div>
     </>
   );

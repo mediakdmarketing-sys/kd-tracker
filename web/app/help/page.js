@@ -150,7 +150,8 @@ const SECTIONS = [
     roles: ALL,
     body: [
       'Open Leave and fill in the form: type (Sick, Bereavement, Personal, Emergency or Company Vacation), full or half day, dates and an optional reason.',
-      'Sick, Bereavement and Emergency leave need proof: a photo or PDF up to 5 MB. A half day is always a single date.',
+      'Sick, Bereavement and Emergency leave need proof: a photo or PDF up to 5 MB. Attached the wrong file? Click Remove file next to its name before you submit, then choose the right one. Proof is only so HR can check the reason: it does not make a leave paid. With or without proof, only Company Vacation is paid (unless HR has changed that), and the rest is No Pay Leave. A half day is always a single date.',
+      'You cannot approve or reject your own leave, whatever your role. An HR / Admin’s request is decided by another admin (the other admins are notified when it is made), and a team leader’s request is decided by HR. So there needs to be at least one other admin.',
       'The request shows as Pending until your leader or HR approves or rejects it. You can cancel it while it is still pending.',
       'When you send a request, your team leader and HR are notified. When one of them decides, you get a notification (the red number next to Notifications in the menu) and the Leave page shows who decided.',
     ],
@@ -187,7 +188,7 @@ const SECTIONS = [
     roles: LEADERS,
     body: [
       'Open Leave requests and filter by Pending. Each request shows the type, dates, full or half day, the reason and any proof file.',
-      'Sick, Bereavement and Emergency leave need proof. If none is attached, say so in your decision: leave taken without proof is treated as No Pay Leave.',
+      'Sick, Bereavement and Emergency leave need proof so you can check the reason. If none is attached, say so in your decision. Proof does not change pay: leave is paid or not by its type (by default only Company Vacation is paid; the rest is No Pay Leave), with or without proof.',
       'Approve or Reject. The employee sees the new status straight away.',
       'You are notified of new requests from your department (the red number next to Notifications). If HR decides one first, you are told and the request shows "by <name> (HR / Admin)". When you decide, HR and any other leader of the department are told the same way. A request is decided once, by whoever gets to it first.',
     ],
@@ -387,7 +388,7 @@ const SECTIONS = [
       'Flagged: a day HR should look at, for example an over-long break or a missing punch out.',
       'Auto-closed: a shift the system ended for you because you never punched out. HR confirms the real end time.',
       'Idle: no keyboard or mouse activity for a set time (10 minutes by default).',
-      'No Pay Leave: sick, bereavement or emergency leave taken without proof.',
+      'No Pay Leave: leave that is not paid. Pay depends on the type of leave, not on proof: by default only Company Vacation is paid, and sick, bereavement, personal and emergency leave are No Pay Leave whether or not proof is attached.',
       'Full day, half day, other hours: how a day of work is paid. A full day is at least 9 hours of work (breaks not counted), a half day at least 4.5, and less than that is counted as hours. HR can change these limits.',
       'Pending / Approved / Rejected / Cancelled: the status of a leave request.',
     ],

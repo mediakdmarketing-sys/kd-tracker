@@ -15,10 +15,14 @@
 const { db } = require('../../db');
 const t = require('../../utils/time');
 const { toIso } = require('../../utils/http');
+const { badRequest } = require('../../utils/errors');
 
 // Two samples further apart than this are not part of the same stretch: in between the person
 // was most likely on a break or had punched out, so a silent mic can no longer be assumed.
 const MAX_GAP_MS = 45 * 60 * 1000;
+
+// Longest range one request may ask for (about three months).
+const MAX_RANGE_DAYS = 93;
 
 /**
  * Turns one employee's samples (oldest first) into muted periods.
@@ -93,6 +97,11 @@ function rangeOf({ from, to }) {
  */
 async function micLog({ employeeIds, from, to }) {
   const range = rangeOf({ from, to });
+  // A From after the To would quietly show "0 muted periods", which reads as "nobody was muted".
+  if (range.from > range.to) throw badRequest('The From date must not be after the To date.');
+  // Every sample in the range is read and worked through, so the span is capped.
+  const days = Math.round((new Date(`${range.to}T00:00:00Z`) - new Date(`${range.from}T00:00:00Z`)) / 86400000) + 1;
+  if (days > MAX_RANGE_DAYS) throw badRequest(`Choose a range of ${MAX_RANGE_DAYS} days or less.`);
   if (employeeIds && !employeeIds.length) return { ...range, periods: [] };
 
   const base = db()('audio_recordings')
@@ -148,4 +157,4 @@ async function micLog({ employeeIds, from, to }) {
   return { ...range, periods };
 }
 
-module.exports = { micLog, periodsFromSamples, MAX_GAP_MS };
+module.exports = { micLog, periodsFromSamples, MAX_GAP_MS, MAX_RANGE_DAYS };

@@ -73,6 +73,13 @@ export default function LeaveRequestForm({ name, email, timezone }) {
     setProofFile(file);
   }
 
+  /** Takes the chosen proof file back out, before sending, so a wrong file can be dropped. */
+  function removeProof() {
+    setProofFile(null);
+    setError(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }
+
   function handleStartChange(value) {
     setStartDate(value);
     // A half day is always a single day — keep the end date locked to it.
@@ -134,7 +141,10 @@ export default function LeaveRequestForm({ name, email, timezone }) {
 
         {proofRequired && (
           <div className="notice notice-warn" style={{ fontSize: 12 }}>
-            </div>
+            This kind of leave needs proof so HR can check the reason: attach a photo or PDF below.
+            Proof does not change pay. Whether leave is paid depends only on its type (by default
+            only Company Vacation is paid; the rest is No Pay Leave), with or without proof.
+          </div>
         )}
 
         <div className="field" style={{ margin: 0 }}>
@@ -215,8 +225,13 @@ export default function LeaveRequestForm({ name, email, timezone }) {
             disabled={busy}
           />
           {proofFile ? (
-            <span className="faint" style={{ fontSize: 11 }}>
-              {proofFile.name} · {Math.round(proofFile.size / 1024)} KB
+            <span className="inline" style={{ gap: 8, fontSize: 12 }}>
+              <span className="faint" style={{ wordBreak: 'break-all' }}>
+                {proofFile.name} · {Math.round(proofFile.size / 1024)} KB
+              </span>
+              <button type="button" className="btn btn-danger" style={{ padding: '2px 10px' }} onClick={removeProof} disabled={busy}>
+                Remove file
+              </button>
             </span>
           ) : (
             <span className="faint" style={{ fontSize: 11 }}>

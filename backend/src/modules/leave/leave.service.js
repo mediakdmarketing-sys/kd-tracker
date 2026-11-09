@@ -36,8 +36,9 @@ function decodeProofBase64(input) {
 
 // Matches the company's actual leave request form — replaces the earlier sick/casual/unpaid
 // placeholder set (see 20260916000100_leave_types_and_day_part.js). "Unpaid" isn't a type
-// someone picks anymore: PROOF_REQUIRED_TYPES leave taken without proof just gets treated as
-// no-pay after the fact (a review-time decision, not something captured at request time).
+// someone picks. Proof (PROOF_REQUIRED_TYPES) is so the reviewer can check the reason; it has no
+// effect on pay. Whether leave is paid depends only on its type (payroll.paidLeaveTypes, which is
+// Company Vacation by default), so the rest is no-pay leave with or without proof.
 const TYPE_LABEL = {
   sick: 'Sick leave (Illness or Injury)',
   bereavement: 'Bereavement leave (Immediate Family)',
@@ -252,6 +253,11 @@ async function review(id, { status, reviewedBy, reviewNote, memberIds }) {
   const row = await db()('leave_requests').where({ id }).first();
   if (!row) throw notFound('Leave request not found');
   if (row.status !== 'pending') throw conflict('This request has already been decided');
+  // Nobody decides their own leave. An admin's request goes to another admin (it is announced to
+  // the other admins when it is made); a leader's goes to HR, as leaders never decide on leaders.
+  if (row.employee_id === reviewedBy) {
+    throw forbidden('You cannot approve or reject your own leave request. Another admin has to decide it.');
+  }
   if (memberIds !== null && !memberIds.includes(row.employee_id)) {
     throw forbidden('This employee is outside the departments you manage');
   }

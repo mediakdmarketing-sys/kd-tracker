@@ -187,6 +187,26 @@ describe('the microphone log API', () => {
     expect(logged.some((r) => String(r.details).includes('mic-log'))).toBe(true);
   });
 
+  it('refuses a From after the To, and a range that is too long, instead of showing "0 periods"', async () => {
+    const { employee, hr, leader } = await setup();
+    const api = as(await login(hr));
+
+    const backwards = await api.get('/api/admin/mic-log?from=2026-11-26&to=2026-11-09');
+    expect(backwards.status).toBe(400);
+    expect(backwards.body.error.message).toMatch(/From date must not be after the To date/);
+    expect((await api.get(`/api/audio/${employee.id}/mic-log?from=2026-11-26&to=2026-11-09`)).status).toBe(400);
+    expect((await as(await login(leader)).get(`/api/leader/members/${employee.id}/mic-log?from=2026-11-26&to=2026-11-09`)).status).toBe(400);
+
+    const tooLong = await api.get('/api/admin/mic-log?from=2026-01-01&to=2026-11-09');
+    expect(tooLong.status).toBe(400);
+    expect(tooLong.body.error.message).toMatch(/93 days or less/);
+
+    // The edges are fine: the same day, and exactly 93 days.
+    expect((await api.get('/api/admin/mic-log?from=2026-11-09&to=2026-11-09')).status).toBe(200);
+    expect((await api.get('/api/admin/mic-log?from=2026-08-09&to=2026-11-09')).status).toBe(200); // 93 days
+    expect((await api.get('/api/admin/mic-log?from=2026-08-08&to=2026-11-09')).status).toBe(400); // 94
+  });
+
   it('gives a team leader the log for their own member', async () => {
     const { employee, leader } = await setup();
     const res = await as(await login(leader)).get(`/api/leader/members/${employee.id}/mic-log`);

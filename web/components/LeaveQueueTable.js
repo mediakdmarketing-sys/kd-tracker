@@ -17,7 +17,7 @@ const STATUS_CLASS = {
  * only real difference is which API path a decision posts to (admin sees everyone, a leader is
  * scoped server-side to their own departments already, by the route itself).
  */
-export default function LeaveQueueTable({ requests, reviewUrlBase }) {
+export default function LeaveQueueTable({ requests, reviewUrlBase, currentUserId = null }) {
   const router = useRouter();
   const [busyId, setBusyId] = useState(null);
   const [noteDraft, setNoteDraft] = useState({});
@@ -117,7 +117,13 @@ export default function LeaveQueueTable({ requests, reviewUrlBase }) {
                   )}
                 </td>
                 <td>
-                  {r.status === 'pending' && (
+                  {r.status === 'pending' && r.employeeId === currentUserId && (
+                    // Your own request: you cannot decide it, so the buttons are not offered.
+                    <div className="faint" style={{ fontSize: 12, minWidth: 180 }}>
+                      Your own request. Another admin has to approve or reject it.
+                    </div>
+                  )}
+                  {r.status === 'pending' && r.employeeId !== currentUserId && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 180 }}>
                       <input
                         type="text"

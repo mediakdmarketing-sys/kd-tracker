@@ -13,6 +13,16 @@ export default function RangeFilter({ fields, children }) {
   const pathname = usePathname();
   const params = useSearchParams();
 
+  // A From later than the To (or the other way round) can never show anything useful. When one
+  // date is moved past the other, the other follows, so the pair is always a real range.
+  function keepRangeValid(event) {
+    const { name, value, form } = event.target;
+    if (!value || (name !== 'from' && name !== 'to') || !form) return;
+    const other = form.elements[name === 'from' ? 'to' : 'from'];
+    if (!other || other.type !== 'date' || !other.value) return;
+    if (name === 'from' ? value > other.value : value < other.value) other.value = value;
+  }
+
   function apply(event) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -24,7 +34,7 @@ export default function RangeFilter({ fields, children }) {
   }
 
   return (
-    <form className="filters" onSubmit={apply}>
+    <form className="filters" onSubmit={apply} onChange={keepRangeValid}>
       {fields.map((field) => (
         <div className="field" key={field.name}>
           <label htmlFor={field.name}>{field.label}</label>
