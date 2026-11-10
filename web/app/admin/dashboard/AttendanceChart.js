@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from 'react';
 
-const COLORS = ['#6d5ef0', '#0fb88a', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899', '#84cc16', '#8b5cf6', '#f97316', '#14b8a6', '#64748b', '#a855f7'];
+const COLORS = ['#2563eb', '#0fb88a', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899', '#84cc16', '#6366f1', '#f97316', '#14b8a6', '#64748b', '#0ea5e9'];
 
 const W = 920;
 const H = 400;

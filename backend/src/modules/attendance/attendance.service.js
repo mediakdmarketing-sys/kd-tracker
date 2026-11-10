@@ -54,6 +54,8 @@ function shape(row, breaks = []) {
       start: toIso(b.break_start),
       end: toIso(b.break_end),
       durationSeconds: b.duration_seconds,
+      // 'signed_out' when the system started it because the person signed out; null otherwise.
+      reason: b.reason || null,
     })),
   };
 }
@@ -275,7 +277,7 @@ async function punchOut({ employee, at, requestedAt }) {
   return shape({ ...fresh, ...patch }, breaks);
 }
 
-async function startBreak({ employee, at, requestedAt }) {
+async function startBreak({ employee, at, requestedAt, reason = null }) {
   const shift = await openShift(employee.id);
   if (!shift) throw conflict('You must be punched in to start a break.');
   if (shift.status === 'on_break') throw conflict('You are already on a break.');
@@ -302,6 +304,7 @@ async function startBreak({ employee, at, requestedAt }) {
       break_start: resolved.at,
       break_end: null,
       duration_seconds: null,
+      reason,
       created_at: receivedAt,
     });
     await trx('attendance')
@@ -311,6 +314,29 @@ async function startBreak({ employee, at, requestedAt }) {
 
   const breaks = await db()('breaks').where({ attendance_id: shift.id }).orderBy('break_start');
   return shape({ ...shift, status: 'on_break' }, breaks);
+}
+
+/**
+ * Signing out while punched in means the person has stepped away, so the shift goes on a break
+ * (the work clock and capture pause, and the live board shows "On break") until they come back and
+ * press End break. Called only for a sign-out the person chose; being logged out by an expired or
+ * revoked session does not come through here.
+ *
+ * Does nothing, quietly, for someone who is not punched in or is already on a break. Never throws:
+ * a break that could not be started must not stop the sign-out.
+ *
+ * @returns {Promise<boolean>} whether a break was started
+ */
+async function breakOnSignOut(employeeId) {
+  try {
+    await startBreak({ employee: { id: employeeId }, reason: 'signed_out' });
+    return true;
+  } catch (err) {
+    // "Not punched in" and "already on a break" are the expected ways to land here.
+    if (err && (err.status === 409 || err.code === 'CONFLICT')) return false;
+    require('../../utils/logger').error('Could not start a break at sign-out', { employeeId, message: err?.message });
+    return false;
+  }
 }
 
 async function endBreak({ employee, at, requestedAt, silent = false }) {
@@ -468,6 +494,7 @@ module.exports = {
   punchIn,
   punchOut,
   startBreak,
+  breakOnSignOut,
   endBreak,
   currentStatus,
   history,

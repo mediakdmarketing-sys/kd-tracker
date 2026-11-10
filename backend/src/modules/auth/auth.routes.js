@@ -3,6 +3,7 @@
 const express = require('express');
 const { z } = require('zod');
 const service = require('./auth.service');
+const attendance = require('../attendance/attendance.service');
 const { authenticate } = require('../../middleware/auth');
 const { validate } = require('../../middleware/validate');
 const { loginLimiter, agentTokenLimiter } = require('../../middleware/rateLimit');
@@ -71,7 +72,10 @@ router.post(
   '/logout',
   validate(refreshSchema.partial()),
   asyncHandler(async (req, res) => {
-    res.json(await service.logout(req.body));
+    const { revoked, employeeId } = await service.logout(req.body);
+    // Signing out while punched in means stepping away: the shift goes on a break.
+    if (employeeId) await attendance.breakOnSignOut(employeeId);
+    res.json({ revoked });
   })
 );
 
@@ -79,7 +83,9 @@ router.post(
   '/logout-all',
   authenticate,
   asyncHandler(async (req, res) => {
-    res.json(await service.logoutEverywhere(req.user.id));
+    const result = await service.logoutEverywhere(req.user.id);
+    await attendance.breakOnSignOut(req.user.id);
+    res.json(result);
   })
 );
 

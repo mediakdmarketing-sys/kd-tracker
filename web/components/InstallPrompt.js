@@ -92,7 +92,7 @@ export default function InstallPrompt() {
             fontWeight: 700,
             fontSize: 11,
             letterSpacing: '.01em',
-            backgroundImage: 'linear-gradient(120deg, #5b5fef, #9333ea)',
+            backgroundImage: 'linear-gradient(120deg, #1d4ed8, #0284c7)',
             backgroundClip: 'text',
             WebkitBackgroundClip: 'text',
             color: 'transparent',
@@ -108,7 +108,7 @@ export default function InstallPrompt() {
       <button
         onClick={install}
         style={{
-          background: 'linear-gradient(120deg, #5b5fef, #9333ea)',
+          background: 'linear-gradient(120deg, #1d4ed8, #0284c7)',
           color: '#fff',
           border: 'none',
           borderRadius: 999,

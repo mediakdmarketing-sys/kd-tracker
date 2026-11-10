@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { post } from '@/lib/client';
 import PasswordField from '@/components/PasswordField';
+import ShapeLoader from '@/components/ShapeLoader';
 import { connectDesktopAgent } from '@/lib/agentConnect';
 
 export default function LoginForm() {
@@ -71,6 +72,13 @@ export default function LoginForm() {
       <button type="submit" className="btn btn-primary btn-lg" style={{ width: '100%' }} disabled={busy}>
         {busy ? 'Signing in…' : 'Sign in'}
       </button>
+
+      {/* Stays up until the next page has taken over, so there is no blank wait after the click. */}
+      {busy && (
+        <div className="wl-overlay">
+          <ShapeLoader label="Signing you in" />
+        </div>
+      )}
     </form>
   );
 }

@@ -247,6 +247,12 @@ export default function ShiftPanel({ initial, timezone }) {
           </div>
         )}
 
+        {onBreak && status.shift?.breaks?.some((b) => !b.end && b.reason === 'signed_out') && (
+          <div className="notice notice-info" style={{ marginBottom: 14 }} role="status">
+            Your break started when you signed out. Nothing has been captured since. Click End break to carry on working.
+          </div>
+        )}
+
         <div className="punch">
           {/* Clock section re-renders every second in isolation */}
           <div>

@@ -198,13 +198,17 @@ async function refresh({ refreshToken }) {
 }
 
 async function logout({ refreshToken }) {
-  if (!refreshToken) return { revoked: 0 };
+  if (!refreshToken) return { revoked: 0, employeeId: null };
+  const hash = sha256(refreshToken);
+  // Who is signing out, but only for a session that is still live: a token that was already
+  // signed out, expired or rotated away must not be able to start anything.
+  const live = await db()('refresh_tokens').where({ token_hash: hash }).whereNull('revoked_at').first('employee_id');
   // Reason 'logout', not 'rotated': signing out must take effect immediately, with no grace.
   const revoked = await db()('refresh_tokens')
-    .where({ token_hash: sha256(refreshToken) })
+    .where({ token_hash: hash })
     .whereNull('revoked_at')
     .update({ revoked_at: now(), revoked_reason: 'logout' });
-  return { revoked };
+  return { revoked, employeeId: revoked && live ? live.employee_id : null };
 }
 
 async function logoutEverywhere(employeeId) {

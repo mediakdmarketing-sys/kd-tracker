@@ -127,6 +127,7 @@ const SECTIONS = [
     roles: ALL,
     body: [
       'My shift → Punch in starts your day and starts capture. Start break pauses capture and the work clock. End break resumes. Punch out ends the shift.',
+      'Signing out while you are punched in puts your shift on a break: the work clock and capture pause, and your leader and HR see you as On break. When you sign in again, click End break to carry on. A break that started this way says so on your My shift panel. It counts against your break allowance like any break, so punch out (not just sign out) when you finish for the day.',
       'Your break allowance is shown on the panel (60 minutes a day by default). Going over it flags the day for HR review.',
       'Forgot to punch out? The shift is closed automatically after a set time (16 hours by default) and flagged so HR can confirm the real end.',
       'Punching in here or in the agent is the same thing; either one updates the other within about 20 seconds.',

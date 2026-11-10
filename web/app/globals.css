@@ -8,24 +8,24 @@
 
   /* A violet-tinted neutral scale, not a default grey — every other token (accent, status
      colors) is chosen to sit well against this, not bolted on afterwards. */
-  --bg: #f5f4fc;
+  --bg: #f2f6fc;
   --surface: #ffffff;
-  --surface-2: #efedfa;
-  --surface-3: #e6e2f8;
-  --border: #e6e3f5;
-  --border-strong: #d7d2ef;
-  --text: #1a1b2e;
-  --text-muted: #625f78;
-  --text-faint: #928fa8;
+  --surface-2: #eaf0fa;
+  --surface-3: #dce7f8;
+  --border: #e0e8f4;
+  --border-strong: #cbd8ec;
+  --text: #111b30;
+  --text-muted: #52607a;
+  --text-faint: #8693ab;
   /* A few components already referenced --muted before it existed as a token (an
      inconsistency that predates this pass) — aliased rather than silently left broken. */
   --muted: var(--text-muted);
 
-  --accent: #6d5ef0;
-  --accent-2: #9333ea;
-  --accent-gradient: linear-gradient(120deg, #5b5fef, var(--accent-2));
-  --accent-soft: #eeecfd;
-  --accent-text: #5b3fd6;
+  --accent: #2563eb;
+  --accent-2: #0284c7;
+  --accent-gradient: linear-gradient(120deg, #1d4ed8, var(--accent-2));
+  --accent-soft: #e5edfd;
+  --accent-text: #1d4ed8;
 
   --ok: #0fb88a;
   --ok-soft: #e2f8f1;
@@ -33,15 +33,15 @@
   --warn-soft: #fef3e0;
   --danger: #a30d33;
   --danger-soft: #fde6ec;
-  --idle: #8b5cf6;
-  --idle-soft: #f1ebfe;
-  --info: #2563eb;
-  --info-soft: #e2eafe;
+  --idle: #6b7fa8;
+  --idle-soft: #e8eef8;
+  --info: #0891b2;
+  --info-soft: #dcf3f8;
 
   --radius: 14px;
   --radius-sm: 9px;
-  --shadow: 0 1px 2px rgba(26, 27, 46, 0.04), 0 10px 24px -12px rgba(93, 63, 211, 0.22);
-  --shadow-pop: 0 16px 36px -10px rgba(93, 63, 211, 0.32);
+  --shadow: 0 1px 2px rgba(17, 27, 48, 0.04), 0 10px 24px -12px rgba(37, 99, 235, 0.20);
+  --shadow-pop: 0 16px 36px -10px rgba(37, 99, 235, 0.30);
 
   /* Two roles, not one: a characterful display face for headings/nav/big numbers, a
      workhorse face for dense table data. Self-hosted from the @fontsource-variable packages
@@ -214,7 +214,7 @@ h3 {
   background: var(--surface);
   color: var(--text);
   cursor: pointer;
-  box-shadow: 0 1px 2px rgba(26, 27, 46, 0.05);
+  box-shadow: 0 1px 2px rgba(17, 27, 48, 0.05);
 }
 .sidebar-toggle:hover {
   border-color: var(--accent);
@@ -411,10 +411,10 @@ button.cal-day {
   cursor: pointer;
 }
 button.cal-day:hover {
-  border-color: var(--accent, #5b3fd6);
+  border-color: var(--accent, #2563eb);
 }
 .cal-sun {
-  background: var(--surface-3, #e6e2f8);
+  background: var(--surface-3, #dce7f8);
   color: var(--text-muted);
 }
 .cal-head.cal-sun {
@@ -430,7 +430,7 @@ button.cal-day:hover {
   outline-offset: -2px;
 }
 .cal-today {
-  box-shadow: 0 0 0 2px var(--accent, #5b3fd6);
+  box-shadow: 0 0 0 2px var(--accent, #2563eb);
 }
 /* A birthday: a gold dot under the number, so it also shows on a holiday or a Sunday. */
 .cal-bday {
@@ -495,23 +495,23 @@ button.cal-day:hover {
   overflow: hidden;
 }
 .mcal-day:hover {
-  border-color: var(--accent, #5b3fd6);
+  border-color: var(--accent, #2563eb);
 }
 .mcal-blank {
   min-height: 0;
 }
 .mcal-day.mcal-sun {
-  background: var(--surface-3, #e6e2f8);
+  background: var(--surface-3, #dce7f8);
 }
 .mcal-day.mcal-off {
   background: rgba(163, 13, 51, 0.08);
 }
 .mcal-day.mcal-today {
-  box-shadow: 0 0 0 2px var(--accent, #5b3fd6);
+  box-shadow: 0 0 0 2px var(--accent, #2563eb);
 }
 .mcal-day.mcal-selected {
-  border-color: var(--accent, #5b3fd6);
-  background: var(--accent-soft, #ece8fb);
+  border-color: var(--accent, #2563eb);
+  background: var(--accent-soft, #e5edfd);
 }
 .mcal-num {
   font-size: 12px;
@@ -533,14 +533,14 @@ button.cal-day:hover {
   color: #fff;
 }
 .mcal-leave {
-  background: var(--accent-soft, #ece8fb);
-  color: var(--accent-text, #3d2aa0);
-  border: 1px solid var(--accent, #5b3fd6);
+  background: var(--accent-soft, #e5edfd);
+  color: var(--accent-text, #1d4ed8);
+  border: 1px solid var(--accent, #2563eb);
 }
 .mcal-leave-pending {
   background: transparent;
-  color: var(--accent-text, #3d2aa0);
-  border: 1px dashed var(--accent, #5b3fd6);
+  color: var(--accent-text, #1d4ed8);
+  border: 1px dashed var(--accent, #2563eb);
 }
 .mcal-birthday {
   background: #fdecc8;
@@ -583,6 +583,578 @@ button.cal-day:hover {
   .mcal-more {
     font-size: 10px;
   }
+}
+
+/* Dashboard: colour carries meaning here. Each state of a person's day has one hue, used for its
+   tile, its arc on the ring, its chips and the legend. */
+.dash-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(116px, 1fr));
+  gap: 12px;
+}
+.dash-tile {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 16px 13px;
+  border-radius: 16px;
+  color: var(--ink, #fff);
+  background: linear-gradient(135deg, var(--from), var(--to));
+  box-shadow: 0 12px 22px -16px var(--to);
+}
+.dash-tile::after {
+  content: '';
+  position: absolute;
+  right: -24px;
+  top: -24px;
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.16);
+}
+.dash-tile b {
+  font-family: var(--font-display);
+  font-size: 34px;
+  line-height: 1.05;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.dash-tile span {
+  font-size: 13px;
+  font-weight: 650;
+  opacity: 0.92;
+}
+
+.dash-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 1100px) {
+  .dash-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.dash-team {
+  display: grid;
+  grid-template-columns: 170px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+@media (max-width: 700px) {
+  .dash-team {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+  }
+  .dash-depts {
+    width: 100%;
+  }
+}
+.dash-ring {
+  position: relative;
+  width: 170px;
+  height: 170px;
+  margin: 0;
+}
+.dash-ring svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.dash-ring figcaption {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.dash-ring strong {
+  font-family: var(--font-display);
+  font-size: 40px;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.dash-ring figcaption span {
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.dash-depts {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+.dash-dept header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 9px;
+}
+.dash-dept h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+.dash-dept header span {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.dash-dept ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.dash-chip {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid var(--c);
+  background: color-mix(in srgb, var(--c) 16%, #fff);
+  color: color-mix(in srgb, var(--c) 52%, #000);
+  font-size: 11.5px;
+  font-weight: 750;
+  cursor: default;
+}
+.dash-chip.is-flagged {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--flag);
+}
+.dash-chip::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 9px);
+  left: 50%;
+  z-index: 30;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #111b30;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translateX(-50%);
+  /* Not drawn at all until hovered: a hidden-but-present label would still widen the card's
+     scrollable area and make a phone scroll sideways. */
+  display: none;
+}
+.dash-chip:hover::after {
+  display: block;
+  animation: dash-tip 0.12s ease-out;
+}
+@keyframes dash-tip {
+  from {
+    opacity: 0;
+    margin-bottom: -4px;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .dash-chip {
+    animation: dash-pop 0.42s cubic-bezier(0.2, 0.9, 0.3, 1.3) both;
+    animation-delay: calc(var(--i, 0) * 14ms);
+  }
+  .dash-bar-track i {
+    animation: dash-grow 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+}
+@keyframes dash-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+}
+@keyframes dash-grow {
+  from {
+    width: 0;
+  }
+}
+.dash-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 20px 0 0;
+  padding: 14px 0 0;
+  border-top: 1px solid var(--border);
+  list-style: none;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.dash-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.dash-legend li::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--c);
+}
+
+.dash-attention {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.dash-block {
+  padding: 14px 16px 13px;
+  border: 1px solid var(--border);
+  border-left: 5px solid var(--c);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.dash-block header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 9px;
+}
+.dash-block h3 {
+  flex: 1;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+.dash-block header b {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--c) 78%, #000);
+  color: #fff;
+  font-size: 12px;
+}
+.dash-block header a {
+  font-size: 12px;
+  font-weight: 650;
+}
+.dash-block ul {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.dash-block li {
+  display: flex;
+  flex-direction: column;
+  font-size: 13px;
+  line-height: 1.35;
+}
+.dash-block li span,
+.dash-block li.more {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.dash-empty {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.dash-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.dash-bars li {
+  display: grid;
+  grid-template-columns: minmax(80px, 150px) minmax(0, 1fr) 70px;
+  align-items: center;
+  gap: 12px;
+}
+.dash-bar-name {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dash-bar-track {
+  display: block;
+  height: 16px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--c) 13%, #fff);
+}
+.dash-bar-track i {
+  display: block;
+  width: var(--w);
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--c), color-mix(in srgb, var(--c) 58%, #fff));
+}
+.dash-bar-value {
+  text-align: right;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.dash-bar-value small {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+/* Loading animation: a round glass that fills with water and drains, the surface rolling. Two
+   rounded squares, twice the glass in size, turn slowly and are lifted and lowered by `top`;
+   what shows through where they are not is the water. Used by every page's loading.js and the
+   sign-in screen. */
+.wl {
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+}
+.wl-circle {
+  position: relative;
+  width: var(--wl-size, 132px);
+  height: var(--wl-size, 132px);
+  overflow: hidden;
+  border: 5px solid var(--surface);
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: 0 0 0 4px var(--accent), 0 18px 34px -16px rgba(37, 99, 235, 0.55);
+}
+.wl-wave {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: var(--accent-gradient);
+  box-shadow: inset 0 0 36px rgba(0, 0, 0, 0.35);
+}
+.wl-wave::before,
+.wl-wave::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 200%;
+  height: 200%;
+  transform: translate(-50%, -75%);
+}
+.wl-wave::before {
+  border-radius: 45%;
+  background: #fff;
+  animation: wl-spin 5s linear infinite, wl-level 3.6s ease-in-out infinite alternate;
+}
+.wl-wave::after {
+  border-radius: 40%;
+  background: rgba(255, 255, 255, 0.5);
+  animation: wl-spin 10s linear infinite, wl-level 3.6s ease-in-out infinite alternate;
+}
+@keyframes wl-spin {
+  from {
+    transform: translate(-50%, -75%) rotate(0deg);
+  }
+  to {
+    transform: translate(-50%, -75%) rotate(360deg);
+  }
+}
+/* top 50% is an empty glass, about -50% a full one. */
+@keyframes wl-level {
+  from {
+    top: 52%;
+  }
+  to {
+    top: -48%;
+  }
+}
+.wl-label {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--text-muted);
+}
+@media (prefers-reduced-motion: reduce) {
+  /* No movement: a glass held half full. */
+  .wl-wave::before,
+  .wl-wave::after {
+    top: 0;
+    animation: none;
+  }
+}
+/* Sign-in animation. One shape on a soft shadow, six seconds round: it bounces (squashing as it
+   lands, stretching as it leaves), flattens to a line, and stands up again as the next shape,
+   circle, triangle, square, circle. The shape and colour change while it is flat, so the change is
+   never seen. Movement and shape are separate animations on the one element; the percentages are
+   the same three bounces of two seconds each, 0 / 33.3 / 66.7 / 100 being the flat moments. */
+.sl {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+}
+.sl-stage {
+  position: relative;
+  width: 170px;
+  height: 200px;
+}
+.sl-shadow {
+  position: absolute;
+  left: 50%;
+  bottom: 4px;
+  width: 84px;
+  height: 14px;
+  margin-left: -42px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(17, 27, 48, 0.5), rgba(17, 27, 48, 0));
+  animation: sl-shadow 6s linear infinite;
+}
+.sl-shape {
+  position: absolute;
+  left: 50%;
+  bottom: 11px;
+  width: 84px;
+  height: 84px;
+  margin-left: -42px;
+  transform-origin: 50% 100%;
+  border-radius: 50%;
+  background: #ff9114;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+  animation: sl-move 6s linear infinite, sl-shape 6s linear infinite;
+}
+@keyframes sl-move {
+  0%,
+  33.333%,
+  66.667%,
+  100% {
+    transform: translateY(0) scale(1.5, 0.05);
+    animation-timing-function: ease-out;
+  }
+  3.333%,
+  36.667%,
+  70% {
+    transform: translateY(-6px) scale(0.9, 1.18);
+    animation-timing-function: ease-out;
+  }
+  15%,
+  48.333%,
+  81.667% {
+    transform: translateY(-96px) scale(1, 1);
+    animation-timing-function: ease-in;
+  }
+  26.667%,
+  60%,
+  93.333% {
+    transform: translateY(0) scale(0.94, 1.1);
+    animation-timing-function: ease-in;
+  }
+  30%,
+  63.333%,
+  96.667% {
+    transform: translateY(0) scale(1.28, 0.74);
+    animation-timing-function: ease-out;
+  }
+}
+@keyframes sl-shape {
+  0%,
+  31% {
+    border-radius: 50%;
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+    background: #ff9114;
+  }
+  35%,
+  64.5% {
+    border-radius: 0;
+    clip-path: polygon(50% 0, 50% 0, 100% 100%, 0 100%);
+    background: #ff5a5f;
+  }
+  68.5%,
+  98% {
+    border-radius: 14%;
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+    background: #3a8fb7;
+  }
+  100% {
+    border-radius: 50%;
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+    background: #ff9114;
+  }
+}
+@keyframes sl-shadow {
+  0%,
+  33.333%,
+  66.667%,
+  100% {
+    transform: scale(1.5, 1);
+    opacity: 0.55;
+  }
+  3.333%,
+  36.667%,
+  70% {
+    transform: scale(1.05);
+    opacity: 0.4;
+  }
+  15%,
+  48.333%,
+  81.667% {
+    transform: scale(0.5);
+    opacity: 0.14;
+  }
+  26.667%,
+  60%,
+  93.333% {
+    transform: scale(1);
+    opacity: 0.4;
+  }
+  30%,
+  63.333%,
+  96.667% {
+    transform: scale(1.3, 1);
+    opacity: 0.55;
+  }
+}
+.sl-label {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--text-muted);
+}
+@media (prefers-reduced-motion: reduce) {
+  /* No bouncing: the circle sits still. */
+  .sl-shape,
+  .sl-shadow {
+    animation: none;
+  }
+}
+/* Inside the app, under the page header, where a page's content will appear. */
+.wl-page {
+  display: grid;
+  place-items: center;
+  min-height: 60vh;
+}
+/* Over the whole screen: signing in, where the next page is not there yet to sit inside. */
+.wl-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: grid;
+  place-items: center;
+  background: rgba(242, 246, 252, 0.86);
+  backdrop-filter: blur(4px);
 }
 
 /* Payslip: a few facts in a row, and a clean sheet when printed or saved as PDF. */
@@ -788,7 +1360,7 @@ tbody tr:last-child td {
   border-bottom: none;
 }
 tbody tr:hover td {
-  background: #fbfaff;
+  background: #f8fbff;
 }
 
 .num {
@@ -922,7 +1494,7 @@ select:focus {
   background: var(--accent-gradient);
   border-color: transparent;
   color: #fff;
-  box-shadow: 0 6px 16px -6px rgba(93, 63, 211, 0.55);
+  box-shadow: 0 6px 16px -6px rgba(37, 99, 235, 0.50);
 }
 .btn-primary:hover:not(:disabled) {
   filter: brightness(1.06);
@@ -1313,8 +1885,8 @@ select:focus {
   background:
     linear-gradient(to right, var(--surface) 30%, rgba(255, 255, 255, 0)) left center / 28px 100% no-repeat local,
     linear-gradient(to left, var(--surface) 30%, rgba(255, 255, 255, 0)) right center / 28px 100% no-repeat local,
-    linear-gradient(to right, rgba(26, 27, 46, 0.1), rgba(26, 27, 46, 0)) left center / 10px 100% no-repeat scroll,
-    linear-gradient(to left, rgba(26, 27, 46, 0.1), rgba(26, 27, 46, 0)) right center / 10px 100% no-repeat scroll;
+    linear-gradient(to right, rgba(17, 27, 48, 0.1), rgba(17, 27, 48, 0)) left center / 10px 100% no-repeat scroll,
+    linear-gradient(to left, rgba(17, 27, 48, 0.1), rgba(17, 27, 48, 0)) right center / 10px 100% no-repeat scroll;
 }
 .table-wrap td:first-child,
 .table-wrap th:first-child {
@@ -1324,7 +1896,7 @@ select:focus {
   z-index: 1;
 }
 .table-wrap th:first-child { z-index: 2; }
-.table-wrap tbody tr:hover td:first-child { background: #fbfaff; }
+.table-wrap tbody tr:hover td:first-child { background: #f8fbff; }
 
 /* Filter chips: one scrollable row instead of wrapping to a second line. */
 .chips {
