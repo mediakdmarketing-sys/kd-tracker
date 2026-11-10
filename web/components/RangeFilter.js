@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import EmployeeCombobox from './EmployeeCombobox';
 
 /**
  * Filter bar that writes its state into the URL, so a filtered view is linkable, survives a
@@ -46,6 +47,15 @@ export default function RangeFilter({ fields, children }) {
                 </option>
               ))}
             </select>
+          ) : field.type === 'employee' ? (
+            <EmployeeCombobox
+              id={field.name}
+              name={field.name}
+              options={field.options || []}
+              defaultText={params.get(field.name) || ''}
+              defaultId={params.get('employeeId') || ''}
+              placeholder={field.placeholder}
+            />
           ) : (
             <input
               id={field.name}

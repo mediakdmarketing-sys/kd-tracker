@@ -90,6 +90,14 @@ const Icon = {
       <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
     </svg>
   ),
+  screenshots: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <rect x="3" y="4" width="18" height="14" rx="2.5" />
+      <circle cx="9" cy="10" r="1.6" />
+      <path d="M21 15l-5-5-8 8" />
+      <path d="M8 21h8" />
+    </svg>
+  ),
   mic: (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <rect x="9" y="2" width="6" height="12" rx="3" />
@@ -152,6 +160,8 @@ const ADMIN_GROUPS = [
     links: [
       { href: '/admin/dashboard', label: 'Dashboard', icon: Icon.dashboard },
       { href: '/admin', label: 'Live board', icon: Icon.board },
+      { href: '/admin/timesheet', label: 'Timesheet', icon: Icon.history },
+      { href: '/admin/screenshots', label: 'Screenshots', icon: Icon.screenshots },
       { href: '/admin/productivity', label: 'Productivity', icon: Icon.productivity },
       { href: '/admin/reports', label: 'Reports', icon: Icon.reports },
     ],

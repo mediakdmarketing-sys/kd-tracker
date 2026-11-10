@@ -237,6 +237,29 @@ const SECTIONS = [
     ],
   },
   {
+    id: 'admin-timesheet',
+    title: 'For admins: the live timesheet and everyone’s screenshots',
+    roles: ADMIN,
+    body: [
+      'Timesheet in the menu shows each person’s day live: whether they are working, on a break, finished, not started or on leave, when they punched in and out, and their worked time, break time and idle time. A person who is working shows their hours counting up; the page refreshes itself every minute.',
+      'It starts on today. Use From and To for another day or a range (up to 31 days), Employee is a searchable dropdown: click it to see everyone, type to narrow the list (for example "ravi"), then pick the person (the × clears it), and Department to see one team (the Employee list then shows only that team). Apply sets the filters. For a single day, people who have not punched in are listed too, so you can see who is missing.',
+      'Mic muted shows how many times that person’s microphone was found muted (or could not be used) that day, and for how long in all. "Muted now" means the latest check still found it muted. Click it to open the Mic log for that day, which has the exact times. It comes from the audio samples, so it only counts people who accepted audio monitoring and have the desktop agent running; a dash or 0 means no muted mic was found, not that nothing was checked.',
+      'Under the table are everyone’s screenshots, grouped by person, for up to 7 days at a time. Each screenshot stays closed until you click it, and opening one is recorded in the audit log, the same as on a person’s own page. People who have Blur screenshots switched on stay blurred until you click. The number in the Screenshots column jumps to that person’s pictures.',
+      'Only HR / Admin can open this page. A team leader sees their own team on My team and the Live board.',
+    ],
+  },
+  {
+    id: 'admin-screenshots',
+    title: 'For admins: the Screenshots page',
+    roles: ADMIN,
+    body: [
+      'Screenshots in the menu shows everyone’s screenshots in one place, one block per person. It starts on today; Today, Yesterday and Last 7 days at the top change the dates in one click, or use From and To. Employee is a searchable dropdown (type to narrow the list, then pick a name), and Department shows one team. Screenshots are shown up to 7 days at a time.',
+      'The numbers at the top say how many people have screenshots and how many screenshots there are in all. Jump to takes you to one person. With many people the list is split into pages: use Next people and Previous people.',
+      'Each screenshot stays closed until you click it, so looking is a decision, and every one you open is recorded in the audit log with your name and theirs. Open all opens a person’s whole set and records each. People who have Blur screenshots switched on stay blurred until you click. Opening a person’s name takes you to their own page for their day in full.',
+      'Only HR / Admin can use this page. The Timesheet page shows the same screenshots under the live hours if you want both together.',
+    ],
+  },
+  {
     id: 'admin-reports',
     title: 'For admins: reports, payroll and leave',
     roles: ADMIN,
@@ -462,6 +485,8 @@ const ROLE_FIRST = {
   admin: [
     'admin-people',
     'admin-rollout',
+    'admin-timesheet',
+    'admin-screenshots',
     'admin-reports',
     'admin-account-admin',
     'admin-payroll-check',

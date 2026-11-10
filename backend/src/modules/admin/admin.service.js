@@ -549,8 +549,19 @@ async function listDepartmentsFull() {
  * Lightweight name-only list — used by filter dropdowns in reports/payroll.
  * Still reads from the departments table so only admin-created departments appear.
  */
-async function listDepartments() {
-  return db()('departments').orderBy('name').pluck('name');
+/** [{ id, name, department, active }] for every employee, by name: what a person picker needs. */
+async function listEmployeeOptions() {
+  const rows = await db()('employees').orderBy('name').select('id', 'name', 'department', 'status');
+  return rows.map((r) => ({ id: r.id, name: r.name, department: r.department || null, active: r.status === 'active' }));
+}
+
+async function listDepartments({ includeInUse = false } = {}) {
+  const named = await db()('departments').orderBy('name').pluck('name');
+  if (!includeInUse) return named;
+  // For filters over people: also any department an employee carries that was never created
+  // under Departments (older accounts, imported people), so nobody is unreachable by filter.
+  const inUse = await db()('employees').whereNotNull('department').distinct('department').pluck('department');
+  return [...new Set([...named, ...inUse])].filter(Boolean).sort((a, b) => a.localeCompare(b));
 }
 
 async function createDepartment({ name, description }) {
@@ -663,6 +674,7 @@ module.exports = {
   attendanceSummary,
   listAuditLogs,
   listDepartments,
+  listEmployeeOptions,
   listDepartmentsFull,
   createDepartment,
   deleteDepartment,

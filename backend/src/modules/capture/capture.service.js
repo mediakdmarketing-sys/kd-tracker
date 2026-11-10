@@ -550,4 +550,5 @@ module.exports = {
   readFile,
   decodeBase64,
   requireCapturableShift,
+  shapeScreenshot,
 };

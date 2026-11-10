@@ -21,6 +21,7 @@ const audit = require('../../services/audit');
 const notifications = require('../../services/notifications');
 const birthdays = require('../../services/birthdays');
 const bankDetails = require('../../services/bankDetails');
+const timesheetService = require('./timesheet.service');
 
 const router = express.Router();
 
@@ -46,6 +47,91 @@ const micLogQuery = z.object({
   to: DATE.optional(),
   department: z.string().trim().max(120).optional(),
 });
+
+// --- Live timesheet and everyone's screenshots -------------------------------------------------
+
+const peopleFilter = {
+  from: DATE.optional(),
+  to: DATE.optional(),
+  department: z.string().trim().max(120).optional(),
+  // Part of a name: "ravi" finds "Ravi Kumar" and "Kaaviya Ravi".
+  employee: z.string().trim().max(120).optional(),
+  // One person picked from the list. Wins over `employee` when both are sent.
+  employeeId: z.string().uuid().optional(),
+};
+
+// Everyone, name and department only, for the "pick an employee" dropdowns. Former employees are
+// included (marked inactive) because their old days and screenshots can still be looked up.
+router.get(
+  '/employee-options',
+  asyncHandler(async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    res.json(await service.listEmployeeOptions());
+  })
+);
+
+// One row per person per day, live: a shift still running counts its worked time up to now.
+router.get(
+  '/timesheet',
+  validate(z.object(peopleFilter), 'query'),
+  asyncHandler(async (req, res) => {
+    const query = q(req);
+    res.set('Cache-Control', 'no-store');
+    res.json(
+      await timesheetService.timesheet({
+        from: query.from,
+        to: query.to,
+        department: query.department,
+        search: query.employee,
+        employeeId: query.employeeId,
+      })
+    );
+  })
+);
+
+// Everyone's screenshot records, grouped by person and paged by person. Records only: opening an
+// image is its own audited request, and listing is audited here with the filters that were used.
+router.get(
+  '/screenshots',
+  validate(
+    z.object({
+      ...peopleFilter,
+      page: z.coerce.number().int().min(1).optional(),
+      limit: z.coerce.number().int().min(1).max(20).optional(),
+      perPerson: z.coerce.number().int().min(1).max(200).optional(),
+    }),
+    'query'
+  ),
+  asyncHandler(async (req, res) => {
+    const query = q(req);
+    const result = await timesheetService.companyScreenshots({
+      from: query.from,
+      to: query.to,
+      department: query.department,
+      search: query.employee,
+      employeeId: query.employeeId,
+      page: query.page,
+      limit: query.limit,
+      perPerson: query.perPerson,
+    });
+    await audit.record(req, {
+      action: audit.ACTIONS.LISTED_SCREENSHOTS,
+      targetType: 'screenshot',
+      details: {
+        scope: 'everyone',
+        from: result.from,
+        to: result.to,
+        department: query.department || null,
+        employee: query.employee || null,
+        employeeId: query.employeeId || null,
+        people: result.people.length,
+        images: result.people.reduce((n, p) => n + p.shown, 0),
+      },
+    });
+    res.set('Cache-Control', 'no-store');
+    res.json(result);
+  })
+);
 
 // Company-wide microphone log: who had a muted mic, from what time to what time.
 router.get(
@@ -143,8 +229,10 @@ router.get(
 /** Lightweight name-only list — used by dropdowns in reports, payroll, employee form. */
 router.get(
   '/departments',
+  validate(z.object({ inUse: z.enum(['0', '1']).optional() }), 'query'),
   asyncHandler(async (req, res) => {
-    res.json(await service.listDepartments());
+    // inUse=1 adds departments that employees have but nobody created (for filters over people).
+    res.json(await service.listDepartments({ includeInUse: q(req).inUse === '1' }));
   })
 );
 

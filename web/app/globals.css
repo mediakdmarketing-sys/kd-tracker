@@ -1157,6 +1157,27 @@ button.cal-day:hover {
   backdrop-filter: blur(4px);
 }
 
+/* Timesheet: a person's state as a coloured pill; the colour is the dashboard's colour for it. */
+.ts-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--c) 16%, #fff);
+  color: color-mix(in srgb, var(--c) 55%, #000);
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.ts-state::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--c);
+}
+
 /* Payslip: a few facts in a row, and a clean sheet when printed or saved as PDF. */
 .kv-grid {
   display: grid;
@@ -1463,6 +1484,76 @@ select:focus {
 .filters .field {
   margin: 0;
   min-width: 150px;
+}
+
+/* Searchable employee dropdown */
+.ec {
+  position: relative;
+  min-width: 230px;
+}
+.ec input[type='text'] {
+  width: 100%;
+  padding-right: 30px;
+}
+.ec-clear {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted, #667);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+.ec-clear:hover {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+.ec-list {
+  position: absolute;
+  z-index: 30;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  max-height: 280px;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  box-shadow: 0 12px 30px rgba(20, 40, 90, 0.16);
+}
+.ec-item {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.ec-item.is-active,
+.ec-item:hover {
+  background: var(--accent-soft);
+}
+.ec-item.is-picked .ec-name {
+  color: var(--accent-text);
+  font-weight: 600;
+}
+.ec-meta {
+  font-size: 12px;
+  color: var(--text-muted, #667);
+}
+.ec-empty {
+  padding: 10px;
+  font-size: 13px;
+  color: var(--text-muted, #667);
 }
 
 .btn {
