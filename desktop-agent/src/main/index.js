@@ -69,9 +69,9 @@ async function connectFromLink(code) {
       buttons: ['Connect', 'Cancel'],
       defaultId: 1,
       cancelId: 1,
-      title: 'Connect WorkBuddy',
+      title: 'Connect WorkInvigilator',
       message: 'Sign this desktop agent in from the web portal?',
-      detail: 'You just signed in to the WorkBuddy portal in your browser. Choose Cancel if that was not you.',
+      detail: 'You just signed in to the WorkInvigilator portal in your browser. Choose Cancel if that was not you.',
     });
     if (response !== 0) {
       logger.info('Connect link declined by the user');
@@ -302,7 +302,7 @@ function trayState() {
 }
 
 function trayTooltip() {
-  if (!agent?.state.signedIn) return 'WorkBuddy — not signed in';
+  if (!agent?.state.signedIn) return 'WorkInvigilator — not signed in';
 
   const bits = [];
   bits.push(
@@ -322,7 +322,7 @@ function trayTooltip() {
   }
   if (!agent.state.online) bits.push('Offline');
 
-  return `WorkBuddy — ${bits.join(' · ')}`;
+  return `WorkInvigilator — ${bits.join(' · ')}`;
 }
 
 function buildTray() {
@@ -406,7 +406,7 @@ function showPopup() {
     fullscreenable: false,
     skipTaskbar: true,
     alwaysOnTop: true,
-    title: 'WorkBuddy',
+    title: 'WorkInvigilator',
     // The tray icon is this same logo plus a status dot (see trayIcon.js). This is the window's
     // own identity: the title-bar icon and what Alt-Tab shows for it.
     // Lives under src/ (not build/) so it is packaged with the app; build/ is gitignored and

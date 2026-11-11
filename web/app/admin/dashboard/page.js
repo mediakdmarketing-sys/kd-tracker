@@ -6,7 +6,7 @@ import DepartmentBars from './DepartmentBars';
 import TeamToday from './TeamToday';
 import Attention from './Attention';
 
-export const metadata = { title: 'Dashboard · WorkBuddy' };
+export const metadata = { title: 'Dashboard · WorkInvigilator' };
 
 const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
 

@@ -23,11 +23,11 @@ describe('Wayland detection', () => {
 
 describe('autostart entry', () => {
   it('is a valid desktop entry that launches the given path', () => {
-    const text = autostartEntry({ exec: '/opt/WorkBuddy/workbuddy' });
+    const text = autostartEntry({ exec: '/opt/WorkInvigilator/workbuddy' });
     expect(text.startsWith('[Desktop Entry]\n')).toBe(true);
     expect(text).toContain('Type=Application');
-    expect(text).toContain('Name=WorkBuddy');
-    expect(text).toContain('Exec="/opt/WorkBuddy/workbuddy"');
+    expect(text).toContain('Name=WorkInvigilator');
+    expect(text).toContain('Exec="/opt/WorkInvigilator/workbuddy"');
     expect(text).toContain('Terminal=false');
   });
 

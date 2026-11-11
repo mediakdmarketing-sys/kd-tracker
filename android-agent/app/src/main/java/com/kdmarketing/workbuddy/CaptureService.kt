@@ -183,7 +183,7 @@ class CaptureService : Service() {
         reader = r
 
         display = p.createVirtualDisplay(
-            "WorkBuddy",
+            "WorkInvigilator",
             width,
             height,
             metrics.densityDpi,
@@ -396,8 +396,8 @@ class CaptureService : Service() {
     // --- Notification and shutdown -----------------------------------------------------------
 
     private fun createChannel() {
-        val channel = NotificationChannel(CHANNEL_ID, "WorkBuddy capture", NotificationManager.IMPORTANCE_LOW)
-        channel.description = "Shown while WorkBuddy is capturing your screen during your shift"
+        val channel = NotificationChannel(CHANNEL_ID, "WorkInvigilator capture", NotificationManager.IMPORTANCE_LOW)
+        channel.description = "Shown while WorkInvigilator is capturing your screen during your shift"
         (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).createNotificationChannel(channel)
     }
 
@@ -410,7 +410,7 @@ class CaptureService : Service() {
         )
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat)
-            .setContentTitle("WorkBuddy")
+            .setContentTitle("WorkInvigilator")
             .setContentText(text)
             .setOngoing(true)
             .setOnlyAlertOnce(true)

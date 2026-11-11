@@ -1,6 +1,6 @@
 name: Build desktop agent
 
-# Builds the WorkBuddy installers in the cloud, so nobody needs a Mac or Linux machine to make
+# Builds the WorkInvigilator installers in the cloud, so nobody needs a Mac or Linux machine to make
 # a .dmg / .AppImage / .deb. Run it by hand: GitHub -> Actions -> "Build desktop agent" ->
 # Run workflow. When it finishes, download the files from the run's "Artifacts" section.
 #

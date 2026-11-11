@@ -35,9 +35,9 @@ export async function generateMetadata({ params }) {
   const { id } = await params;
   try {
     const employee = await getEmployee(id);
-    return { title: `${employee.name} · WorkBuddy` };
+    return { title: `${employee.name} · WorkInvigilator` };
   } catch {
-    return { title: 'Employee · WorkBuddy' };
+    return { title: 'Employee · WorkInvigilator' };
   }
 }
 

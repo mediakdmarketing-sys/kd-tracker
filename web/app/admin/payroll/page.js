@@ -8,7 +8,7 @@ import { currentMonth, dateLabel } from '@/lib/format';
 import { money } from '@/lib/money';
 import { EmailAllPayslips, EmailPayslipButton, EmailStatus } from '@/components/EmailPayslip';
 
-export const metadata = { title: 'Payroll · WorkBuddy' };
+export const metadata = { title: 'Payroll · WorkInvigilator' };
 
 export default async function PayrollPage({ searchParams }) {
   const params = await searchParams;

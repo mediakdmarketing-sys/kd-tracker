@@ -17,7 +17,7 @@ describe('parseConnectLink', () => {
   });
 
   it('is case-insensitive about the scheme, which Windows may normalise', () => {
-    expect(parseConnectLink(`WorkBuddy://connect?code=${CODE}`)).toBe(CODE);
+    expect(parseConnectLink(`WorkInvigilator://connect?code=${CODE}`)).toBe(CODE);
   });
 
   it.each([

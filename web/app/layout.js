@@ -9,12 +9,12 @@ import InstallPrompt from '@/components/InstallPrompt';
 // --font-display / --font tokens name the families these imports register.
 
 export const metadata = {
-  title: 'WorkBuddy',
+  title: 'WorkInvigilator',
   description: 'Attendance and work monitoring portal',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'WorkBuddy',
+    title: 'WorkInvigilator',
   },
   icons: {
     icon: [

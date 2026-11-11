@@ -5,7 +5,7 @@ import { daysAgoDate, todayIn } from '@/lib/format';
 import RangeFilter from '@/components/RangeFilter';
 import PeopleScreenshots from '@/components/PeopleScreenshots';
 
-export const metadata = { title: 'Screenshots · WorkBuddy' };
+export const metadata = { title: 'Screenshots · WorkInvigilator' };
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

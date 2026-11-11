@@ -62,7 +62,7 @@ export default function InstallPrompt() {
   return (
     <div
       role="banner"
-      aria-label="Install WorkBuddy"
+      aria-label="Install WorkInvigilator"
       style={{
         position: 'fixed',
         bottom: 0,
@@ -86,7 +86,7 @@ export default function InstallPrompt() {
         style={{ borderRadius: 8, flexShrink: 0 }}
       />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontWeight: 700, fontSize: 14 }}>Install WorkBuddy</div>
+        <div style={{ fontWeight: 700, fontSize: 14 }}>Install WorkInvigilator</div>
         <div
           style={{
             fontWeight: 700,

@@ -147,7 +147,7 @@ function notifyMicMuted() {
 function notifyOffline() {
   notify(
     'offline',
-    'WorkBuddy is offline',
+    'WorkInvigilator is offline',
     'No connection to the server. Punches and captures are queued and will upload automatically when the connection returns.',
     'cooldown'
   );
@@ -174,7 +174,7 @@ function notifyAccountDeactivated() {
 function notifyConnected(name) {
   notify(
     'connected',
-    'WorkBuddy connected',
+    'WorkInvigilator connected',
     name
       ? `Signed in as ${name} from the web portal. Punch in when you are ready to start.`
       : 'Signed in from the web portal. Punch in when you are ready to start.',
@@ -186,8 +186,8 @@ function notifyConnected(name) {
 function notifyConnectFailed(message) {
   notify(
     'connect_failed',
-    'Could not connect WorkBuddy',
-    `${message || 'The link did not work.'} You can sign in from the WorkBuddy tray icon instead.`,
+    'Could not connect WorkInvigilator',
+    `${message || 'The link did not work.'} You can sign in from the WorkInvigilator tray icon instead.`,
     'cooldown'
   );
 }
@@ -197,7 +197,7 @@ function notifySessionExpired() {
   notify(
     'session_expired',
     'Session ended',
-    'You have been signed out. Please open WorkBuddy and sign in again.',
+    'You have been signed out. Please open WorkInvigilator and sign in again.',
     'always'
   );
 }
@@ -206,7 +206,7 @@ function notifySessionExpired() {
 function notifyWokeFromSleep() {
   notify(
     'woke_from_sleep',
-    'WorkBuddy resuming',
+    'WorkInvigilator resuming',
     'Your device woke from sleep. Syncing attendance status…',
     'always'
   );

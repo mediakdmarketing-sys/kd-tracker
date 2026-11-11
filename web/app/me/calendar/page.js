@@ -3,7 +3,7 @@ import { api, requireUser } from '@/lib/api';
 import { currentMonth, todayIn } from '@/lib/format';
 import YearCalendar from '@/components/YearCalendar';
 
-export const metadata = { title: 'Holidays · WorkBuddy' };
+export const metadata = { title: 'Holidays · WorkInvigilator' };
 
 const WEEKDAY = new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' });
 

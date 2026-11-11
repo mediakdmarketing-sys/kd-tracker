@@ -46,7 +46,7 @@ function noteWaylandLimits(settings) {
   dialog
     .showMessageBox({
       type: 'info',
-      title: 'WorkBuddy on Wayland',
+      title: 'WorkInvigilator on Wayland',
       message: 'Some monitoring features are limited on a Wayland session.',
       detail:
         'Your attendance and idle time are still recorded. Screenshots, keyboard/mouse counts ' +

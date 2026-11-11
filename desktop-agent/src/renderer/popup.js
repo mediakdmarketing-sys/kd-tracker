@@ -96,7 +96,7 @@ function signInView() {
   // to see *that* even though they took no action here that would set the local `error`.
   const message = error || state?.lastError;
   return h(`
-    <h1>WorkBuddy</h1>
+    <h1>WorkInvigilator</h1>
     <p class="muted" style="margin:0 0 14px">Sign in with your work email.</p>
     ${message ? `<div class="error">${escape(message)}</div>` : ''}
     <div class="card">

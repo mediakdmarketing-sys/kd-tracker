@@ -1,6 +1,6 @@
-# WorkBuddy — User Guide
+# WorkInvigilator — User Guide
 
-WorkBuddy tracks attendance and work activity for remote teams. There are three kinds of account, and
+WorkInvigilator tracks attendance and work activity for remote teams. There are three kinds of account, and
 each one sees a different set of pages:
 
 | Role | Who | What they do |

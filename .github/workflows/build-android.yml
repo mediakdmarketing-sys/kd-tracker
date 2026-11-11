@@ -1,6 +1,6 @@
 name: Build Android app
 
-# Builds the WorkBuddy Android app (android-agent/) into an APK in the cloud, so nobody needs
+# Builds the WorkInvigilator Android app (android-agent/) into an APK in the cloud, so nobody needs
 # Android Studio. Run it by hand: GitHub -> Actions -> "Build Android app" -> Run workflow, then
 # download the APK from the run's "Artifacts" section.
 #

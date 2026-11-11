@@ -4,7 +4,7 @@ import OpenOnHash from '@/components/OpenOnHash';
 import HelpSearch from '@/components/HelpSearch';
 import { latestBuilds } from '@/lib/latestBuilds';
 
-export const metadata = { title: 'Help · WorkBuddy' };
+export const metadata = { title: 'Help · WorkInvigilator' };
 
 const ALL = ['user', 'leader', 'admin'];
 const LEADERS = ['leader', 'admin'];
@@ -15,10 +15,10 @@ const ADMIN = ['admin'];
 const SECTIONS = [
   {
     id: 'about',
-    title: 'What is WorkBuddy?',
+    title: 'What is WorkInvigilator?',
     roles: ALL,
     body: [
-      'WorkBuddy is the company attendance and work-tracking app. It records when you start and finish your day, your breaks, your leave and, while you are punched in, how active you were.',
+      'WorkInvigilator is the company attendance and work-tracking app. It records when you start and finish your day, your breaks, your leave and, while you are punched in, how active you were.',
       'It has two parts that work together: this web portal (punch, history, leave, reports) and the desktop agent, a small app on your computer that takes the screenshots and activity counts.',
       'Your day in short: sign in, punch in, work, take breaks when you need them, punch out. Everything else happens in the background.',
     ],
@@ -40,7 +40,7 @@ const SECTIONS = [
     title: 'The desktop agent',
     roles: ALL,
     body: [
-      'Screenshots come from the WorkBuddy desktop agent, not the browser. Install it, start it and leave it running in the system tray.',
+      'Screenshots come from the WorkInvigilator desktop agent, not the browser. Install it, start it and leave it running in the system tray.',
       'After you sign in here, the agent asks "Sign this desktop agent in from the web portal?". Click Connect. Click Cancel if you did not just sign in.',
       'Capture only happens when the agent is signed in as you, you are punched in, and you are not on a break.',
       'Pictures taken while you are offline wait in a queue and upload when the connection is back.',
@@ -53,11 +53,11 @@ const SECTIONS = [
     steps: true,
     roles: ALL,
     body: [
-      'Get the WorkBuddy installer (a file ending in .exe) from HR or IT and double-click it. It installs for your user only and does not need an administrator password.',
+      'Get the WorkInvigilator installer (a file ending in .exe) from HR or IT and double-click it. It installs for your user only and does not need an administrator password.',
       { text: 'Windows may show a blue "Windows protected your PC" box. This is expected, the installer is not code-signed yet. Click More info, then Run anyway.', tip: 'It looks alarming, but it only means Microsoft has not seen this installer before.' },
-      'When it finishes, WorkBuddy starts in the system tray at the bottom right next to the clock. If you cannot see it, click the ^ arrow. It does not open a normal window.',
+      'When it finishes, WorkInvigilator starts in the system tray at the bottom right next to the clock. If you cannot see it, click the ^ arrow. It does not open a normal window.',
       'Sign in on this portal. The agent then asks "Sign this desktop agent in from the web portal?". Click Connect. The tray icon now shows you as signed in.',
-      { text: 'Leave it running. It starts by itself when you sign in to Windows, so a restart or power cut does not stop it.', warn: 'Quitting it from the tray stops capture until you open WorkBuddy again from the Start menu. Only install it on the computer you work on, not on a shared or personal one.' },
+      { text: 'Leave it running. It starts by itself when you sign in to Windows, so a restart or power cut does not stop it.', warn: 'Quitting it from the tray stops capture until you open WorkInvigilator again from the Start menu. Only install it on the computer you work on, not on a shared or personal one.' },
     ],
   },
   {
@@ -68,43 +68,43 @@ const SECTIONS = [
     roles: ALL,
     body: [
       { text: 'Pick the right file for your Mac. Click the Apple menu, then About This Mac, and read the Chip line.', tip: 'Apple M1, M2, M3 or M4: use the file with "arm64" in its name. Intel: use the file without it.' },
-      'Open the .dmg file, then drag WorkBuddy into the Applications folder.',
-      { text: 'The first time, do not double-click it. In Applications, right-click WorkBuddy, choose Open, then click Open again.', tip: 'macOS blocks apps that are not from the App Store. If it still refuses, open System Settings, Privacy & Security, scroll down and click Open Anyway next to WorkBuddy.' },
-      'WorkBuddy has no Dock icon and no window. Look for its icon in the menu bar at the top right, next to the clock. If you are not signed in, a sign-in panel opens by itself.',
-      { text: 'Allow the permissions it asks for in System Settings, Privacy & Security: Screen & System Audio Recording (without it screenshots are blank) and Microphone (only if you accepted audio monitoring).', warn: 'After you switch a permission on, quit WorkBuddy from the menu bar and open it again, otherwise macOS does not apply it.' },
+      'Open the .dmg file, then drag WorkInvigilator into the Applications folder.',
+      { text: 'The first time, do not double-click it. In Applications, right-click WorkInvigilator, choose Open, then click Open again.', tip: 'macOS blocks apps that are not from the App Store. If it still refuses, open System Settings, Privacy & Security, scroll down and click Open Anyway next to WorkInvigilator.' },
+      'WorkInvigilator has no Dock icon and no window. Look for its icon in the menu bar at the top right, next to the clock. If you are not signed in, a sign-in panel opens by itself.',
+      { text: 'Allow the permissions it asks for in System Settings, Privacy & Security: Screen & System Audio Recording (without it screenshots are blank) and Microphone (only if you accepted audio monitoring).', warn: 'After you switch a permission on, quit WorkInvigilator from the menu bar and open it again, otherwise macOS does not apply it.' },
       'Sign in on this portal and click Connect when the agent asks. It starts by itself when you log in to your Mac.',
       { tip: 'Optional: switch on Accessibility on the same Privacy & Security page if you want keyboard and mouse counts. Attendance and idle time work without it.' },
     ],
   },
   {
     id: 'agent-mac-fix',
-    title: 'Mac: WorkBuddy will not open',
+    title: 'Mac: WorkInvigilator will not open',
     badge: 'Mac',
     steps: true,
     roles: ALL,
     body: [
-      { text: 'Open Terminal (press Cmd + Space, type Terminal, press Return). Copy each line below, one at a time, paste it and press Return. These two lines remove the "downloaded from the internet" block and re-seal the app.', cmds: ['xattr -cr /Applications/WorkBuddy.app', 'codesign --force --deep --sign - /Applications/WorkBuddy.app'] },
-      { text: 'Then open WorkBuddy again from Applications.' },
+      { text: 'Open Terminal (press Cmd + Space, type Terminal, press Return). Copy each line below, one at a time, paste it and press Return. These two lines remove the "downloaded from the internet" block and re-seal the app.', cmds: ['xattr -cr /Applications/WorkInvigilator.app', 'codesign --force --deep --sign - /Applications/WorkInvigilator.app'] },
+      { text: 'Then open WorkInvigilator again from Applications.' },
       { text: 'Terminal said "Operation not permitted"? Terminal needs permission to change apps. Open System Settings, Privacy & Security, App Management and switch Terminal on. Quit Terminal (Cmd + Q), open it again and repeat step 1.' },
-      { text: 'Says "not responding", or nothing appears? Close any stuck copy first, then open WorkBuddy again.', cmds: ['pkill -f WorkBuddy'] },
-      { text: 'Still nothing? Run it from Terminal so it prints what is wrong, then send that text to HR.', cmds: ['/Applications/WorkBuddy.app/Contents/MacOS/WorkBuddy'] },
-      { warn: 'Last resort: delete WorkBuddy from Applications, install it again from the .dmg, and tell HR exactly which message you saw.' },
+      { text: 'Says "not responding", or nothing appears? Close any stuck copy first, then open WorkInvigilator again.', cmds: ['pkill -f WorkInvigilator'] },
+      { text: 'Still nothing? Run it from Terminal so it prints what is wrong, then send that text to HR.', cmds: ['/Applications/WorkInvigilator.app/Contents/MacOS/WorkInvigilator'] },
+      { warn: 'Last resort: delete WorkInvigilator from Applications, install it again from the .dmg, and tell HR exactly which message you saw.' },
     ],
   },
   {
     id: 'agent-android',
-    title: 'Install the WorkBuddy app on an Android phone',
+    title: 'Install the WorkInvigilator app on an Android phone',
     badge: 'Android',
     steps: true,
     roles: ALL,
     body: [
-      { text: 'Download the WorkBuddy app (a file ending in .apk) from the Download button above, or ask HR to send it to you. You need Android 10 or newer.' },
+      { text: 'Download the WorkInvigilator app (a file ending in .apk) from the Download button above, or ask HR to send it to you. You need Android 10 or newer.' },
       { text: 'Open the downloaded file. Android asks to allow installs from this source: tap Settings, switch Allow from this source on, go back and tap Install.', tip: 'This is needed because the app is installed directly and not from the Play Store. If Play Protect asks to scan it, choose Scan or Install anyway.' },
-      'Open WorkBuddy and sign in with your work email. Allow notifications when asked.',
+      'Open WorkInvigilator and sign in with your work email. Allow notifications when asked.',
       'Read the notice about what is recorded and tap I understand and accept. The audio box is optional.',
-      { text: 'Tap Punch in. Then tap Start now on the Android box that asks to start capturing your screen. If the app asks for the microphone, allow it only if you accepted audio.', warn: 'Android shows a WorkBuddy notification for as long as capture runs. That is how your phone tells you it is recording, it cannot be hidden.' },
-      { text: 'Keep WorkBuddy running during your shift. Tap Start break to pause capture, and Punch out when you finish.', tip: 'If the phone restarts or you force-close the app, open it and tap Start capture again. Android asks for your permission every time.' },
-      { text: 'Capture stops by itself when your phone kills the app to save battery. To prevent this, open Settings, Apps, WorkBuddy, Battery and choose Unrestricted.' },
+      { text: 'Tap Punch in. Then tap Start now on the Android box that asks to start capturing your screen. If the app asks for the microphone, allow it only if you accepted audio.', warn: 'Android shows a WorkInvigilator notification for as long as capture runs. That is how your phone tells you it is recording, it cannot be hidden.' },
+      { text: 'Keep WorkInvigilator running during your shift. Tap Start break to pause capture, and Punch out when you finish.', tip: 'If the phone restarts or you force-close the app, open it and tap Start capture again. Android asks for your permission every time.' },
+      { text: 'Capture stops by itself when your phone kills the app to save battery. To prevent this, open Settings, Apps, WorkInvigilator, Battery and choose Unrestricted.' },
     ],
   },
   {
@@ -116,9 +116,9 @@ const SECTIONS = [
     body: [
       { text: 'Use an X11 session. On the login screen click the gear icon and choose "Ubuntu on Xorg" (or the "X11" option for your desktop).', warn: 'Wayland sessions keep attendance and idle time working, but screenshots, keyboard/mouse counts and the active application can be missing.' },
       { text: 'Ubuntu, Debian or Linux Mint: install the .deb file. Open Terminal in the folder where you saved it and run:', cmds: ['sudo apt install ./kd-tracker-agent_*.deb'] },
-      { text: 'Fedora, Arch, openSUSE or anything else: use the AppImage file instead. In Terminal, in the folder where you saved it:', cmds: ['chmod +x WorkBuddy-*.AppImage', './WorkBuddy-*.AppImage'], tip: 'If the AppImage will not start, install FUSE first: sudo apt install libfuse2 (Debian/Ubuntu) or sudo dnf install fuse (Fedora).' },
+      { text: 'Fedora, Arch, openSUSE or anything else: use the AppImage file instead. In Terminal, in the folder where you saved it:', cmds: ['chmod +x WorkInvigilator-*.AppImage', './WorkInvigilator-*.AppImage'], tip: 'If the AppImage will not start, install FUSE first: sudo apt install libfuse2 (Debian/Ubuntu) or sudo dnf install fuse (Fedora).' },
       { text: 'Install two small helper packages so the agent can read the active application and count keyboard/mouse activity (Debian, Ubuntu, Mint):', cmds: ['sudo apt install x11-utils libxtst6'] },
-      { text: 'Sign in on this portal and click Connect when the agent asks. It starts by itself when you log in.', warn: 'GNOME (the default Ubuntu and Fedora desktop) hides tray icons. Install the "AppIndicator and KStatusNotifierItem Support" extension, then log out and in. Without it the agent still runs, open WorkBuddy from the applications menu to see its panel.' },
+      { text: 'Sign in on this portal and click Connect when the agent asks. It starts by itself when you log in.', warn: 'GNOME (the default Ubuntu and Fedora desktop) hides tray icons. Install the "AppIndicator and KStatusNotifierItem Support" extension, then log out and in. Without it the agent still runs, open WorkInvigilator from the applications menu to see its panel.' },
     ],
   },
   {
@@ -276,7 +276,7 @@ const SECTIONS = [
     title: 'For admins: rolling out the desktop agent',
     roles: ADMIN,
     body: [
-      'Employees need the WorkBuddy agent on the computer they work on. Once the installer link is configured for the portal, a Download button appears on every employee’s Help and My shift pages.',
+      'Employees need the WorkInvigilator agent on the computer they work on. Once the installer link is configured for the portal, a Download button appears on every employee’s Help and My shift pages.',
       'Roll out in two steps: try it with two or three employees for a day, check that their screenshots appear on their member page, then give the link to everyone.',
       'Each employee signs in on the portal, then clicks Connect when the agent asks. After that the agent keeps itself signed in.',
       'Someone punched in but no captures? Check that the agent is running, that they are signed in on it, and that they accepted the monitoring notice. See "Something is not working".',
@@ -336,9 +336,9 @@ const SECTIONS = [
     roles: ADMIN,
     body: [
       'Finalize month (Payroll page): freezes every payslip for the month exactly as it is now. The month can no longer be regenerated, and its bonuses and holidays cannot change. Each employee gets a notification and can see their own payslip under Payslips. Until you finalize, employees see nothing.',
-      'Before it freezes, WorkBuddy checks the payslips are up to date (if a rate or shift changed after you generated, it asks you to Regenerate first) and warns about shifts still open and days with no pay rate. You can go ahead after confirming.',
+      'Before it freezes, WorkInvigilator checks the payslips are up to date (if a rate or shift changed after you generated, it asks you to Regenerate first) and warns about shifts still open and days with no pay rate. You can go ahead after confirming.',
       'A finalized payslip never changes, whatever happens later: a new rate, a corrected shift or new settings do not touch it. Emails and PDFs use the frozen figures.',
-      'Payment list (CSV): once a month is finalized, the Payroll page shows a Payment list (CSV) button. It lists everyone to be paid this month and how much (days, base pay, bonus and the amount to pay) and where to pay them (bank, branch, account name and number), with a TOTAL line at the end, taken from the frozen payslips so it always matches what employees see. People with nothing to be paid are left off; people with no bank details are marked NO BANK DETAILS (the Payroll page names them first). The last three columns (Paid On, Payment Method, Reference) are empty for you to fill in as you pay. It is not available before the month is finalized, because the figures could still change. WorkBuddy does not move any money: you upload the file to your bank (or copy the details into its bulk-payment template) and approve it there.',
+      'Payment list (CSV): once a month is finalized, the Payroll page shows a Payment list (CSV) button. It lists everyone to be paid this month and how much (days, base pay, bonus and the amount to pay) and where to pay them (bank, branch, account name and number), with a TOTAL line at the end, taken from the frozen payslips so it always matches what employees see. People with nothing to be paid are left off; people with no bank details are marked NO BANK DETAILS (the Payroll page names them first). The last three columns (Paid On, Payment Method, Reference) are empty for you to fill in as you pay. It is not available before the month is finalized, because the figures could still change. WorkInvigilator does not move any money: you upload the file to your bank (or copy the details into its bulk-payment template) and approve it there.',
       'Bank details: open an employee and use the Bank details card (Add bank details, Edit, Remove). They are stored encrypted. The account number shows as ****1234 until you click Show account number. Only HR can see them, and every look, change and payment-file download is recorded in the audit log (never the account number itself). Opening the CSV in Excel can drop leading zeros of an account number: import the column as Text, or open it in Google Sheets. The payment file holds full account numbers, so keep it private and delete it once the bank has paid.',
       'Reopen month: unfreezes it so you can regenerate or change bonuses. You must give a reason, which is kept in the audit log. Employees stop seeing that month until you finalize it again.',
     ],
@@ -390,7 +390,7 @@ const SECTIONS = [
       'Open the employee’s page and choose Deactivate. They are signed out everywhere at once, including the desktop agent, and can no longer punch in.',
       'Their history, payroll rows and audit entries stay. Nothing is deleted, and captured media is removed on the normal retention schedule.',
       'If they led a department, assign a new leader first so leave requests are not left with nobody to approve them.',
-      'Ask them to uninstall WorkBuddy from any personal computer it was installed on.',
+      'Ask them to uninstall WorkInvigilator from any personal computer it was installed on.',
     ],
   },
   {
@@ -406,7 +406,7 @@ const SECTIONS = [
     title: 'Words used in the app',
     roles: ALL,
     body: [
-      'All times in WorkBuddy are New York time (Eastern Time), whatever country your computer is in. A "day" starts and ends at midnight New York time.',
+      'All times in WorkInvigilator are New York time (Eastern Time), whatever country your computer is in. A "day" starts and ends at midnight New York time.',
       'Punch in / Punch out: start and end of your working day.',
       'Break: time you pause the work clock. You have a daily allowance; going over it flags the day for HR review.',
       'Flagged: a day HR should look at, for example an over-long break or a missing punch out.',
@@ -430,7 +430,7 @@ const SECTIONS = [
       'Where is my payslip? Open Payslips in the menu. A month’s payslip appears once HR has finalized that month, and you get a notification. You can view it, print it or download it as a PDF.',
       'Do I get paid for holidays and leave? Company holidays are paid at your daily rate. Approved leave is paid if its type is a paid one (Company Vacation by default); ask HR which types are paid. Only working days count, so a weekend inside a vacation is not paid.',
       'Is my break paid? No: a break is not counted as work. A full day needs 9 hours of work (HR can change this), so if you take a break you finish your 9 hours of work after it; if you take none you are done after 9 hours. Either way it is a full day.',
-      'Can I use WorkBuddy on my phone? You can open the portal to view history and request leave, but screenshots only come from the desktop agent.',
+      'Can I use WorkInvigilator on my phone? You can open the portal to view history and request leave, but screenshots only come from the desktop agent.',
     ],
   },
   {
@@ -453,7 +453,7 @@ const QUICK_START = {
   user: {
     title: 'Your first day in four steps',
     steps: [
-      'Install the WorkBuddy desktop agent and leave it running in the system tray.',
+      'Install the WorkInvigilator desktop agent and leave it running in the system tray.',
       'Sign in on this portal, read the monitoring notice and accept it. Click Connect when the agent asks.',
       'Open My shift and click Punch in. Take breaks with Start break and End break.',
       'When you finish, click Punch out. Signing out is not needed.',
@@ -641,7 +641,7 @@ export default async function HelpPage() {
         <div>
           <h1>Help</h1>
           <p>
-            How to use WorkBuddy. You are signed in as: <strong>{ROLE_LABEL[user.role] || 'User'}</strong>.
+            How to use WorkInvigilator. You are signed in as: <strong>{ROLE_LABEL[user.role] || 'User'}</strong>.
             Questions this page does not answer? Ask HR.
           </p>
         </div>

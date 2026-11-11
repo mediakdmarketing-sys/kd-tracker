@@ -6,7 +6,7 @@ const FALLBACK = '/icons/icon-192.png';
 
 /**
  * The company logo HR uploaded in Settings. With none uploaded (or if it fails to load) the
- * WorkBuddy mark is shown instead.
+ * WorkInvigilator mark is shown instead.
  *
  * @param {{ hasLogo?: boolean, version?: number|null, size?: number }} props
  */

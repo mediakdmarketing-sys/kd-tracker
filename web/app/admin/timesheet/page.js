@@ -6,7 +6,7 @@ import RangeFilter from '@/components/RangeFilter';
 import PeopleScreenshots from '@/components/PeopleScreenshots';
 import LiveTimesheet from './LiveTimesheet';
 
-export const metadata = { title: 'Timesheet · WorkBuddy' };
+export const metadata = { title: 'Timesheet · WorkInvigilator' };
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

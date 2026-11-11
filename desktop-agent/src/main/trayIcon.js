@@ -1,6 +1,6 @@
 'use strict';
 
-// Tray icons: the WorkBuddy logo with a status dot, generated from one logo file.
+// Tray icons: the WorkInvigilator logo with a status dot, generated from one logo file.
 //
 // The icon is the only thing most employees will ever see of this agent, and it has to say
 // truthfully what is happening: capturing, on a break, offline with a backlog. The logo says

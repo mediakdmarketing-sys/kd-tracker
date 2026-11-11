@@ -3,7 +3,7 @@ import LeaveRequestForm from './LeaveRequestForm';
 import CancelLeaveButton from './CancelLeaveButton';
 import { dateLabel } from '@/lib/format';
 
-export const metadata = { title: 'Leave · WorkBuddy' };
+export const metadata = { title: 'Leave · WorkInvigilator' };
 
 const STATUS_CLASS = {
   pending: 'pill-idle',

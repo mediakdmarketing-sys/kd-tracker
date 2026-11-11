@@ -2,7 +2,7 @@ import { getSessionUser, api } from '@/lib/api';
 import NewYorkClock from '@/components/NewYorkClock';
 import ConsentForm from './ConsentForm';
 
-export const metadata = { title: 'What we monitor · WorkBuddy' };
+export const metadata = { title: 'What we monitor · WorkInvigilator' };
 
 /**
  * Story W-3. This page stands between an employee and their first punch-in, and the text on it

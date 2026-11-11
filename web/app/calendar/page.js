@@ -3,7 +3,7 @@ import { api, requireUser } from '@/lib/api';
 import { currentMonth, todayIn } from '@/lib/format';
 import MonthCalendar from '@/components/MonthCalendar';
 
-export const metadata = { title: 'Calendar · WorkBuddy' };
+export const metadata = { title: 'Calendar · WorkInvigilator' };
 
 const TITLE = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
 

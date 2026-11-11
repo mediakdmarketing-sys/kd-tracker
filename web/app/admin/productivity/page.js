@@ -5,7 +5,7 @@ import ProductivityFilters from './ProductivityFilters';
 import { duration, daysAgoDate, todayIn, dateLabel } from '@/lib/format';
 import CategoryEditor from './CategoryEditor';
 
-export const metadata = { title: 'Productivity · WorkBuddy' };
+export const metadata = { title: 'Productivity · WorkInvigilator' };
 
 const BAND_LABEL = { great: 'Great', good: 'Good', average: 'Average', review: 'Review' };
 const BAND_PILL = {

@@ -7,7 +7,7 @@ import MicLogTable from '@/components/MicLogTable';
 import { duration, time, timeSec, dateLabel, todayIn, workedSecondsOf, isOpenShift } from '@/lib/format';
 import { averageActivity } from '@/lib/activity';
 
-export const metadata = { title: 'Member detail · WorkBuddy' };
+export const metadata = { title: 'Member detail · WorkInvigilator' };
 
 // Deduplicated member info fetch — uses the leader-accessible endpoint, not the admin one.
 const getMember = cache(async (id) => api(`/api/leader/members/${id}/info`));

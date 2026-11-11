@@ -3,7 +3,7 @@ import SettingsForm from './SettingsForm';
 import BrandingCard from './BrandingCard';
 import PayslipTemplateCard from './PayslipTemplateCard';
 
-export const metadata = { title: 'Settings · WorkBuddy' };
+export const metadata = { title: 'Settings · WorkInvigilator' };
 
 export default async function AdminSettingsPage() {
   const [user, settings] = await Promise.all([

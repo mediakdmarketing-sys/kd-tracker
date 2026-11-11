@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { api, requireUser } from '@/lib/api';
 import { money } from '@/lib/money';
 
-export const metadata = { title: 'My payslips · WorkBuddy' };
+export const metadata = { title: 'My payslips · WorkInvigilator' };
 
 const MONTH_NAME = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
 

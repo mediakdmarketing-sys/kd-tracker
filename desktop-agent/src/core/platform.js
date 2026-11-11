@@ -25,14 +25,14 @@ function isWaylandSession(env = process.env, platform = process.platform) {
  * login-item API does nothing on Linux.
  * @param {{exec: string, name?: string}} opts  `exec` is the full path of the launcher
  */
-function autostartEntry({ exec, name = 'WorkBuddy' }) {
+function autostartEntry({ exec, name = 'WorkInvigilator' }) {
   // A path with spaces must be quoted in the Exec key; backslashes and quotes are escaped.
   const quoted = `"${String(exec).replace(/(["\\`$])/g, '\\$1')}"`;
   return [
     '[Desktop Entry]',
     'Type=Application',
     `Name=${name}`,
-    'Comment=WorkBuddy desktop agent',
+    'Comment=WorkInvigilator desktop agent',
     `Exec=${quoted}`,
     'Terminal=false',
     'X-GNOME-Autostart-enabled=true',

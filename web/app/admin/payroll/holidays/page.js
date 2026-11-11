@@ -3,7 +3,7 @@ import { api, requireUser } from '@/lib/api';
 import { currentMonth, todayIn } from '@/lib/format';
 import HolidaysManager from './HolidaysManager';
 
-export const metadata = { title: 'Holidays · WorkBuddy' };
+export const metadata = { title: 'Holidays · WorkInvigilator' };
 
 export default async function HolidaysPage({ searchParams }) {
   const params = await searchParams;

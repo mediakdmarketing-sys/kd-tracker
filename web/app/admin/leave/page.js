@@ -1,7 +1,7 @@
 import { api, requireUser } from '@/lib/api';
 import LeaveQueueTable from '@/components/LeaveQueueTable';
 
-export const metadata = { title: 'Leave requests · WorkBuddy' };
+export const metadata = { title: 'Leave requests · WorkInvigilator' };
 
 export default async function AdminLeavePage({ searchParams }) {
   const params = await searchParams;

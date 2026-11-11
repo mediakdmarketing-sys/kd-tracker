@@ -225,7 +225,7 @@ class MainActivity : AppCompatActivity() {
         clock = null
         audioConsentBox = null
 
-        content.addView(title("WorkBuddy"))
+        content.addView(title("WorkInvigilator"))
         update?.let { info ->
             content.addView(
                 primary(if (updating) "Downloading update…" else "Update available (${info.versionName}) — tap to install") {
@@ -373,7 +373,7 @@ class MainActivity : AppCompatActivity() {
     private fun renderConsent() {
         loadDisclosure()
         content.addView(heading("Before you start"), spaced(top = 16))
-        content.addView(muted("Please read what WorkBuddy records and accept it to punch in."), spaced(top = 4))
+        content.addView(muted("Please read what WorkInvigilator records and accept it to punch in."), spaced(top = 4))
         content.addView(TextView(this).apply {
             text = disclosure ?: "Loading…"
             textSize = 14f
@@ -403,7 +403,7 @@ class MainActivity : AppCompatActivity() {
             startActivity(
                 Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName")),
             )
-            message = "Allow WorkBuddy to install updates, then tap the update button again."
+            message = "Allow WorkInvigilator to install updates, then tap the update button again."
             render()
             return
         }

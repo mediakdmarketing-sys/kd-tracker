@@ -2,7 +2,7 @@ import Link from 'next/link';
 import DownloadChoice from '@/components/DownloadChoice';
 import { latestBuilds } from '@/lib/latestBuilds';
 
-export const metadata = { title: 'Download · WorkBuddy' };
+export const metadata = { title: 'Download · WorkInvigilator' };
 
 // Re-read the update feed at most every 5 minutes (see lib/latestBuilds.js).
 export const revalidate = 300;
@@ -101,7 +101,7 @@ function platformsFor(b) {
 const STEPS = [
   'Run the installer and follow the prompts.',
   <>
-    WorkBuddy starts in the <strong>system tray</strong> (bottom-right, near the clock).
+    WorkInvigilator starts in the <strong>system tray</strong> (bottom-right, near the clock).
   </>,
   'Sign in to this portal — the agent will ask to connect automatically.',
   <>
@@ -117,7 +117,7 @@ export default async function DownloadPage() {
       <div className="page-head">
         <div>
           <h1>Download</h1>
-          <p>Install the WorkBuddy desktop agent on your computer to enable screenshots and activity tracking.</p>
+          <p>Install the WorkInvigilator desktop agent on your computer to enable screenshots and activity tracking.</p>
         </div>
       </div>
 

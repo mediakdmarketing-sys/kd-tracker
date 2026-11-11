@@ -9,7 +9,7 @@ import { useState } from 'react';
 export function inviteMessage({ name, email, password, origin }) {
   const first = String(name || '').trim().split(' ')[0] || 'there';
   return [
-    `Hi ${first}, welcome to WorkBuddy! 👋`,
+    `Hi ${first}, welcome to WorkInvigilator! 👋`,
     '',
     'Your account is ready. Here is how to sign in:',
     '',
@@ -18,7 +18,7 @@ export function inviteMessage({ name, email, password, origin }) {
     `Temporary password: ${password}`,
     '',
     'The first time you sign in you will be asked to choose your own password.',
-    `After that, the Help page (${origin}/help) shows how to install WorkBuddy on your computer or phone.`,
+    `After that, the Help page (${origin}/help) shows how to install WorkInvigilator on your computer or phone.`,
     '',
     'If anything does not work, just reply to this message.',
   ].join('\n');
@@ -65,7 +65,7 @@ export default function InviteCard({ name, email, password, onDone, title = 'Inv
 
   const whatsapp = `https://wa.me/?text=${encodeURIComponent(message)}`;
   const mailto = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(
-    'Welcome to WorkBuddy'
+    'Welcome to WorkInvigilator'
   )}&body=${encodeURIComponent(message)}`;
 
   return (

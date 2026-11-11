@@ -1,7 +1,7 @@
 import { api, requireUser } from '@/lib/api';
 import NotificationList from '@/components/NotificationList';
 
-export const metadata = { title: 'Notifications · WorkBuddy' };
+export const metadata = { title: 'Notifications · WorkInvigilator' };
 
 export default async function NotificationsPage() {
   const [, data] = await Promise.all([requireUser(), api('/api/notifications?limit=50')]);

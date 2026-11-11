@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { api, requireUser } from '@/lib/api';
 import RatesManager from './RatesManager';
 
-export const metadata = { title: 'Pay rates · WorkBuddy' };
+export const metadata = { title: 'Pay rates · WorkInvigilator' };
 
 export default async function RatesPage() {
   await requireUser({ accountAdminOnly: true });

@@ -3,7 +3,7 @@ import { api, requireUser } from '@/lib/api';
 import PayslipSheet from '@/components/PayslipSheet';
 import PrintButton from '@/app/admin/payroll/payslip/[employeeId]/PrintButton';
 
-export const metadata = { title: 'Payslip · WorkBuddy' };
+export const metadata = { title: 'Payslip · WorkInvigilator' };
 
 const MONTH_NAME = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
 

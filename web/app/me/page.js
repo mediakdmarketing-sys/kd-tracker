@@ -4,7 +4,7 @@ import ShiftPanel from '@/components/ShiftPanel';
 import ShiftStats from '@/components/ShiftStats';
 import { duration, time, timeSec, breakSecondsOf, isOpenShift } from '@/lib/format';
 
-export const metadata = { title: 'My shift · WorkBuddy' };
+export const metadata = { title: 'My shift · WorkInvigilator' };
 
 export default async function MyShiftPage() {
   const [user, status] = await Promise.all([
@@ -35,7 +35,7 @@ export default async function MyShiftPage() {
       <div className="stack">
         {/* Warning, not a download link: the file lives on the Download page. */}
         <div className="notice notice-warn" role="note">
-          <strong>Install the desktop agent.</strong> Screenshots and activity come from the WorkBuddy
+          <strong>Install the desktop agent.</strong> Screenshots and activity come from the WorkInvigilator
           desktop agent, so install it before you punch in.{' '}
           <Link href="/download">
             <strong>Download</strong>

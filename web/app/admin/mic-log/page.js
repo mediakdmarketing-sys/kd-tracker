@@ -4,7 +4,7 @@ import MicLogTable from '@/components/MicLogTable';
 import RangeFilter from '@/components/RangeFilter';
 import { daysAgoDate, todayIn } from '@/lib/format';
 
-export const metadata = { title: 'Mic log · WorkBuddy' };
+export const metadata = { title: 'Mic log · WorkInvigilator' };
 
 const MAX_RANGE_DAYS = 93; // the server's limit (backend/src/modules/capture/micLog.js)
 const DATE = /^\d{4}-\d{2}-\d{2}$/;

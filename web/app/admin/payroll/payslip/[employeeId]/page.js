@@ -4,7 +4,7 @@ import PayslipSheet from '@/components/PayslipSheet';
 import { EmailPayslipButton } from '@/components/EmailPayslip';
 import PrintButton from './PrintButton';
 
-export const metadata = { title: 'Payslip · WorkBuddy' };
+export const metadata = { title: 'Payslip · WorkInvigilator' };
 
 const MONTH_NAME = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
 

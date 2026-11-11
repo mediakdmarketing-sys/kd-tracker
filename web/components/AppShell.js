@@ -275,7 +275,7 @@ export default function AppShell({ user, children }) {
             <Link href={user.role === 'admin' ? '/admin' : user.role === 'leader' ? '/leader' : '/me'} className="brand">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/icons/icon-192.png" alt="" className="brand-mark" />
-              <span className="brand-word">WorkBuddy</span>
+              <span className="brand-word">WorkInvigilator</span>
             </Link>
           </div>
 

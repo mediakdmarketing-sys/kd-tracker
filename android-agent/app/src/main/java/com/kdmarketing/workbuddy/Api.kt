@@ -17,7 +17,7 @@ class ApiResult(val status: Int, val body: JSONObject?) {
 }
 
 /**
- * Thin client for the WorkBuddy backend. Adds the bearer token, and on a 401 refreshes the
+ * Thin client for the WorkInvigilator backend. Adds the bearer token, and on a 401 refreshes the
  * session once and repeats the call. Calls block, so run them off the main thread.
  */
 class Api(private val tokens: TokenStore) {

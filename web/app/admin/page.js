@@ -1,7 +1,7 @@
 import { api, requireUser } from '@/lib/api';
 import LiveBoard from '@/components/LiveBoard';
 
-export const metadata = { title: 'Live board · WorkBuddy' };
+export const metadata = { title: 'Live board · WorkInvigilator' };
 
 export default async function AdminDashboardPage() {
   // requireUser and the dashboard fetch are independent — run them in parallel so the page

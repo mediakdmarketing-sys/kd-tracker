@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { api, requireUser } from '@/lib/api';
 import { duration, time, STATE_LABEL, STATE_CLASS } from '@/lib/format';
 
-export const metadata = { title: 'Team live board · WorkBuddy' };
+export const metadata = { title: 'Team live board · WorkInvigilator' };
 
 export default async function LeaderMembersPage({ searchParams }) {
   const params = await searchParams;

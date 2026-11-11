@@ -7,7 +7,7 @@
 # but will trigger Gatekeeper/SmartScreen warnings. Add signing before a public release.
 
 appId: com.kdmarketing.workbuddy
-productName: WorkBuddy
+productName: WorkInvigilator
 copyright: Copyright (c) 2026 KD Marketing
 
 directories:
@@ -30,7 +30,7 @@ publish:
 # Registers workbuddy:// with the OS on install, so the web portal can sign the agent in after an
 # employee signs in there (see src/core/connectLink.js).
 protocols:
-  - name: WorkBuddy
+  - name: WorkInvigilator
     schemes:
       - workbuddy
 
@@ -77,8 +77,8 @@ mac:
   # The text macOS shows in its permission prompts. Without a usage description for the
   # microphone, macOS can terminate the app the moment it asks for access.
   extendInfo:
-    NSMicrophoneUsageDescription: WorkBuddy records short audio samples during your shift, only if you accepted audio monitoring.
-    NSScreenCaptureUsageDescription: WorkBuddy takes screenshots during your shift so your attendance can be reviewed.
+    NSMicrophoneUsageDescription: WorkInvigilator records short audio samples during your shift, only if you accepted audio monitoring.
+    NSScreenCaptureUsageDescription: WorkInvigilator takes screenshots during your shift so your attendance can be reviewed.
   # No Developer ID configured. Without this, an unsigned build on some electron-builder
   # versions still attempts ad-hoc signing and can fail confusingly on a CI box with no
   # keychain at all.

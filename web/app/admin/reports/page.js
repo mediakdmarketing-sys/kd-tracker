@@ -4,7 +4,7 @@ import { api, requireUser } from '@/lib/api';
 import RangeFilter from '@/components/RangeFilter';
 import { duration, hours, daysAgoDate, todayIn, dateLabel } from '@/lib/format';
 
-export const metadata = { title: 'Reports · WorkBuddy' };
+export const metadata = { title: 'Reports · WorkInvigilator' };
 
 export default async function ReportsPage({ searchParams }) {
   const params = await searchParams;

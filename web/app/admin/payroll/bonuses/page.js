@@ -5,7 +5,7 @@ import RangeFilter from '@/components/RangeFilter';
 import { currentMonth } from '@/lib/format';
 import BonusManager from './BonusManager';
 
-export const metadata = { title: 'Bonuses · WorkBuddy' };
+export const metadata = { title: 'Bonuses · WorkInvigilator' };
 
 export default async function BonusesPage({ searchParams }) {
   const params = await searchParams;
