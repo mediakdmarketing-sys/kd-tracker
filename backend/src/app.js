@@ -105,6 +105,7 @@ function createApp() {
         targetSeconds: s.shift.targetSeconds,
         breakAllowanceSeconds: s.shift.breakAllowanceSeconds,
         idleThresholdSeconds: s.shift.idleThresholdSeconds,
+        zoomCameraBreakMinutes: s.shift.zoomCameraBreakMinutes || 0,
       },
       retentionDays: s.retention.days,
       maxUploadBytes: config.capture.maxUploadBytes,

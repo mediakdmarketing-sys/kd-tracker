@@ -114,6 +114,8 @@ const config = {
     breakAllowanceSeconds: int('BREAK_ALLOWANCE_SECONDS', 3600),
     idleThresholdSeconds: int('IDLE_THRESHOLD_SECONDS', 600),
     autoCloseHours: int('SHIFT_AUTO_CLOSE_HOURS', 16),
+    // Windows agents start a break after this many minutes of camera-off in a Zoom meeting. 0 = off.
+    zoomCameraBreakMinutes: int('ZOOM_CAMERA_BREAK_MINUTES', 0),
   },
 
   capture: {

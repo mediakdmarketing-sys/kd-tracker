@@ -42,6 +42,35 @@ describe('signing out while punched in', () => {
     expect(status.shift.breaks.find((b) => !b.end).reason).toBe('signed_out');
   });
 
+  it('takes the Zoom camera reason from the agent, and no other reason', async () => {
+    const e = await createEmployee();
+    await attendance.punchIn({ employee: person(e), at: t.now() - 3600 * 1000 });
+    const { access } = await signIn(e);
+
+    // The server alone sets 'signed_out'; a client cannot claim it, or make up another.
+    expect((await as(access).post('/api/attendance/break-start').send({ reason: 'signed_out' })).status).toBe(400);
+    expect((await as(access).post('/api/attendance/break-start').send({ reason: 'whatever' })).status).toBe(400);
+
+    const res = await as(access).post('/api/attendance/break-start').send({ reason: 'zoom_camera_off' });
+    expect(res.status).toBe(200);
+    expect((await breaksOf(e))[0].reason).toBe('zoom_camera_off');
+    const status = (await as(access).get('/api/attendance/status')).body;
+    expect(status.shift.breaks.find((b) => !b.end).reason).toBe('zoom_camera_off');
+  });
+
+  it('shows the Zoom camera setting to agents, and lets HR change it', async () => {
+    const e = await createEmployee();
+    const hr = await createEmployee({ role: 'admin' });
+    const cfg = async () => (await as((await signIn(e)).access).get('/api/config')).body.shift.zoomCameraBreakMinutes;
+    expect(await cfg()).toBe(0); // off unless HR turns it on
+
+    const hrAccess = (await signIn(hr)).access;
+    expect((await as(hrAccess).patch('/api/admin/settings').send({ shift: { zoomCameraBreakMinutes: 5 } })).status).toBe(200);
+    expect(await cfg()).toBe(5);
+    expect((await as(hrAccess).patch('/api/admin/settings').send({ shift: { zoomCameraBreakMinutes: 500 } })).status).toBe(400);
+    await as(hrAccess).patch('/api/admin/settings').send({ shift: { zoomCameraBreakMinutes: 0 } });
+  });
+
   it('shows on the live board as On break', async () => {
     const e = await createEmployee();
     const hr = await createEmployee({ role: 'admin' });

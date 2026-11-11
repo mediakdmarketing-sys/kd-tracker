@@ -28,7 +28,8 @@ const shownOnce = new Set(); // lifetime once-only keys
 // The only notifications that actually pop up. Everything else in this file still runs its logic
 // and is wired up, but is dropped here, so turning one back on is adding its key to this set
 // rather than rewriting anything. The tray icon and the popup still show the live state.
-const ENABLED = new Set(['break_overdue']);
+// The Zoom camera ones must show: a break the person did not start has to be explained to them.
+const ENABLED = new Set(['break_overdue', 'zoom_camera_warn', 'zoom_break_start', 'zoom_break_end']);
 
 function notify(key, title, body, mode = 'cooldown') {
   if (!ENABLED.has(key)) return;
@@ -103,6 +104,32 @@ function notifyBreakOverdue(overSeconds = 0) {
       : 'Your break allowance has ended. Please end your break and get back to work.',
     'always'
   );
+}
+
+// ---------------------------------------------------------------------------
+// Zoom camera rule (Windows) — the agent starts and ends a break by itself, so it says so
+// ---------------------------------------------------------------------------
+
+function notifyZoomCameraWarn(minutes = 5) {
+  notify(
+    'zoom_camera_warn',
+    'Camera is off in Zoom',
+    `Turn your camera on. If it stays off for ${minutes} min, a break starts automatically.`,
+    'always'
+  );
+}
+
+function notifyZoomBreakStart(minutes = 5) {
+  notify(
+    'zoom_break_start',
+    'Break started',
+    `Your camera was off in Zoom for ${minutes} min. Turn it on to end the break and get back to work.`,
+    'always'
+  );
+}
+
+function notifyZoomBreakEnd() {
+  notify('zoom_break_end', 'Break ended', 'Your camera is on again, or the meeting ended. Back to work.', 'always');
 }
 
 // ---------------------------------------------------------------------------
@@ -221,6 +248,9 @@ module.exports = {
   notifyBreakStart,
   notifyBreakEnd,
   notifyBreakOverdue,
+  notifyZoomCameraWarn,
+  notifyZoomBreakStart,
+  notifyZoomBreakEnd,
   // Capture health
   notifyScreenMonitoringFailed,
   notifyAudioDisabled,

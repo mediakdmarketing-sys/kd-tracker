@@ -19,6 +19,7 @@ const PUNCH_ENDPOINTS = {
 // How often to repeat the "break is over" nudge while the employee is still on the break.
 const BREAK_REMINDER_MS = 5 * 60_000;
 const MIC_CHECK_EVERY_MS = 60_000;
+const MEETING_CHECK_EVERY_MS = 15_000;
 
 class Agent {
   /**
@@ -54,6 +55,12 @@ class Agent {
     this.nextMicCheckAt = 0;
     this.silentChecks = 0; // consecutive level-only silences (the system did not say "muted")
     this.micReportedBad = false; // the server has been told the mic is off, until it recovers
+    // Zoom camera rule (Windows): see #watchZoomCamera.
+    this.nextMeetingCheckAt = 0;
+    this.camOffSince = null; // when the camera was first found off in the current meeting
+    this.camWarned = false;
+    this.camBreakSuppressed = false; // the person ended our break; leave them be until the camera is on
+    this.zoomBreakOpen = false; // the break that is running was started by this rule
     this.state = {
       signedIn: api.isSignedIn(),
       employee: null,
@@ -299,6 +306,81 @@ class Agent {
     );
   }
 
+  #forgetCamera() {
+    this.camOffSince = null;
+    this.camWarned = false;
+    this.camBreakSuppressed = false;
+  }
+
+  /**
+   * Windows: camera off during a Zoom meeting for `zoomCameraBreakMinutes` starts a break by
+   * itself, and the break ends when the camera comes back on or the meeting ends. HR sets the
+   * minutes in Settings (0 = off). Fair-play rules:
+   *  - the employee is warned when the camera first goes off, and told when the break starts;
+   *  - a break the employee already started is never touched;
+   *  - if they end the automatic break themselves while the camera is still off, it is not started
+   *    again in that meeting;
+   *  - when the agent cannot tell (not Windows, tasklist blocked) it does nothing.
+   * The break carries the reason 'zoom_camera_off' so the portal can say why it started.
+   */
+  async #watchZoomCamera(now) {
+    const minutes = this.config.shift?.zoomCameraBreakMinutes || 0;
+    if (!this.capture.meetingCheck || !minutes) return;
+    if (now < this.nextMeetingCheckAt) return;
+    this.nextMeetingCheckAt = now + MEETING_CHECK_EVERY_MS;
+
+    const seen = await this.capture.meetingCheck();
+    if (!seen || seen.supported === false) return;
+
+    const shift = this.state.shiftState;
+    const ownOpen = this.state.status?.shift?.breaks?.some((b) => !b.end && b.reason === 'zoom_camera_off');
+    const ourBreakRunning = shift === 'on_break' && (this.zoomBreakOpen || Boolean(ownOpen));
+
+    if (!seen.inMeeting || seen.cameraOn) {
+      // Camera on, or the meeting is over: end our break and start counting afresh next time.
+      this.#forgetCamera();
+      if (ourBreakRunning) {
+        this.zoomBreakOpen = false;
+        await this.punch('breakEnd');
+        this.#notify('zoomBreakEnd');
+      }
+      this.zoomBreakOpen = false;
+      return;
+    }
+
+    // In a meeting with the camera off.
+    if (shift === 'on_break') return; // ours keeps running; theirs is theirs
+    if (this.zoomBreakOpen) {
+      // Our break is gone but the camera is still off: the person ended it. Respect that.
+      this.zoomBreakOpen = false;
+      this.camBreakSuppressed = true;
+    }
+    if (shift !== 'working' || this.camBreakSuppressed) {
+      this.camOffSince = null;
+      return;
+    }
+
+    if (this.camOffSince === null) {
+      this.camOffSince = now;
+      if (!this.camWarned) {
+        this.camWarned = true;
+        this.#notify('zoomCameraWarn', minutes);
+      }
+      return;
+    }
+    if (now - this.camOffSince < minutes * 60_000) return;
+
+    this.zoomBreakOpen = true;
+    const result = await this.punch('breakStart', { reason: 'zoom_camera_off' });
+    if (result.shiftState === 'on_break') {
+      this.#notify('zoomBreakStart', minutes);
+    } else {
+      // The server said no (or something failed): try again after another full wait, not every 15s.
+      this.zoomBreakOpen = false;
+      this.camOffSince = now;
+    }
+  }
+
   #startCapture(audioAllowed) {
     if (this.screenshotScheduler.nextAt === null) this.screenshotScheduler.arm(this.now());
     if (audioAllowed) {
@@ -323,15 +405,15 @@ class Agent {
    * down they are queued with the time they happened, and the server honours that on delivery
    * (ADR-0004) — the employee is not penalised for their broadband.
    */
-  async punch(action) {
+  async punch(action, extra = {}) {
     const endpoint = PUNCH_ENDPOINTS[action];
     if (!endpoint) throw new Error(`Unknown punch action: ${action}`);
 
     const at = new Date(this.now()).toISOString();
-    const res = await this.api.request(endpoint, { method: 'POST', body: {} });
+    const res = await this.api.request(endpoint, { method: 'POST', body: { ...extra } });
 
     if (res.status === 0) {
-      this.outbox.enqueue({ kind: 'punch', endpoint, payload: { at }, at: this.now() });
+      this.outbox.enqueue({ kind: 'punch', endpoint, payload: { at, ...extra }, at: this.now() });
       logger.warn('Offline: punch event queued', { action, at });
       this.#notify('offline');
 
@@ -397,6 +479,10 @@ class Agent {
     const now = this.now();
 
     this.#checkBreakOverdue(now);
+
+    await this.#watchZoomCamera(now).catch((err) =>
+      logger.error('Zoom camera check failed', { message: err.message })
+    );
 
     if (this.state.captureAllowed && this.screenshotScheduler.isDue(now)) {
       this.screenshotScheduler.arm(now);

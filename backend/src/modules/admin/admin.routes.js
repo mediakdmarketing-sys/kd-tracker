@@ -607,6 +607,8 @@ const settingsPatchSchema = z.object({
       breakAllowanceSeconds: z.number().int().min(0).max(14400).optional(),
       idleThresholdSeconds: z.number().int().min(60).max(3600).optional(),
       autoCloseHours: z.number().int().min(1).max(48).optional(),
+      // 0 turns the Windows "camera off in a Zoom meeting starts a break" rule off.
+      zoomCameraBreakMinutes: z.number().int().min(0).max(120).optional(),
     })
     .optional(),
   retention: z.object({ days: z.number().int().min(1).max(365).optional() }).optional(),

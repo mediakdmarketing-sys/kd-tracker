@@ -32,6 +32,7 @@ export default function SettingsForm({ initial, showPayroll = true }) {
     breakAllowanceMinutes: initial.shift.breakAllowanceSeconds / 60,
     idleThresholdMinutes: initial.shift.idleThresholdSeconds / 60,
     autoCloseHours: initial.shift.autoCloseHours,
+    zoomCameraBreakMinutes: initial.shift.zoomCameraBreakMinutes ?? 0,
     retentionDays: initial.retention.days,
     // Only account admins are sent the payroll rules (see the settings page).
     ...(showPayroll
@@ -77,6 +78,7 @@ export default function SettingsForm({ initial, showPayroll = true }) {
           breakAllowanceSeconds: Math.round(form.breakAllowanceMinutes * 60),
           idleThresholdSeconds: Math.round(form.idleThresholdMinutes * 60),
           autoCloseHours: Math.round(form.autoCloseHours),
+          zoomCameraBreakMinutes: Math.round(form.zoomCameraBreakMinutes),
         },
         retention: { days: Math.round(form.retentionDays) },
         ...(showPayroll
@@ -192,6 +194,16 @@ export default function SettingsForm({ initial, showPayroll = true }) {
             step={1}
             disabled={busy}
             hint="A shift still open this long after punch-in is auto-closed and flagged."
+          />
+          <NumberField
+            label="Camera off in Zoom starts a break after (minutes)"
+            value={form.zoomCameraBreakMinutes}
+            onChange={(v) => set('zoomCameraBreakMinutes', v)}
+            min={0}
+            max={120}
+            step={1}
+            disabled={busy}
+            hint="Windows only. 0 = off. The person is warned first, and the break ends when the camera comes on or the meeting ends. Break time is not paid, so turn this on knowingly."
           />
         </div>
       </div>

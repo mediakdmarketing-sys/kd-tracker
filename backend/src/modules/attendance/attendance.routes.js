@@ -50,11 +50,15 @@ router.post(
   })
 );
 
+// The agent says why when it starts a break itself. Only this one value is accepted from a client;
+// 'signed_out' is set by the server alone.
+const breakStartSchema = punchSchema.extend({ reason: z.enum(['zoom_camera_off']).optional() });
+
 router.post(
   '/break-start',
-  validate(punchSchema),
+  validate(breakStartSchema),
   asyncHandler(async (req, res) => {
-    res.json(await service.startBreak({ employee: req.user, requestedAt: req.body.at }));
+    res.json(await service.startBreak({ employee: req.user, requestedAt: req.body.at, reason: req.body.reason || null }));
   })
 );
 

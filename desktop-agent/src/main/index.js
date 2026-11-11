@@ -23,6 +23,9 @@ const notifications = require('./notifications');
 const { startUpdater } = require('./updater');
 const linux = require('./linux');
 const { startFileLog } = require('./fileLog');
+const { createZoomWatcher } = require('./zoomCamera');
+
+const checkZoom = createZoomWatcher();
 
 const ACTIVITY_WINDOW_SECONDS = 60;
 // The portal normally nudges the agent (workbuddy://sync) the moment something changes there;
@@ -174,6 +177,7 @@ async function start() {
       screenshots: () => capture.captureAllDisplays({ quality: settings.screenshotQuality }),
       audioSample: (seconds) => audio.recordSample(seconds),
       micCheck: () => audio.checkMic(),
+      meetingCheck: checkZoom,
     },
     onState: () => {
       refreshTray();
@@ -192,6 +196,9 @@ async function start() {
         case 'screenMonitoringFailed':notifications.notifyScreenMonitoringFailed(); break;
         case 'audioDisabled':         notifications.notifyAudioDisabled(); break;
         case 'micMuted':              notifications.notifyMicMuted(); break;
+        case 'zoomCameraWarn':        notifications.notifyZoomCameraWarn(data); break;
+        case 'zoomBreakStart':        notifications.notifyZoomBreakStart(data); break;
+        case 'zoomBreakEnd':          notifications.notifyZoomBreakEnd(); break;
         // Connectivity
         case 'offline':               notifications.notifyOffline(); break;
         // Account / session

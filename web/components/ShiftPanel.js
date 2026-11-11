@@ -253,6 +253,13 @@ export default function ShiftPanel({ initial, timezone }) {
           </div>
         )}
 
+        {onBreak && status.shift?.breaks?.some((b) => !b.end && b.reason === 'zoom_camera_off') && (
+          <div className="notice notice-info" style={{ marginBottom: 14 }} role="status">
+            Your break started because your camera was off in a Zoom meeting. It ends by itself when you turn the camera
+            on or the meeting ends, or click End break.
+          </div>
+        )}
+
         <div className="punch">
           {/* Clock section re-renders every second in isolation */}
           <div>
