@@ -27,6 +27,7 @@ export default function CaptureSection({
   showConsentColumn = false,
   subjectLabel = 'employee',
   blurScreenshots = false,
+  screenshotMaxIntervalSec = 600,
 }) {
   return (
     <>
@@ -37,6 +38,7 @@ export default function CaptureSection({
         to={to}
         fileUrlBase={screenshotUrlBase}
         blurred={blurScreenshots}
+        maxIntervalSec={screenshotMaxIntervalSec}
       />
 
       <div className="card">

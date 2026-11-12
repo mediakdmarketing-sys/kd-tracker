@@ -1,7 +1,6 @@
 'use client';
 
 import { memo, useMemo, useState, useCallback } from 'react';
-import { time } from '@/lib/format';
 
 /**
  * Story W-6 — the screenshot viewer.
@@ -12,29 +11,52 @@ import { time } from '@/lib/format';
  *    one audit row per capture (ADR-0003).
  * 2. Tiles stay collapsed until clicked — opening is an explicit decision.
  * 3. One capture moment = one tile, even across multiple displays (ADR-0005).
+ * 4. When the gap between consecutive captures exceeds 1.5× the max screenshot interval,
+ *    repeat tiles are inserted so the grid has no silent gaps — the last known screen
+ *    state is shown dimmed with a "Repeated" label rather than leaving a blank period.
  *
  * Performance notes:
  * - groupByCapture() is memoized so it only re-runs when `items` changes, not on every
  *   setRevealed / setShowAll state update.
- * - The Intl.DateTimeFormat formatter is created once per (timezone) value and passed
- *   down, instead of being constructed inside every CaptureTile render.
+ * - The Intl.DateTimeFormat formatter is created once per (timezone, multiDay) value and
+ *   passed down, instead of being constructed inside every CaptureTile render.
  * - CaptureTile is wrapped in React.memo so only the one tile that was just revealed
  *   re-renders when setRevealed fires, rather than all 128 tiles re-rendering.
  */
 
 const INITIAL_VISIBLE = 10;
+// 1.5× the max interval before we consider a gap "missed" and insert a repeat tile.
+const GAP_FACTOR = 1.5;
 
-export default function ScreenshotGrid({ items, timezone, from, to, fileUrlBase, blurred = false }) {
+export default function ScreenshotGrid({
+  items,
+  timezone,
+  from,
+  to,
+  fileUrlBase,
+  blurred = false,
+  maxIntervalSec = 600,
+}) {
   const rangeLabel = from && to && from !== to ? `${from} to ${to}` : from || to || '';
   const multiDay = Boolean(from && to && from !== to);
   const [revealed, setRevealed] = useState(() => new Set());
   const [showAll, setShowAll] = useState(false);
 
   // Memoized so the Map rebuild doesn't run on every state update.
-  const groups = useMemo(() => groupByCapture(items), [items]);
+  const realGroups = useMemo(() => groupByCapture(items), [items]);
+
+  // Fill gaps: when consecutive captures are more than GAP_FACTOR × maxInterval apart,
+  // insert phantom "repeat" tiles that show the last real screenshot dimmed.
+  const groups = useMemo(
+    () => fillGaps(realGroups, maxIntervalSec * GAP_FACTOR * 1000),
+    [realGroups, maxIntervalSec]
+  );
+
+  const realCount = realGroups.length;
+  const repeatCount = groups.filter((g) => g.isRepeat).length;
 
   const openable = useMemo(
-    () => groups.filter((g) => g.images.some((i) => !i.fileDeleted)),
+    () => groups.filter((g) => !g.isRepeat && g.images.some((i) => !i.fileDeleted)),
     [groups]
   );
 
@@ -45,9 +67,6 @@ export default function ScreenshotGrid({ items, timezone, from, to, fileUrlBase,
   const hiddenCount = groups.length - INITIAL_VISIBLE;
 
   // Stable formatter passed to every tile — constructed once per (timezone, multiDay) pair.
-  // Avoids 128 × new Intl.DateTimeFormat(...) inside CaptureTile render. Includes the date
-  // too when the view spans more than one day — two captures both timestamped "14:32" on
-  // different days would otherwise be indistinguishable in the grid.
   const timeFmt = useMemo(
     () =>
       new Intl.DateTimeFormat('en-GB', {
@@ -60,10 +79,7 @@ export default function ScreenshotGrid({ items, timezone, from, to, fileUrlBase,
     [timezone, multiDay]
   );
 
-  const reveal = useCallback(
-    (id) => setRevealed((prev) => new Set(prev).add(id)),
-    []
-  );
+  const reveal = useCallback((id) => setRevealed((prev) => new Set(prev).add(id)), []);
 
   const revealAll = useCallback(() => {
     setShowAll(true);
@@ -78,10 +94,11 @@ export default function ScreenshotGrid({ items, timezone, from, to, fileUrlBase,
         <h2>Screenshots</h2>
         <div className="inline">
           <span className="faint">
-            {groups.length} capture{groups.length === 1 ? '' : 's'}{' '}
+            {realCount} capture{realCount === 1 ? '' : 's'}{' '}
             {multiDay ? 'between' : 'on'} {rangeLabel}
             {multiDisplay ? ` · ${items.length} images across multiple displays` : ''}
             {purgedFiles ? ` · ${purgedFiles} file${purgedFiles === 1 ? '' : 's'} already purged` : ''}
+            {repeatCount > 0 ? ` · ${repeatCount} repeated (no new capture)` : ''}
           </span>
 
           {!showAll && hiddenCount > 0 && (
@@ -98,24 +115,34 @@ export default function ScreenshotGrid({ items, timezone, from, to, fileUrlBase,
         </div>
       </div>
 
-      {groups.length === 0 ? (
+      {realCount === 0 ? (
         <div className="empty">
           No screenshots captured {multiDay ? 'in this range' : 'on this date'}.
         </div>
       ) : (
         <div className="card-pad">
           <div className="shots">
-            {visibleGroups.map((group) => (
-              <CaptureTile
-                key={group.id}
-                group={group}
-                timeFmt={timeFmt}
-                revealed={revealed.has(group.id)}
-                onReveal={reveal}
-                fileUrlBase={fileUrlBase}
-                blurred={blurred}
-              />
-            ))}
+            {visibleGroups.map((group) =>
+              group.isRepeat ? (
+                <RepeatTile
+                  key={group.id}
+                  group={group}
+                  timeFmt={timeFmt}
+                  fileUrlBase={fileUrlBase}
+                  blurred={blurred}
+                />
+              ) : (
+                <CaptureTile
+                  key={group.id}
+                  group={group}
+                  timeFmt={timeFmt}
+                  revealed={revealed.has(group.id)}
+                  onReveal={reveal}
+                  fileUrlBase={fileUrlBase}
+                  blurred={blurred}
+                />
+              )
+            )}
           </div>
 
           {!showAll && hiddenCount > 0 && (
@@ -132,14 +159,80 @@ export default function ScreenshotGrid({ items, timezone, from, to, fileUrlBase,
 }
 
 // ---------------------------------------------------------------------------
+// RepeatTile — shown when a gap in captures is detected; repeats the last image
+// ---------------------------------------------------------------------------
+
+const RepeatTile = memo(function RepeatTile({ group, timeFmt, fileUrlBase, blurred }) {
+  const captureTimeLabel = formatWithFmt(timeFmt, group.capturedAt);
+  // Show the first non-deleted image from the source group, dimmed.
+  const sourceImage = group.sourceImages?.find((i) => !i.fileDeleted);
+
+  return (
+    <figure className="shot" style={{ margin: 0, opacity: 0.55 }}>
+      <div
+        style={{
+          position: 'relative',
+          border: '1.5px dashed var(--border-strong)',
+          borderRadius: 8,
+          overflow: 'hidden',
+          background: 'var(--surface-2)',
+        }}
+      >
+        {sourceImage ? (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={fileUrlBase ? `${fileUrlBase}/${sourceImage.id}` : `/bff${sourceImage.fileUrl}`}
+              alt={`Repeated screenshot at ${captureTimeLabel}`}
+              style={{
+                display: 'block',
+                width: '100%',
+                filter: blurred ? 'blur(14px)' : 'none',
+                pointerEvents: 'none',
+              }}
+            />
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'rgba(242,246,252,0.55)',
+                fontSize: 11,
+                fontWeight: 650,
+                color: 'var(--text-muted)',
+                letterSpacing: '0.03em',
+                textTransform: 'uppercase',
+              }}
+            >
+              Repeated
+            </div>
+          </>
+        ) : (
+          <div
+            className="shot-gone"
+            style={{ fontSize: 11, color: 'var(--text-faint)' }}
+          >
+            No capture — screen unchanged
+          </div>
+        )}
+      </div>
+      <figcaption className="cap">
+        <span style={{ fontVariantNumeric: 'tabular-nums' }}>{captureTimeLabel}</span>
+        <span className="faint" style={{ fontSize: 10 }}>repeated</span>
+      </figcaption>
+    </figure>
+  );
+});
+
+// ---------------------------------------------------------------------------
 // CaptureTile — memo so only the one revealed tile re-renders on setRevealed
 // ---------------------------------------------------------------------------
 
 const CaptureTile = memo(function CaptureTile({ group, timeFmt, revealed, onReveal, fileUrlBase, blurred }) {
   const available = group.images.filter((i) => !i.fileDeleted);
   const allPurged = available.length === 0;
-  // Per-tile, not global: showing one screenshot clearly shouldn't unblur the other 127 —
-  // whoever's looking decided this one specifically needed a closer look.
   const [showClear, setShowClear] = useState(false);
   const stillBlurred = blurred && !showClear;
 
@@ -159,11 +252,6 @@ const CaptureTile = memo(function CaptureTile({ group, timeFmt, revealed, onReve
           >
             {group.images.map((image) => {
               if (image.fileDeleted) return <div className="shot-gone" key={image.id}>Purged</div>;
-              // fileUrlBase overrides the row's own fileUrl for callers (the leader-scoped
-              // views) whose per-employee GET route differs from the admin-only one the API
-              // response's fileUrl always points to (capture.service.js's shapeScreenshot).
-              // A plain string, not a function: this component is 'use client' and a Server
-              // Component parent cannot hand a closure across that boundary.
               const url = fileUrlBase ? `${fileUrlBase}/${image.id}` : `/bff${image.fileUrl}`;
               return (
                 <a href={url} target="_blank" rel="noreferrer" key={image.id}>
@@ -240,12 +328,10 @@ function formatWithFmt(fmt, iso) {
     const parts = fmt.formatToParts(new Date(iso));
     const h = parts.find((p) => p.type === 'hour')?.value ?? '00';
     const m = parts.find((p) => p.type === 'minute')?.value ?? '00';
-    const time = `${h.padStart(2, '0')}:${m.padStart(2, '0')}`;
-    // Only present when the formatter was built with { month, day } (multi-day view) —
-    // absent, this is a no-op and the single-day "HH:MM" label is unchanged.
+    const timeStr = `${h.padStart(2, '0')}:${m.padStart(2, '0')}`;
     const month = parts.find((p) => p.type === 'month')?.value;
     const day = parts.find((p) => p.type === 'day')?.value;
-    return month && day ? `${month} ${day}, ${time}` : time;
+    return month && day ? `${month} ${day}, ${timeStr}` : timeStr;
   } catch {
     return '—';
   }
@@ -263,4 +349,49 @@ function groupByCapture(items) {
     byId.get(key).images.push(item);
   }
   return [...byId.values()];
+}
+
+/**
+ * Walk the real capture groups in chronological order and insert phantom "repeat" tiles
+ * wherever the gap to the next group exceeds `gapThresholdMs`.
+ *
+ * Each repeat tile carries a reference to the preceding real group's images so the UI can
+ * render the same image dimmed, making it clear the screen state did not change.
+ */
+function fillGaps(groups, gapThresholdMs) {
+  if (groups.length < 2) return groups;
+
+  // Groups arrive newest-first from the API. Work in ascending order, then reverse at the end.
+  const asc = [...groups].reverse();
+  const result = [];
+
+  for (let i = 0; i < asc.length; i += 1) {
+    result.push(asc[i]);
+
+    if (i + 1 < asc.length) {
+      const thisTs = new Date(asc[i].capturedAt).getTime();
+      const nextTs = new Date(asc[i + 1].capturedAt).getTime();
+      const gap = nextTs - thisTs;
+
+      if (gap > gapThresholdMs) {
+        // How many repeat slots fit in the gap? Use the gap threshold as the slot width.
+        const slots = Math.floor(gap / gapThresholdMs) - 1;
+        const slotMs = gap / (slots + 1);
+
+        for (let s = 1; s <= slots; s += 1) {
+          const repeatTs = new Date(thisTs + s * slotMs).toISOString();
+          result.push({
+            id: `repeat-${asc[i].id}-${s}`,
+            capturedAt: repeatTs,
+            images: asc[i].images, // same images as the last real capture
+            sourceImages: asc[i].images, // explicit ref for RepeatTile
+            isRepeat: true,
+          });
+        }
+      }
+    }
+  }
+
+  // Restore newest-first order that the rest of the component expects.
+  return result.reverse();
 }

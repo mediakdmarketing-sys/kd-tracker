@@ -11,6 +11,9 @@ import NewYorkClock from './NewYorkClock';
 const COLLAPSE_KEY = 'kd_sidebar_collapsed';
 const COLLAPSE_WIDTH_PX = 900; // matches the old auto-collapse breakpoint, now just the default
 
+// Collapsed sidebar always shows the icon strip — text labels slide out but icons stay.
+// The sidebar itself is never fully hidden.
+
 // The bracket-and-bar glyph Hubstaff itself uses (a rounded rectangle split by a vertical
 // line, with a small arrowhead in the wider panel showing which way the toggle slides) —
 // mirrored left/right by state, not swapped for a different icon.
@@ -284,7 +287,7 @@ export default function AppShell({ user, children }) {
               {group.label && <div className="nav-group-label">{group.label}</div>}
               <nav className="nav">
                 {group.links.map((link) => (
-                  <NavLink key={link.href} href={link.href}>
+                  <NavLink key={link.href} href={link.href} title={link.label}>
                     {link.icon}
                     <span>{link.label}</span>
                     {link.href === '/notifications' && <NotificationBadge />}

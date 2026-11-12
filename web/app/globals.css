@@ -137,8 +137,6 @@ h3 {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  position: sticky;
-  top: 0;
   height: 100vh;
   overflow-y: auto;
   /* Setting only overflow-y implicitly computes overflow-x to auto too (CSS's "not both
@@ -193,10 +191,15 @@ h3 {
 /* Wraps the sidebar so the toggle can float on its right edge without being clipped by
    the sidebar's own overflow-x: hidden (needed elsewhere to stop nav labels from causing
    a horizontal scrollbar). The rail has no overflow rule of its own, so the button's
-   -13px right offset — half in, half out of the sidebar — stays fully visible. */
+   -13px right offset — half in, half out of the sidebar — stays fully visible.
+   position:sticky is used here so the rail sticks to the viewport top while still
+   participating in normal flex layout. */
 .sidebar-rail {
-  position: relative;
+  position: sticky;
+  top: 0;
+  height: 100vh;
   flex: none;
+  z-index: 100;
 }
 
 .sidebar-toggle {
@@ -1826,14 +1829,21 @@ select:focus {
  * window.innerWidth, so narrow screens still start collapsed; from then on it's the
  * visitor's explicit choice, persisted in localStorage, same as Hubstaff's own toggle.
  */
+/* ---------- Sidebar collapsed: icons always visible, labels slide out ---------- */
+
 .sidebar.collapsed {
-  width: 80px;
-  padding: 14px 10px;
+  width: 68px;
+  padding: 14px 8px;
 }
-.sidebar.collapsed .brand span:not(.brand-mark),
+/* Collapsed: hide text labels (span) but NEVER hide the icon (svg stays flex-none visible) */
+.sidebar.collapsed .brand span:not(.brand-mark) {
+  opacity: 0;
+  max-width: 0;
+}
 .sidebar.collapsed .nav a span {
   opacity: 0;
   max-width: 0;
+  overflow: hidden;
 }
 .sidebar.collapsed .nav-group-label {
   opacity: 0;
