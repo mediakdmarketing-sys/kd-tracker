@@ -9,6 +9,8 @@ import { BY_KEY } from '../dashboard/states';
 const POLL_MS = 60 * 1000;
 
 const STATE_LABEL = { working: 'Working', on_break: 'On break', finished: 'Finished', not_started: 'Not started', on_leave: 'On leave' };
+// Override colour for on_leave to red in the timesheet (dashboard keeps its own purple).
+const STATE_COLOR_OVERRIDE = { on_leave: '#e11d48' };
 
 /**
  * The timesheet, kept live: it asks the server again every minute, and between asks counts the
@@ -140,7 +142,7 @@ export default function LiveTimesheet({ initial, query, timezone }) {
                       </td>
                       <td className="muted">{r.department || '—'}</td>
                       <td>
-                        <span className="ts-state" style={{ '--c': s.color }}>{STATE_LABEL[r.state] || r.state}</span>
+                        <span className="ts-state" style={{ '--c': STATE_COLOR_OVERRIDE[r.state] || s.color }}>{STATE_LABEL[r.state] || r.state}</span>
                       </td>
                       <td className="num">{r.punchIn ? time(r.punchIn, timezone) : '—'}</td>
                       <td className="num">

@@ -1,11 +1,15 @@
 import { Suspense } from 'react';
 import LoginForm from './LoginForm';
+import ThemeToggle from '@/components/ThemeToggle';
 
 export const metadata = { title: 'Sign in · WorkInvigilator' };
 
 export default function LoginPage() {
   return (
     <div className="login-wrap">
+      <div style={{ position: 'fixed', top: 12, right: 16, zIndex: 20 }}>
+        <ThemeToggle />
+      </div>
       <div className="login-card card">
         <div className="card-pad">
           <div className="login-head">

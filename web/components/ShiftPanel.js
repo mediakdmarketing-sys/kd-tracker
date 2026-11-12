@@ -99,8 +99,8 @@ const BreakDonut = memo(function BreakDonut({ used, allowance, over }) {
   const emptyDash = CIRC - usedDash;
   const remaining = Math.max(0, allowance - used);
 
-  const trackColor = '#e2e5ea';
-  const fillColor  = over ? '#b4231f' : '#a4610a';
+  const trackColor = 'var(--surface-3)';
+  const fillColor  = over ? 'var(--danger)' : 'var(--warn)';
 
   const showTooltip = useCallback((e, text) => {
     const rect = e.currentTarget.closest('svg').getBoundingClientRect();
