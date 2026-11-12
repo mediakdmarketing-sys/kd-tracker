@@ -2027,3 +2027,163 @@ select:focus {
   .grid-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .stat .label { font-size: 10.5px; }
 }
+
+/* ==========================================================================
+   Dark theme — applied when <html data-theme="dark"> is set by ThemeToggle.
+   Every token shadows its :root counterpart so no component CSS needs
+   changing; they all keep using var(--bg), var(--text), etc.
+   ========================================================================== */
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg:            #0f1117;
+  --surface:       #1a1d27;
+  --surface-2:     #21253a;
+  --surface-3:     #2a2f47;
+  --border:        #2e3350;
+  --border-strong: #3b4268;
+  --text:          #e8edf8;
+  --text-muted:    #8e9abf;
+  --text-faint:    #5a6487;
+  --muted:         var(--text-muted);
+
+  --accent:        #3b82f6;
+  --accent-2:      #0ea5e9;
+  --accent-gradient: linear-gradient(120deg, #2563eb, var(--accent-2));
+  --accent-soft:   #0f2d5c;
+  --accent-text:   #93c5fd;
+
+  --ok:            #10b981;
+  --ok-soft:       #064e3b;
+  --warn:          #facc15;
+  --warn-soft:     #0f2d5c;
+  --danger:        #f43f5e;
+  --danger-soft:   #4c0519;
+  --idle:          #6b7fa8;
+  --idle-soft:     #1e2744;
+  --info:          #22d3ee;
+  --info-soft:     #0c3a52;
+
+  --shadow:        0 1px 2px rgba(0,0,0,0.4), 0 10px 24px -12px rgba(0,0,0,0.5);
+  --shadow-pop:    0 16px 36px -10px rgba(0,0,0,0.6);
+}
+
+/* Dark-mode table hover — the light value (#f8fbff) is too close to surface in dark */
+[data-theme="dark"] tbody tr:hover td {
+  background: var(--surface-2);
+}
+
+/* Dark-mode inputs */
+[data-theme="dark"] input,
+[data-theme="dark"] select {
+  background: var(--surface-2);
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+/* Dark-mode topbar / sidebar background blends with page */
+[data-theme="dark"] .topbar {
+  background: var(--bg);
+}
+[data-theme="dark"] .sidebar {
+  background: var(--surface-2);
+}
+
+/* ==========================================================================
+   Dark mode — My Shift page cool colour overrides
+   ========================================================================== */
+
+/* Big worked-time clock: glow in cyan so it pops on the dark background */
+[data-theme="dark"] .clock {
+  color: #67e8f9;
+  text-shadow: 0 0 32px rgba(103, 232, 249, 0.45), 0 0 8px rgba(103, 232, 249, 0.25);
+}
+
+/* Shift progress bar: cool cyan-to-blue gradient instead of the default accent */
+[data-theme="dark"] .bar span {
+  background: linear-gradient(90deg, #0ea5e9, #67e8f9);
+  box-shadow: 0 0 8px rgba(103, 232, 249, 0.4);
+}
+[data-theme="dark"] .bar {
+  background: var(--surface-3);
+}
+
+/* Punch-in button: vivid electric cyan */
+[data-theme="dark"] .btn-info {
+  background: linear-gradient(135deg, #0284c7, #06b6d4);
+  border-color: #0ea5e9;
+  box-shadow: 0 0 16px rgba(6, 182, 212, 0.35);
+}
+[data-theme="dark"] .btn-info:hover:not(:disabled) {
+  background: linear-gradient(135deg, #0369a1, #0891b2);
+  box-shadow: 0 0 22px rgba(6, 182, 212, 0.55);
+  filter: none;
+}
+
+/* Start break button: cyan outline with soft glow */
+[data-theme="dark"] .btn-outline-info {
+  background: rgba(6, 182, 212, 0.08);
+  border-color: #22d3ee;
+  color: #67e8f9;
+}
+[data-theme="dark"] .btn-outline-info:hover:not(:disabled) {
+  background: rgba(6, 182, 212, 0.18);
+  color: #a5f3fc;
+}
+
+/* End break button: cool purple instead of harsh amber */
+[data-theme="dark"] .btn-warning {
+  background: linear-gradient(135deg, #7c3aed, #6d28d9);
+  border-color: #8b5cf6;
+  color: #fff;
+  box-shadow: 0 0 16px rgba(139, 92, 246, 0.35);
+}
+[data-theme="dark"] .btn-warning:hover:not(:disabled) {
+  background: linear-gradient(135deg, #6d28d9, #5b21b6);
+  box-shadow: 0 0 22px rgba(139, 92, 246, 0.55);
+  filter: none;
+}
+
+/* Stat tiles on shift page: subtle blue-glass look */
+[data-theme="dark"] .stat {
+  background: linear-gradient(135deg, #1a2040, #1e2748);
+  border-color: #2e3f6e;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4), 0 0 0 1px rgba(99,179,237,0.06);
+}
+[data-theme="dark"] .stat .value {
+  color: #e2e8f0;
+}
+[data-theme="dark"] .stat .label {
+  color: #7dd3fc;
+}
+[data-theme="dark"] .stat .sub {
+  color: #64748b;
+}
+
+/* Break donut track: dark surface instead of light grey */
+[data-theme="dark"] .punch svg circle:first-child {
+  stroke: #2e3a5a;
+}
+
+/* Break donut fill: cyan arc in dark mode (matches the clock glow) */
+[data-theme="dark"] .punch {
+  --warn: #22d3ee;
+}
+
+/* Dark mode — notices: replace warm/orange tones with cool blue tones */
+[data-theme="dark"] .notice-warn {
+  background: #0f2847;
+  color: #93c5fd;
+  border-color: #1e4080;
+}
+[data-theme="dark"] .notice-info {
+  background: #0c2a40;
+  color: #67e8f9;
+  border-color: #164e63;
+}
+[data-theme="dark"] .notice-danger {
+  background: #2d0a1e;
+  color: #fda4af;
+  border-color: #4c0519;
+}

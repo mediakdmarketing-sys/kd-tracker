@@ -25,7 +25,7 @@ export default function ConsentForm({ user }) {
         ...(acceptMonitoring && !user.consent.monitoring ? { monitoringConsent: true } : {}),
         audioConsent: acceptAudio,
       });
-      router.replace(user.role === 'admin' ? '/admin' : '/me');
+      router.replace(user.role === 'admin' ? '/admin/dashboard' : '/me');
       router.refresh();
     } catch (err) {
       setError(err.message);

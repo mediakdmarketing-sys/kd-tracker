@@ -105,7 +105,7 @@ export default function LiveBoard({ initial, timezone, shiftTargetSeconds }) {
         <Stat label="On break" value={data.summary.onBreak} tone="var(--warn)" />
         <Stat label="Punched out" value={data.summary.punchedOut} />
         <Stat label="Not started" value={data.summary.notStarted} />
-        <Stat label="On leave" value={data.summary.onLeave || 0} tone="var(--idle)" />
+        <Stat label="On leave" value={data.summary.onLeave || 0} tone="var(--danger)" />
         <Stat label="Needs review" value={data.summary.flagged} tone="var(--danger)" />
       </div>
 

@@ -3,7 +3,6 @@ import { Suspense } from 'react';
 import { api, requireUser } from '@/lib/api';
 import { todayIn } from '@/lib/format';
 import RangeFilter from '@/components/RangeFilter';
-import PeopleScreenshots from '@/components/PeopleScreenshots';
 import LiveTimesheet from './LiveTimesheet';
 
 export const metadata = { title: 'Timesheet · WorkInvigilator' };
@@ -11,7 +10,6 @@ export const metadata = { title: 'Timesheet · WorkInvigilator' };
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_TIMESHEET_DAYS = 31; // the server's limits (backend/src/modules/admin/timesheet.service.js)
-const MAX_SCREENSHOT_DAYS = 7;
 
 const spanDays = (from, to) => Math.round((new Date(`${to}T00:00:00Z`) - new Date(`${from}T00:00:00Z`)) / 86400000) + 1;
 
@@ -33,24 +31,19 @@ export default async function TimesheetPage({ searchParams }) {
   const department = params.department || '';
   const employee = (params.employee || '').trim();
   const employeeId = UUID.test(params.employeeId || '') ? params.employeeId : '';
-  const page = Math.max(1, Number.parseInt(params.page, 10) || 1);
 
   const problem = rangeProblem(from, to);
-  const shotsAllowed = !problem && spanDays(from, to) <= MAX_SCREENSHOT_DAYS;
+  const shotsAllowed = !problem;
 
   const filters = new URLSearchParams({ from, to });
   if (department) filters.set('department', department);
-  // A picked person is matched exactly; the typed text only applies when nobody was picked.
   if (employeeId) filters.set('employeeId', employeeId);
   else if (employee) filters.set('employee', employee);
-  const shotQuery = new URLSearchParams(filters);
-  shotQuery.set('page', String(page));
 
-  const [departments, people, sheet, shots] = await Promise.all([
+  const [departments, people, sheet] = await Promise.all([
     api('/api/admin/departments?inUse=1'),
     api('/api/admin/employee-options'),
     problem ? Promise.resolve(null) : api(`/api/admin/timesheet?${filters}`),
-    shotsAllowed ? api(`/api/admin/screenshots?${shotQuery}`) : Promise.resolve(null),
   ]);
 
   const names = (departments || []).map((d) => (typeof d === 'string' ? d : d.name)).filter(Boolean);
@@ -89,29 +82,12 @@ export default async function TimesheetPage({ searchParams }) {
 
         {sheet && <LiveTimesheet initial={sheet} query={filters.toString()} timezone={tz} />}
 
-        {sheet && !shotsAllowed && (
-          <div className="notice notice-info">
-            Screenshots are shown for up to {MAX_SCREENSHOT_DAYS} days at a time. Choose a shorter range to see them.
+        {sheet && shotsAllowed && (
+          <div className="card card-pad">
+            <Link href={`/admin/screenshots?${filters}`}>
+              Open screenshots for this date range →
+            </Link>
           </div>
-        )}
-
-        {shots && (
-          <>
-            <div className="card">
-              <div className="card-head">
-                <h2>Screenshots</h2>
-                <span className="faint">
-                  {shots.pagination.total} {shots.pagination.total === 1 ? 'person has' : 'people have'} screenshots in this
-                  range. Each stays closed until you open it, and opening is recorded in the audit log.
-                </span>
-              </div>
-              <div className="card-pad" style={{ paddingTop: 0 }}>
-                <Link href={`/admin/screenshots?${filters}`}>Open these in the Screenshots page</Link>
-              </div>
-            </div>
-
-            <PeopleScreenshots shots={shots} timezone={tz} page={page} pageHref={`/admin/timesheet?${filters}&`} />
-          </>
         )}
       </div>
     </>
