@@ -184,5 +184,5 @@ export const STATE_CLASS = {
   on_break: 'pill-break',
   punched_out: 'pill-out',
   not_started: 'pill-none',
-  on_leave: 'pill-idle',
+  on_leave: 'pill-flag',
 };

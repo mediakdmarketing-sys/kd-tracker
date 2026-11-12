@@ -1,5 +1,6 @@
 import { getSessionUser, api } from '@/lib/api';
 import NewYorkClock from '@/components/NewYorkClock';
+import ThemeToggle from '@/components/ThemeToggle';
 import ConsentForm from './ConsentForm';
 
 export const metadata = { title: 'What we monitor · WorkInvigilator' };
@@ -16,6 +17,9 @@ export default async function ConsentPage() {
     <div className="login-wrap" style={{ alignItems: 'flex-start', paddingTop: 48 }}>
       <div className="clock-corner">
         <NewYorkClock />
+      </div>
+      <div style={{ position: 'fixed', top: 12, right: 16, zIndex: 20 }}>
+        <ThemeToggle />
       </div>
       <div className="card" style={{ maxWidth: 680, width: '100%' }}>
         <div className="card-pad">

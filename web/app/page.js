@@ -5,5 +5,5 @@ import { getSessionUser } from '@/lib/api';
 export default async function Home() {
   const user = await getSessionUser();
   if (user.consent.required) redirect('/consent');
-  redirect(user.role === 'admin' ? '/admin' : '/me');
+  redirect(user.role === 'admin' ? '/admin/dashboard' : '/me');
 }
