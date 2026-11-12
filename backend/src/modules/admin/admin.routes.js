@@ -89,6 +89,16 @@ router.get(
   })
 );
 
+// The last 7 or 14 days, one point per day, for the dashboard charts.
+router.get(
+  '/daily-trend',
+  validate(z.object({ days: z.coerce.number().int().refine((n) => n === 7 || n === 14 || n === 30, 'days must be 7, 14 or 30').optional() }), 'query'),
+  asyncHandler(async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    res.json(await timesheetService.dailyTrend({ days: q(req).days || 14 }));
+  })
+);
+
 // Everyone's screenshot records, grouped by person and paged by person. Records only: opening an
 // image is its own audited request, and listing is audited here with the filters that were used.
 router.get(

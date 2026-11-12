@@ -37,7 +37,7 @@ export const viewport = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="manifest" href="/manifest.json" />
         {/* Apply saved theme before first paint to avoid a flash of light mode on dark

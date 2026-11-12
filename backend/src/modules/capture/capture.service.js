@@ -236,16 +236,28 @@ async function recordMicEvent({ employee, state, at, reason }) {
   const when = resolveCaptureTime(at, 'at');
   await requireCapturableShift(employee, when);
 
+  // Is the mic still off from an earlier report today? Then this is the same problem carrying on:
+  // it is logged (the mic log needs it) but nobody is told again. A new problem (it was live
+  // since, or it is a new day) does raise an alert. Without this a mic that stays off was
+  // announced every hour for the whole shift.
+  const date = t.localDate(when);
+  const previous = await db()('mic_events')
+    .where({ employee_id: employee.id })
+    .andWhere('at', '<=', when)
+    .orderBy('at', 'desc')
+    .first();
+  const carryingOn = Boolean(previous && previous.state !== 'live' && previous.date === date);
+
   await db()('mic_events').insert({
     id: uuid(),
     employee_id: employee.id,
     at: when,
-    date: t.localDate(when),
+    date,
     state,
     reason: reason ? String(reason).slice(0, 200) : null,
     created_at: t.now(),
   });
-  if (state !== 'live') await announceMicInactive(employee, state);
+  if (state !== 'live' && !carryingOn) await announceMicInactive(employee, state);
   return { recorded: true };
 }
 

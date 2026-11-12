@@ -129,6 +129,28 @@ describe('a microphone that could not be started', () => {
     expect(inbox.body.items.filter((i) => i.type === 'mic_inactive')).toHaveLength(1);
   });
 
+  it('does not alert again while the same problem carries on, but does when it is a new one', async () => {
+    const { token, hr } = await ready();
+    const hrToken = await login(hr);
+    const alerts = async () =>
+      (await as(hrToken).get('/api/notifications')).body.items.filter((i) => i.type === 'mic_inactive').length;
+
+    expect((await report(token)).status).toBe(201);
+    expect(await alerts()).toBe(1);
+
+    // An hour later the same mic is still off. The old hourly cool-down has passed (simulated by
+    // clearing the alert), and the agent reports again: it is logged, but nobody is told again.
+    await db()('notifications').del();
+    expect((await report(token)).status).toBe(201);
+    expect(await alerts()).toBe(0);
+    expect(await db()('mic_events').count({ n: '*' }).first().then((r) => Number(r.n))).toBe(2);
+
+    // It comes back, then goes off again: that is new, so it alerts.
+    expect((await as(token).post('/api/audio/mic-status').send({ state: 'live' })).status).toBe(201);
+    expect((await report(token)).status).toBe(201);
+    expect(await alerts()).toBe(1);
+  });
+
   it('is refused without audio consent', async () => {
     const employee = await createEmployee({ consent_audio: false });
     const token = await login(employee);

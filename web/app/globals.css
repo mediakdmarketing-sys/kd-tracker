@@ -1494,6 +1494,37 @@ select:focus {
   min-width: 150px;
 }
 
+/* Segmented control above a dashboard chart */
+.dash-seg {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+.dash-seg button {
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 13px;
+  padding: 5px 13px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.dash-seg button:hover {
+  color: var(--text);
+}
+.dash-seg button.is-on {
+  background: var(--surface);
+  color: var(--accent-text);
+  font-weight: 600;
+  box-shadow: var(--shadow, 0 1px 2px rgba(17, 27, 48, 0.08));
+}
+
 /* Searchable employee dropdown */
 .ec {
   position: relative;
@@ -2070,7 +2101,10 @@ select:focus {
 }
 
 /* Dark-mode table hover — the light value (#f8fbff) is too close to surface in dark */
-[data-theme="dark"] tbody tr:hover td {
+[data-theme="dark"] tbody tr:hover td,
+/* The sticky first column has its own, more specific light hover colour (.table-wrap rule above);
+   without this the employee name turned white-on-white when a row was hovered. */
+[data-theme="dark"] .table-wrap tbody tr:hover td:first-child {
   background: var(--surface-2);
 }
 

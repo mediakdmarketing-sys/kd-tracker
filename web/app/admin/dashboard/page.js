@@ -2,6 +2,7 @@ import { api, requireUser } from '@/lib/api';
 import { todayIn } from '@/lib/format';
 import MonthFilter from './MonthFilter';
 import AttendanceChart from './AttendanceChart';
+import DailyTrend from './DailyTrend';
 import DepartmentBars from './DepartmentBars';
 import TeamToday from './TeamToday';
 import Attention from './Attention';
@@ -50,12 +51,13 @@ export default async function DashboardPage({ searchParams }) {
 
   // The extras (leave, calendar) must never take the dashboard down with them.
   const soft = (promise) => promise.catch(() => null);
-  const [live, data, pendingLeave, calThis, calNext] = await Promise.all([
+  const [live, data, pendingLeave, calThis, calNext, trend] = await Promise.all([
     api('/api/admin/dashboard'),
     api(`/api/admin/attendance-summary?${new URLSearchParams({ from, to })}`),
     soft(api('/api/admin/leave?status=pending')),
     soft(api(`/api/calendar/month?month=${thisMonth}`)),
     soft(api(`/api/calendar/month?month=${shiftMonth(thisMonth, 1)}`)),
+    soft(api('/api/admin/daily-trend?days=14')),
   ]);
 
   const { summary, employees } = live;
@@ -148,6 +150,18 @@ export default async function DashboardPage({ searchParams }) {
             today={today}
           />
         </div>
+
+        {trend?.days?.length > 0 && (
+          <div className="card">
+            <div className="card-head">
+              <h2>Last 14 days</h2>
+              <span className="faint">One bar per day. Pick what to show; hover a bar for the day’s figures. Today is dashed.</span>
+            </div>
+            <div className="card-pad">
+              <DailyTrend days={trend.days} today={today} />
+            </div>
+          </div>
+        )}
 
         <div className="card">
           <div className="card-head">

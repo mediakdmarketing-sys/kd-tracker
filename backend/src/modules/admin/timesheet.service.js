@@ -275,4 +275,33 @@ async function companyScreenshots({ from, to, department, search, employeeId, pa
   };
 }
 
-module.exports = { timesheet, companyScreenshots, MAX_TIMESHEET_DAYS, MAX_SCREENSHOT_DAYS };
+const addDays = (date, n) => new Date(new Date(`${date}T00:00:00Z`).getTime() + n * DAY_MS).toISOString().slice(0, 10);
+
+/**
+ * One point per day for the dashboard charts, ending today (company time): how many people
+ * worked, their total worked and break time, and how many days-of-people were flagged. Days
+ * nobody worked (weekends, holidays) are kept as zeros so the chart's axis is the real calendar.
+ * Built from the timesheet rows, so today's running shifts count up to this moment.
+ */
+async function dailyTrend({ days = 14 } = {}) {
+  const to = t.localDate();
+  const from = addDays(to, -(days - 1));
+  const sheet = await timesheet({ from, to });
+
+  const byDate = new Map();
+  for (let i = 0; i < days; i += 1) {
+    const date = addDays(from, i);
+    byDate.set(date, { date, people: 0, workedSeconds: 0, breakSeconds: 0, flagged: 0 });
+  }
+  for (const r of sheet.rows) {
+    const day = byDate.get(r.date);
+    if (!day) continue;
+    day.people += 1;
+    day.workedSeconds += r.workedSeconds;
+    day.breakSeconds += r.breakSeconds;
+    if (r.needsReview || r.overBreak) day.flagged += 1;
+  }
+  return { from, to, days: [...byDate.values()] };
+}
+
+module.exports = { timesheet, companyScreenshots, dailyTrend, MAX_TIMESHEET_DAYS, MAX_SCREENSHOT_DAYS };

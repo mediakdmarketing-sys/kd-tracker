@@ -196,6 +196,53 @@ describe('GET /api/admin/timesheet', () => {
   });
 });
 
+describe('GET /api/admin/daily-trend', () => {
+  const dayOf = (offset) => t.localDate(t.now() - offset * 24 * H);
+  const closed = (e, daysAgo, workedHours, extra = {}) =>
+    shift(e, {
+      date: dayOf(daysAgo), punch_in: t.now() - daysAgo * 24 * H - 9 * H, punch_out: t.now() - daysAgo * 24 * H,
+      status: 'closed', total_worked_seconds: workedHours * 3600, ...extra,
+    });
+
+  it('gives one point per day, with zeros for days nobody worked, and totals per day', async () => {
+    const hr = await admin();
+    const a = await createEmployee({ name: 'Asha' });
+    const b = await createEmployee({ name: 'Bala' });
+    await closed(a, 2, 8, { total_break_seconds: 1800 });
+    await closed(b, 2, 6, { total_break_seconds: 600, needs_review: true });
+    await closed(a, 5, 7);
+
+    const res = await hr.get('/api/admin/daily-trend?days=7');
+    expect(res.status).toBe(200);
+    expect(res.body.days).toHaveLength(7);
+    expect(res.body.days[6].date).toBe(today()); // ends today
+    expect(res.body.days[0].date).toBe(dayOf(6));
+
+    const two = res.body.days.find((d) => d.date === dayOf(2));
+    expect(two).toMatchObject({ people: 2, workedSeconds: 14 * 3600, breakSeconds: 2400, flagged: 1 });
+    expect(res.body.days.find((d) => d.date === dayOf(5))).toMatchObject({ people: 1, workedSeconds: 7 * 3600 });
+    expect(res.body.days.find((d) => d.date === dayOf(3))).toEqual({ date: dayOf(3), people: 0, workedSeconds: 0, breakSeconds: 0, flagged: 0 });
+  });
+
+  it('counts a shift that is still running today', async () => {
+    const hr = await admin();
+    await shift(await createEmployee(), { punch_in: t.now() - 2 * H });
+    const res = await hr.get('/api/admin/daily-trend');
+    expect(res.body.days).toHaveLength(14); // 14 days unless asked otherwise
+    const last = res.body.days[13];
+    expect(last.people).toBe(1);
+    expect(last.workedSeconds).toBeGreaterThan(1.9 * 3600);
+  });
+
+  it('accepts only 7, 14 or 30 days, and is for HR only', async () => {
+    const hr = await admin();
+    expect((await hr.get('/api/admin/daily-trend?days=10')).status).toBe(400);
+    expect((await hr.get('/api/admin/daily-trend?days=30')).status).toBe(200);
+    const emp = as(await login(await createEmployee()));
+    expect((await emp.get('/api/admin/daily-trend')).status).toBe(403);
+  });
+});
+
 describe('GET /api/admin/screenshots', () => {
   it('groups everyone’s screenshots by person, with the true count, and audits the listing', async () => {
     const hr = await admin();
