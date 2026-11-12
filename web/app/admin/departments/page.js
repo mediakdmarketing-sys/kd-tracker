@@ -1,15 +1,16 @@
-import Link from 'next/link';
 import { api, requireUser } from '@/lib/api';
 import CreateDepartmentForm from './CreateDepartmentForm';
 import DeleteDepartmentButton from './DeleteDepartmentButton';
+import EditDepartmentButton from './EditDepartmentButton';
 
 export const metadata = { title: 'Departments · WorkInvigilator' };
 
 export default async function DepartmentsPage() {
-  const [, departments, leaders] = await Promise.all([
+  const [, departments, leaders, employees] = await Promise.all([
     requireUser({ adminOnly: true }),
     api('/api/admin/departments/full'),
     api('/api/admin/department-leaders'),
+    api('/api/admin/employees?status=active&limit=200'),
   ]);
 
   const byDept = leaders.reduce((acc, l) => {
@@ -53,14 +54,19 @@ export default async function DepartmentsPage() {
                         ? 'No leaders'
                         : `${deptLeaders.length} leader${deptLeaders.length === 1 ? '' : 's'}`}
                     </span>
+                    {/* Edit button — opens modal to change name, description, leader */}
+                    <EditDepartmentButton
+                      dept={dept}
+                      leaders={leaders}
+                      employees={employees.data}
+                    />
                     <DeleteDepartmentButton id={dept.id} name={dept.name} />
                   </div>
                 </div>
 
                 {deptLeaders.length === 0 ? (
                   <div className="empty" style={{ padding: '14px 18px' }}>
-                    No leader assigned.{' '}
-                    <Link href="/admin/employees">Go to an employee</Link> to assign one.
+                    No leader assigned. Use the edit button above to assign one.
                   </div>
                 ) : (
                   <div className="table-wrap">
@@ -70,7 +76,6 @@ export default async function DepartmentsPage() {
                           <th>Name</th>
                           <th>Status</th>
                           <th>Assigned</th>
-                          <th></th>
                         </tr>
                       </thead>
                       <tbody>
@@ -89,14 +94,6 @@ export default async function DepartmentsPage() {
                               {l.assignedAt
                                 ? new Date(l.assignedAt).toLocaleDateString('en-GB')
                                 : '—'}
-                            </td>
-                            <td>
-                              <Link
-                                href={`/admin/employees/${l.employeeId}`}
-                                className="btn"
-                              >
-                                Manage →
-                              </Link>
                             </td>
                           </tr>
                         ))}

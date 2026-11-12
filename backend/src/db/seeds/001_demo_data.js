@@ -235,18 +235,29 @@ exports.seed = async function seed(knex) {
 
       // Activity pings every ~10 minutes, with a deliberate gap so idle detection has
       // something to find.
+      const DOMAINS_BY_WINDOW = {
+        'Chrome':  ['google.com', 'gmail.com', 'docs.google.com', 'sheets.google.com', 'meet.google.com', 'youtube.com', 'stackoverflow.com', 'github.com'],
+        'VS Code': [null, null, null], // VS Code is an app, not a browser
+        'Slack':   [null, null, null],
+        'Figma':   ['figma.com', null],
+        'Excel':   [null, null],
+        'Zoom':    ['zoom.us', null],
+      };
+      const WINDOW_TITLES = ['VS Code', 'Chrome', 'Slack', 'Figma', 'Excel', 'Zoom'];
       const activityEnd = punchOut || nowMs;
       for (let ts = punchIn; ts < activityEnd; ts += 10 * MINUTE) {
         if (rand() < 0.1) continue; // the gap
+        const windowTitle = WINDOW_TITLES[Math.floor(rand() * WINDOW_TITLES.length)];
+        const domainPool = DOMAINS_BY_WINDOW[windowTitle] || [null];
+        const domain = domainPool[Math.floor(rand() * domainPool.length)] || null;
         activity.push({
           id: uuid(),
           employee_id: emp.id,
           attendance_id: shiftId,
           keystroke_count: Math.floor(rand() * 900),
           mouse_count: Math.floor(rand() * 500),
-          window_title: ['VS Code', 'Chrome', 'Slack', 'Figma', 'Excel', 'Zoom'][
-            Math.floor(rand() * 6)
-          ],
+          window_title: windowTitle,
+          domain,
           timestamp: ts,
           date,
           created_at: ts,

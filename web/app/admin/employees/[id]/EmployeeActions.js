@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
-import { patch } from '@/lib/client';
+import { patch, call } from '@/lib/client';
 import PasswordField from '@/components/PasswordField';
 import InviteCard from '@/components/InviteCard';
 
@@ -85,7 +85,7 @@ function ConfirmDialog({ title, message, confirmLabel = 'Confirm', danger = fals
 // ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
-export default function EmployeeActions({ employee, departments = [], viewer = {} }) {
+export default function EmployeeActions({ employee, departments = [], viewer = {}, currentLeaderDepts = [] }) {
   const router = useRouter();
   // An account admin gives and takes the right. An ordinary HR admin can only GIVE it, and never to
   // themselves (the server enforces this; the box just does not offer what would be refused).
@@ -452,6 +452,22 @@ export default function EmployeeActions({ employee, departments = [], viewer = {
                   ...(canGrant && editRole === 'admin' ? { accountAdmin: editAccountAdmin } : {}),
                   ...(canOnlyGive && editRole === 'admin' && editAccountAdmin ? { accountAdmin: true } : {}),
                 });
+
+                // If role is 'leader' and a department is chosen, auto-assign leadership
+                // for that department if not already assigned — keeps "Edit details" and the
+                // "Department leadership" card in sync without a second manual step.
+                if (editRole === 'leader' && editDept && !currentLeaderDepts.includes(editDept)) {
+                  try {
+                    await call('/api/admin/department-leaders', {
+                      method: 'POST',
+                      body: { department: editDept, employeeId: employee.id },
+                    });
+                  } catch {
+                    // If the assignment fails (e.g. already exists race), ignore silently —
+                    // the employee patch succeeded and a page refresh will show the real state.
+                  }
+                }
+
                 setShowEdit(false);
                 router.refresh();
               } catch (err) {
@@ -538,6 +554,24 @@ export default function EmployeeActions({ employee, departments = [], viewer = {
                 />
               )}
             </div>
+
+            {/* Show current department leadership — stays in sync with the card below */}
+            {currentLeaderDepts.length > 0 && (
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: -4 }}>
+                <strong>Currently leads:</strong>{' '}
+                {currentLeaderDepts.join(', ')}
+                {editRole === 'leader' && editDept && !currentLeaderDepts.includes(editDept) && (
+                  <span style={{ color: 'var(--accent-text)', marginLeft: 8 }}>
+                    · will also be assigned leader of <strong>{editDept}</strong> on save
+                  </span>
+                )}
+              </div>
+            )}
+            {currentLeaderDepts.length === 0 && editRole === 'leader' && editDept && (
+              <div style={{ fontSize: 12, color: 'var(--accent-text)', marginTop: -4 }}>
+                Will be assigned leader of <strong>{editDept}</strong> on save.
+              </div>
+            )}
 
             {(canGrant || canOnlyGive) && editRole === 'admin' && (
               <label className="inline" style={{ gap: 8, alignItems: 'flex-start' }}>

@@ -580,6 +580,41 @@ async function createDepartment({ name, description }) {
   return { id: row.id, name: row.name, description: row.description, createdAt: toIso(nowMs) };
 }
 
+async function updateDepartment(id, { name, description }) {
+  const dept = await db()('departments').where({ id }).first();
+  if (!dept) throw notFound('Department not found');
+
+  const patch = { updated_at: t.now() };
+
+  if (name !== undefined && name !== dept.name) {
+    const conflict = await db()('departments')
+      .whereRaw('LOWER(name) = ?', [name.toLowerCase()])
+      .whereNot({ id })
+      .first();
+    if (conflict) throw badRequest('A department with that name already exists');
+    patch.name = name.trim();
+
+    // Keep employees + leader rows in sync when the name changes.
+    if (patch.name !== dept.name) {
+      await db()('employees').where({ department: dept.name }).update({ department: patch.name, updated_at: t.now() });
+      await db()('department_leaders').where({ department: dept.name }).update({ department: patch.name });
+    }
+  }
+
+  if (description !== undefined) {
+    patch.description = description ? description.trim() : null;
+  }
+
+  await db()('departments').where({ id }).update(patch);
+  const updated = await db()('departments').where({ id }).first();
+  return {
+    id: updated.id,
+    name: updated.name,
+    description: updated.description || null,
+    createdAt: toIso(updated.created_at),
+  };
+}
+
 async function deleteDepartment(id) {
   const dept = await db()('departments').where({ id }).first();
   if (!dept) throw notFound('Department not found');
@@ -677,6 +712,7 @@ module.exports = {
   listEmployeeOptions,
   listDepartmentsFull,
   createDepartment,
+  updateDepartment,
   deleteDepartment,
   listDepartmentLeaders,
   assignLeader,

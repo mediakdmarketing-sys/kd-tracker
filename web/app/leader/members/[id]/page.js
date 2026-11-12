@@ -193,6 +193,7 @@ export default async function LeaderMemberDetailPage({ params, searchParams }) {
           consentAudio={member.consent?.audio}
           subjectLabel="member"
           blurScreenshots={member.blurScreenshots}
+          screenshotMaxIntervalSec={agentConfig.screenshot?.maxIntervalSeconds ?? 600}
         />
       </div>
     </>

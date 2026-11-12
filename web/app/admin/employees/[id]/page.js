@@ -120,7 +120,7 @@ export default async function EmployeeDetailPage({ params, searchParams }) {
             </Link>
           </p>
         </div>
-        <EmployeeActions employee={employee} departments={allDepts} viewer={{ id: viewer.id, isAccountAdmin: Boolean(viewer.isAccountAdmin) }} />
+        <EmployeeActions employee={employee} departments={allDepts} viewer={{ id: viewer.id, isAccountAdmin: Boolean(viewer.isAccountAdmin) }} currentLeaderDepts={currentLeaderDepts} />
       </div>
 
       <div className="stack">
@@ -277,6 +277,7 @@ export default async function EmployeeDetailPage({ params, searchParams }) {
           showConsentColumn
           subjectLabel="employee"
           blurScreenshots={employee.blurScreenshots}
+          screenshotMaxIntervalSec={agentConfig.screenshot?.maxIntervalSeconds ?? 600}
         />
 
         {viewer.isAccountAdmin && (

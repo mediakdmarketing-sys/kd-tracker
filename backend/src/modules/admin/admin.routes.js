@@ -244,6 +244,42 @@ router.post(
   })
 );
 
+const departmentPatchSchema = z.object({
+  name: z.string().trim().min(1).max(120).optional(),
+  description: z.string().max(500).optional(),
+  leaderId: z.string().uuid().nullable().optional(),
+});
+
+router.patch(
+  '/departments/:id',
+  validate(departmentPatchSchema),
+  asyncHandler(async (req, res) => {
+    const { leaderId, ...deptFields } = req.body;
+    const result = await service.updateDepartment(req.params.id, deptFields);
+
+    // If a leaderId was supplied, update leader assignments too.
+    if (leaderId !== undefined) {
+      // Remove all existing leaders for this department first.
+      const existing = await service.listDepartmentLeaders(result.name);
+      for (const l of existing) {
+        await service.removeLeader({ department: result.name, employeeId: l.employeeId });
+      }
+      // Assign the new leader (null means "clear all leaders").
+      if (leaderId) {
+        await service.assignLeader({ department: result.name, employeeId: leaderId, assignedBy: req.user.id });
+        await audit.record(req, {
+          action: audit.ACTIONS.ASSIGNED_LEADER,
+          targetEmployeeId: leaderId,
+          targetType: 'department_leader',
+          details: { department: result.name },
+        });
+      }
+    }
+
+    res.json(result);
+  })
+);
+
 router.delete(
   '/departments/:id',
   asyncHandler(async (req, res) => {
