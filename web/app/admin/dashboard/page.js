@@ -3,6 +3,7 @@ import { todayIn } from '@/lib/format';
 import MonthFilter from './MonthFilter';
 import AttendanceChart from './AttendanceChart';
 import DailyTrend from './DailyTrend';
+import PerformanceWatch from './PerformanceWatch';
 import DepartmentBars from './DepartmentBars';
 import TeamToday from './TeamToday';
 import Attention from './Attention';
@@ -51,13 +52,14 @@ export default async function DashboardPage({ searchParams }) {
 
   // The extras (leave, calendar) must never take the dashboard down with them.
   const soft = (promise) => promise.catch(() => null);
-  const [live, data, pendingLeave, calThis, calNext, trend] = await Promise.all([
+  const [live, data, pendingLeave, calThis, calNext, trend, performance] = await Promise.all([
     api('/api/admin/dashboard'),
     api(`/api/admin/attendance-summary?${new URLSearchParams({ from, to })}`),
     soft(api('/api/admin/leave?status=pending')),
     soft(api(`/api/calendar/month?month=${thisMonth}`)),
     soft(api(`/api/calendar/month?month=${shiftMonth(thisMonth, 1)}`)),
     soft(api('/api/admin/daily-trend?days=14')),
+    soft(api('/api/admin/performance?days=14')),
   ]);
 
   const { summary, employees } = live;
@@ -159,6 +161,18 @@ export default async function DashboardPage({ searchParams }) {
             </div>
             <div className="card-pad">
               <DailyTrend days={trend.days} today={today} />
+            </div>
+          </div>
+        )}
+
+        {performance && (
+          <div className="card">
+            <div className="card-head">
+              <h2>Who needs attention</h2>
+              <span className="faint">Each department’s weakest people, from productivity, punch times, breaks and mic. Click a name for the reasons.</span>
+            </div>
+            <div className="card-pad">
+              <PerformanceWatch data={performance} />
             </div>
           </div>
         )}

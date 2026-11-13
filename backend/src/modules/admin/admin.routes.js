@@ -22,6 +22,7 @@ const notifications = require('../../services/notifications');
 const birthdays = require('../../services/birthdays');
 const bankDetails = require('../../services/bankDetails');
 const timesheetService = require('./timesheet.service');
+const performanceService = require('./performance.service');
 
 const router = express.Router();
 
@@ -86,6 +87,21 @@ router.get(
         employeeId: query.employeeId,
       })
     );
+  })
+);
+
+// Who needs attention in each department: one score per person from productivity, punctuality,
+// finishing time, breaks and mic, with the five parts shown. HR only (the whole router is).
+router.get(
+  '/performance',
+  validate(z.object({
+    days: z.coerce.number().int().refine((n) => n === 7 || n === 14 || n === 30, 'days must be 7, 14 or 30').optional(),
+    department: z.string().max(120).optional(),
+  }), 'query'),
+  asyncHandler(async (req, res) => {
+    const query = q(req);
+    res.set('Cache-Control', 'no-store');
+    res.json(await performanceService.performance({ days: query.days || 14, department: query.department }));
   })
 );
 
@@ -655,6 +671,9 @@ const settingsPatchSchema = z.object({
       autoCloseHours: z.number().int().min(1).max(48).optional(),
       // 0 turns the Windows "camera off in a Zoom meeting starts a break" rule off.
       zoomCameraBreakMinutes: z.number().int().min(0).max(120).optional(),
+      // The working day, in minutes after midnight company time. null clears it (not set).
+      workdayStartMinutes: z.number().int().min(0).max(1439).nullable().optional(),
+      workdayEndMinutes: z.number().int().min(0).max(1439).nullable().optional(),
     })
     .optional(),
   retention: z.object({ days: z.number().int().min(1).max(365).optional() }).optional(),

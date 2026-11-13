@@ -139,13 +139,7 @@ export default function LeaveRequestForm({ name, email, timezone }) {
           </select>
         </div>
 
-        {proofRequired && (
-          <div className="notice notice-warn" style={{ fontSize: 12 }}>
-            This kind of leave needs proof so HR can check the reason: attach a photo or PDF below.
-            Proof does not change pay. Whether leave is paid depends only on its type (by default
-            only Company Vacation is paid; the rest is No Pay Leave), with or without proof.
-          </div>
-        )}
+        
 
         <div className="field" style={{ margin: 0 }}>
           <label htmlFor="lv-daypart">AM / PM / All day</label>

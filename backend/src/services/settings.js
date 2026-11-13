@@ -41,6 +41,8 @@ function defaults() {
       idleThresholdSeconds: config.shift.idleThresholdSeconds,
       autoCloseHours: config.shift.autoCloseHours,
       zoomCameraBreakMinutes: config.shift.zoomCameraBreakMinutes,
+      workdayStartMinutes: null,
+      workdayEndMinutes: null,
     },
     retention: { days: config.retention.days },
     payroll: {
@@ -80,6 +82,8 @@ function rowToSettings(row) {
       idleThresholdSeconds: row.idle_threshold_seconds,
       autoCloseHours: row.shift_auto_close_hours,
       zoomCameraBreakMinutes: row.zoom_camera_break_minutes ?? 0,
+      workdayStartMinutes: row.workday_start_minutes ?? null,
+      workdayEndMinutes: row.workday_end_minutes ?? null,
     },
     retention: { days: row.retention_days },
     payroll: {
@@ -116,6 +120,8 @@ function settingsToRow(s) {
     idle_threshold_seconds: s.shift.idleThresholdSeconds,
     shift_auto_close_hours: s.shift.autoCloseHours,
     zoom_camera_break_minutes: s.shift.zoomCameraBreakMinutes ?? 0,
+    workday_start_minutes: s.shift.workdayStartMinutes ?? null,
+    workday_end_minutes: s.shift.workdayEndMinutes ?? null,
     retention_days: s.retention.days,
     payroll_deduct_idle: s.payroll.deductIdle,
     payroll_full_day_seconds: s.payroll.fullDaySeconds,

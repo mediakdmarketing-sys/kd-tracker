@@ -250,6 +250,17 @@ const SECTIONS = [
     ],
   },
   {
+    id: 'admin-dashboard-charts',
+    title: 'For admins: the dashboard charts',
+    roles: ADMIN,
+    body: [
+      'Last 14 days: one bar per day. Pick Hours worked, People in, Break time or Needs a look, and hover a bar for that day’s figures. Days nobody worked (weekends, holidays) show no bar.',
+      'Who needs attention: pick a department to see its people, lowest first, or “Lowest 5 overall”. Click a name to see the five parts behind the score: productivity (35%), punch-in time (20%), punch-out time (15%), breaks (15%) and microphone (15%), over the last 14 days.',
+      'Punch-in and punch-out time need the workday start and end, set in Settings under Shift & breaks (New York time). Until they are set, those two are left out. A part that cannot be measured (no audio consent, no activity data) is left out too, so nobody is marked down for something that was never measured.',
+      'Use it to decide who to talk to, not to decide anything on its own. Meetings, calls, approved leave and a muted mic by mistake can all lower a score.',
+    ],
+  },
+  {
     id: 'admin-screenshots',
     title: 'For admins: the Screenshots page',
     roles: ADMIN,

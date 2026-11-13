@@ -1494,6 +1494,141 @@ select:focus {
   min-width: 150px;
 }
 
+/* Who needs attention (dashboard) */
+.pw-depts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.pw-depts button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 13px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.pw-depts button i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+.pw-depts button:hover {
+  border-color: var(--accent);
+}
+.pw-depts button.is-on {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+.pw-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.pw-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(120px, 200px) 1fr 40px;
+  align-items: center;
+  gap: 14px;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.pw-row:hover,
+.pw-row[aria-expanded='true'] {
+  border-color: var(--accent);
+}
+.pw-name {
+  display: flex;
+  flex-direction: column;
+  font-weight: 600;
+  min-width: 0;
+}
+.pw-name small {
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.pw-track {
+  height: 12px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+  display: block;
+}
+.pw-track i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+}
+.pw-track-sm {
+  height: 8px;
+}
+.pw-score {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.pw-detail {
+  margin: 4px 0 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+.pw-detail ul {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: grid;
+  gap: 7px;
+}
+.pw-detail li {
+  display: grid;
+  grid-template-columns: 110px 1fr 30px;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+}
+.pw-part-score {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.pw-part-detail {
+  grid-column: 2 / -1;
+  font-size: 12px;
+  margin-top: -3px;
+}
+.pw-link {
+  font-size: 13px;
+}
+@media (max-width: 560px) {
+  .pw-row {
+    grid-template-columns: 1fr 40px;
+  }
+  .pw-track {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
 /* Segmented control above a dashboard chart */
 .dash-seg {
   display: inline-flex;

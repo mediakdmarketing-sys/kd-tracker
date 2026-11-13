@@ -20,6 +20,14 @@ const WEEKDAYS = [[1, 'Mon'], [2, 'Tue'], [3, 'Wed'], [4, 'Thu'], [5, 'Fri'], [6
  * The API itself stays in seconds throughout (matches config.js's existing units, and every
  * other backend consumer of these values already expects seconds).
  */
+/** Minutes after midnight <-> the "HH:MM" a time input uses. Empty = not set. */
+const toClock = (minutes) =>
+  minutes == null ? '' : `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+const fromClock = (text) => {
+  const m = /^(\d{2}):(\d{2})$/.exec(text || '');
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+};
+
 export default function SettingsForm({ initial, showPayroll = true }) {
   const router = useRouter();
 
@@ -33,6 +41,8 @@ export default function SettingsForm({ initial, showPayroll = true }) {
     idleThresholdMinutes: initial.shift.idleThresholdSeconds / 60,
     autoCloseHours: initial.shift.autoCloseHours,
     zoomCameraBreakMinutes: initial.shift.zoomCameraBreakMinutes ?? 0,
+    workdayStart: toClock(initial.shift.workdayStartMinutes),
+    workdayEnd: toClock(initial.shift.workdayEndMinutes),
     retentionDays: initial.retention.days,
     // Only account admins are sent the payroll rules (see the settings page).
     ...(showPayroll
@@ -79,6 +89,8 @@ export default function SettingsForm({ initial, showPayroll = true }) {
           idleThresholdSeconds: Math.round(form.idleThresholdMinutes * 60),
           autoCloseHours: Math.round(form.autoCloseHours),
           zoomCameraBreakMinutes: Math.round(form.zoomCameraBreakMinutes),
+          workdayStartMinutes: fromClock(form.workdayStart),
+          workdayEndMinutes: fromClock(form.workdayEnd),
         },
         retention: { days: Math.round(form.retentionDays) },
         ...(showPayroll
@@ -195,6 +207,20 @@ export default function SettingsForm({ initial, showPayroll = true }) {
             disabled={busy}
             hint="A shift still open this long after punch-in is auto-closed and flagged."
           />
+          <div className="field">
+            <label htmlFor="workdayStart">Workday starts (New York time)</label>
+            <input id="workdayStart" type="time" value={form.workdayStart} disabled={busy} onChange={(e) => set('workdayStart', e.target.value)} />
+            <div className="faint" style={{ fontSize: 12, marginTop: 4 }}>
+              Used by the dashboard’s “Who needs attention” to judge late punch-ins. Leave empty to skip that measure.
+            </div>
+          </div>
+          <div className="field">
+            <label htmlFor="workdayEnd">Workday ends (New York time)</label>
+            <input id="workdayEnd" type="time" value={form.workdayEnd} disabled={busy} onChange={(e) => set('workdayEnd', e.target.value)} />
+            <div className="faint" style={{ fontSize: 12, marginTop: 4 }}>
+              Leaving more than 10 minutes before this counts as finishing early. Leave empty to skip.
+            </div>
+          </div>
           <NumberField
             label="Camera off in Zoom starts a break after (minutes)"
             value={form.zoomCameraBreakMinutes}
