@@ -544,7 +544,7 @@ const NUMBER_STYLE = {
 
 const CALLOUT = {
   tip: { label: 'Tip', background: 'var(--accent-soft)', color: 'var(--accent-text)' },
-  warn: { label: 'Important', background: 'var(--warn-soft)', color: '#8a5200' },
+  warn: { label: 'Important', background: 'var(--warn-soft)', color: 'var(--warn-text)' },
 };
 
 function Callout({ kind, children }) {

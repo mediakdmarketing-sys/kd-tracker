@@ -31,6 +31,8 @@
   --ok-soft: #e2f8f1;
   --warn: #f59e0b;
   --warn-soft: #fef3e0;
+  /* Text on --warn-soft (the help page's Important notes). Dark brown here, light yellow in dark. */
+  --warn-text: #8a5200;
   --danger: #a30d33;
   --danger-soft: #fde6ec;
   --idle: #6b7fa8;
@@ -1164,6 +1166,10 @@ button.cal-day:hover {
   background: rgba(242, 246, 252, 0.86);
   backdrop-filter: blur(4px);
 }
+/* The sign-in overlay was a bright white sheet over the dark theme. */
+[data-theme="dark"] .wl-overlay {
+  background: rgba(15, 17, 23, 0.86);
+}
 
 /* Timesheet: a person's state as a coloured pill; the colour is the dashboard's colour for it. */
 .ts-state {
@@ -2211,7 +2217,9 @@ select:focus {
   --border-strong: #3b4268;
   --text:          #e8edf8;
   --text-muted:    #8e9abf;
-  --text-faint:    #5a6487;
+  /* Was #5a6487, which is only 2.6 to 2.9 : 1 against the dark surfaces, so e-mail addresses,
+     table headings and small labels were hard to read. This is about 5 : 1. */
+  --text-faint:    #7f8bb0;
   --muted:         var(--text-muted);
 
   --accent:        #3b82f6;
@@ -2224,6 +2232,7 @@ select:focus {
   --ok-soft:       #064e3b;
   --warn:          #facc15;
   --warn-soft:     #0f2d5c;
+  --warn-text:     #fde047;
   --danger:        #f43f5e;
   --danger-soft:   #4c0519;
   --idle:          #6b7fa8;
@@ -2233,6 +2242,13 @@ select:focus {
 
   --shadow:        0 1px 2px rgba(0,0,0,0.4), 0 10px 24px -12px rgba(0,0,0,0.5);
   --shadow-pop:    0 16px 36px -10px rgba(0,0,0,0.6);
+}
+
+/* A payslip is a sheet of paper with its own colours (HR picks them) and dark text. The
+   dark-theme row hover below painted its rows dark, which left the dark text unreadable. */
+.payslip tbody tr:hover td,
+[data-theme="dark"] .payslip tbody tr:hover td {
+  background: transparent;
 }
 
 /* Dark-mode table hover — the light value (#f8fbff) is too close to surface in dark */
