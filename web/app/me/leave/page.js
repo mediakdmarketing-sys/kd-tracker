@@ -1,6 +1,7 @@
 import { api, requireUser } from '@/lib/api';
 import LeaveRequestForm from './LeaveRequestForm';
 import CancelLeaveButton from './CancelLeaveButton';
+import LeaveBalance from './LeaveBalance';
 import { dateLabel } from '@/lib/format';
 
 export const metadata = { title: 'Leave · WorkInvigilator' };
@@ -13,9 +14,11 @@ const STATUS_CLASS = {
 };
 
 export default async function MyLeavePage() {
-  const [user, requests] = await Promise.all([
+  const [user, requests, balance] = await Promise.all([
     requireUser(),
     api('/api/leave/me'),
+    // The balance is an extra: the page must still work without it.
+    api('/api/leave/balance').catch(() => null),
   ]);
 
   return (
@@ -28,6 +31,8 @@ export default async function MyLeavePage() {
       </div>
 
       <div className="stack">
+        {balance && <LeaveBalance data={balance} />}
+
         <LeaveRequestForm name={user.name} email={user.email} timezone={user.timezone} />
 
         <div className="card">

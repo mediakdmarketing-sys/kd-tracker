@@ -12,6 +12,8 @@ const { toIso, toBool } = require('../../utils/http');
 const { conflict, notFound, badRequest, forbidden, payloadTooLarge } = require('../../utils/errors');
 const { storage, buildKey, extensionFor } = require('../../storage');
 const notifications = require('../../services/notifications');
+const calendar = require('../../services/holidayCalendar');
+const settings = require('../../services/settings');
 const logger = require('../../utils/logger');
 
 // Same set the storage layer knows an extension for, minus audio types a leave proof would
@@ -85,7 +87,8 @@ async function withEmployees(rows) {
   const ids = [...new Set(rows.flatMap((r) => [r.employee_id, r.reviewed_by]).filter(Boolean))];
   const people = await db()('employees').whereIn('id', ids).select('id', 'name', 'department', 'role');
   const byId = Object.fromEntries(people.map((e) => [e.id, e]));
-  return rows.map((r) => shape(r, byId[r.employee_id], byId[r.reviewed_by]));
+  const views = rows.map((r) => shape(r, byId[r.employee_id], byId[r.reviewed_by]));
+  return annotateWithBalance(views, rows);
 }
 
 // --- Notifications ---------------------------------------------------------------------------
@@ -370,7 +373,102 @@ async function approvedDaysInRange({ employeeIds, from, to }) {
   return days;
 }
 
+// --- Balances ----------------------------------------------------------------------------------
+//
+// HR sets a yearly allowance per leave type (Settings). A request's days are its working days: not
+// Sundays, company holidays or the days the company does not work (payroll work days), and a half
+// day is 0.5. The year is the calendar year. A type with no allowance set has no balance, only a
+// count of days taken. A balance never blocks a request: leave over the allowance is simply shown
+// to the reviewer as over.
+
+/** Working days a request covers inside [from, to] (the part inside the year when it spans two). */
+function requestDays(row, from, to, holidays, workDays) {
+  const start = row.start_date < from ? from : row.start_date;
+  const end = row.end_date > to ? to : row.end_date;
+  let days = 0;
+  for (let d = new Date(`${start}T00:00:00Z`); d.toISOString().slice(0, 10) <= end; d.setUTCDate(d.getUTCDate() + 1)) {
+    const date = d.toISOString().slice(0, 10);
+    if (!workDays.includes(d.getUTCDay()) || holidays.has(date)) continue;
+    days += row.day_part === 'full' ? 1 : 0.5;
+  }
+  return days;
+}
+
+async function loadCalendar(year) {
+  const holidays = new Set((await calendar.holidaysBetween(`${year}-01-01`, `${year}-12-31`)).map((h) => h.date));
+  return { holidays, workDays: settings.get().payroll.workDays };
+}
+
+/** Days approved and days waiting, per type, for one person in one calendar year. */
+async function usedInYear(employeeId, year, calendarInfo) {
+  const { holidays, workDays } = calendarInfo || (await loadCalendar(year));
+  const from = `${year}-01-01`;
+  const to = `${year}-12-31`;
+  const rows = await db()('leave_requests')
+    .where({ employee_id: employeeId })
+    .whereIn('status', ['approved', 'pending'])
+    .andWhere('start_date', '<=', to)
+    .andWhere('end_date', '>=', from);
+  const used = {};
+  for (const r of rows) {
+    const bucket = (used[r.type] = used[r.type] || { approved: 0, pending: 0 });
+    bucket[r.status] += requestDays(r, from, to, holidays, workDays);
+  }
+  return used;
+}
+
+/** One person's balance for every leave type, for the My leave page. */
+async function balanceFor(employeeId, year = Number(t.localDate().slice(0, 4))) {
+  const used = await usedInYear(employeeId, year);
+  const allowances = settings.get().leave.allowances;
+  return {
+    year,
+    balances: Object.keys(TYPE_LABEL).map((type) => {
+      const allowance = allowances[type] ?? null;
+      const approved = used[type]?.approved || 0;
+      const pending = used[type]?.pending || 0;
+      return {
+        type,
+        label: TYPE_LABEL[type],
+        allowance,
+        used: approved,
+        pending,
+        left: allowance === null ? null : allowance - approved - pending,
+      };
+    }),
+  };
+}
+
+/**
+ * For the reviewer's list: the days each waiting request asks for, and what would be left of the
+ * allowance if it were approved (negative means over). Null when that type has no allowance set.
+ */
+async function annotateWithBalance(views, rows) {
+  const allowances = settings.get().leave.allowances;
+  const calendars = new Map();
+  const usedCache = new Map();
+  for (let i = 0; i < views.length; i += 1) {
+    const row = rows[i];
+    const year = Number(row.start_date.slice(0, 4));
+    if (!calendars.has(year)) calendars.set(year, await loadCalendar(year));
+    const info = calendars.get(year);
+    views[i].days = requestDays(row, `${year}-01-01`, `${year}-12-31`, info.holidays, info.workDays);
+
+    const allowance = allowances[row.type] ?? null;
+    if (row.status !== 'pending' || allowance === null) {
+      views[i].balance = null;
+      continue;
+    }
+    const key = `${row.employee_id}|${year}`;
+    if (!usedCache.has(key)) usedCache.set(key, await usedInYear(row.employee_id, year, info));
+    const approved = usedCache.get(key)[row.type]?.approved || 0;
+    views[i].balance = { allowance, used: approved, leftIfApproved: allowance - approved - views[i].days };
+  }
+  return views;
+}
+
 module.exports = {
+  balanceFor,
   createRequest,
   listForEmployee,
   listForReviewer,

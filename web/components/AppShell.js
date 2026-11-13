@@ -182,7 +182,9 @@ const ADMIN_GROUPS = [
     links: [
       { href: '/admin/payroll', label: 'Payroll', icon: Icon.payroll },
       { href: '/admin/leave', label: 'Leave requests', icon: Icon.leave },
+      { href: '/admin/corrections', label: 'Time corrections', icon: Icon.history },
       { href: '/admin/mic-log', label: 'Mic log', icon: Icon.mic },
+      { href: '/admin/audit', label: 'Audit log', icon: Icon.reports },
       { href: '/admin/settings', label: 'Settings', icon: Icon.settings },
 
     ],
@@ -207,6 +209,7 @@ const USER_GROUP = {
     { href: '/me', label: 'My shift', icon: Icon.me },
     { href: '/me/history', label: 'My history', icon: Icon.history },
     { href: '/me/leave', label: 'Leave', icon: Icon.leave },
+    { href: '/me/corrections', label: 'Time corrections', icon: Icon.history },
     { href: '/me/payslips', label: 'Payslips', icon: Icon.payroll },
     { href: '/calendar', label: 'Calendar', icon: Icon.history },
     { href: '/notifications', label: 'Notifications', icon: Icon.bell },

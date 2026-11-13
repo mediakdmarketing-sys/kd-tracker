@@ -156,6 +156,17 @@ const SECTIONS = [
       'You cannot approve or reject your own leave, whatever your role. An HR / Admin’s request is decided by another admin (the other admins are notified when it is made), and a team leader’s request is decided by HR. So there needs to be at least one other admin.',
       'The request shows as Pending until your leader or HR approves or rejects it. You can cancel it while it is still pending.',
       'When you send a request, your team leader and HR are notified. When one of them decides, you get a notification (the red number next to Notifications in the menu) and the Leave page shows who decided.',
+      'Leave balance: when HR has set a yearly allowance for a type, the top of the Leave page shows, for this year, how many days you have taken, how many are waiting and how many are left. Days are working days: Sundays, company holidays and the days the company does not work do not count, and a half day is 0.5. Waiting requests count as taken until they are decided. A request over your balance is not blocked, but your reviewer sees that it is over.',
+    ],
+  },
+  {
+    id: 'time-corrections',
+    title: 'Fixing a punch-in or punch-out (time corrections)',
+    roles: ALL,
+    body: [
+      'Forgot to punch out, or never punched in? Open Time corrections in the menu (or click Fix times next to a shift in My history). Choose the shift, or “A shift I forgot (add it)” for a whole missing shift, then give the right punch-in and punch-out times and a reason. Times are New York time.',
+      'HR is notified and decides. Your hours change only if they approve: the shift then shows Corrected in My history. You get a notification either way, and you can cancel a request while it is waiting. One waiting request per shift.',
+      'Only the last 14 days can be corrected, the times must be in the past, and they must not overlap another shift. A month whose payroll is already finalized cannot be changed: ask HR to reopen it first. Nobody can approve their own correction: an admin’s request is decided by another admin.',
     ],
   },
   {
@@ -261,10 +272,21 @@ const SECTIONS = [
     ],
   },
   {
+    id: 'admin-corrections-audit',
+    title: 'For admins: time corrections and the audit log',
+    roles: ADMIN,
+    body: [
+      'Time corrections (menu) lists what employees have asked for: the times as they are, the times asked for, how much the hours change, and the reason. Approve changes the shift (its hours, and its pay if the month is open) and clears its review flag; Reject needs a short note. Approving checks that the new times still do not overlap another shift. A finalized payroll month is refused until you reopen it. You cannot decide your own request.',
+      'Audit log (menu) shows who opened a screenshot, played audio, viewed or saved bank details, changed settings, decided leave or corrections, finalized payroll and so on, with the time and where it came from. Filter by dates, by what was done, or by the employee it was about. Entries cannot be edited or deleted. The most private actions are highlighted.',
+      'Leave allowance: in Settings, set how many days each leave type allows per year (blank = no limit). Next to each waiting leave request you then see its working days and how many days would be left if you approve it, in red when that is over the allowance.',
+    ],
+  },
+  {
     id: 'admin-screenshots',
     title: 'For admins: the Screenshots page',
     roles: ADMIN,
     body: [
+      'Click an opened screenshot to see it large. Use ← and → (or the arrows) to go to the earlier or later capture, + or Actual size to zoom, the tabs to switch between a capture’s screens, and Esc to close. A screenshot is fetched only when it is on screen, and each one you look at is recorded in the audit log.',
       'Screenshots in the menu shows everyone’s screenshots in one place, one block per person. It starts on today; Today, Yesterday and Last 7 days at the top change the dates in one click, or use From and To. Employee is a searchable dropdown (type to narrow the list, then pick a name), and Department shows one team. Screenshots are shown up to 7 days at a time.',
       'The numbers at the top say how many people have screenshots and how many screenshots there are in all. Jump to takes you to one person. With many people the list is split into pages: use Next people and Previous people.',
       'Each screenshot stays closed until you click it, so looking is a decision, and every one you open is recorded in the audit log with your name and theirs. Open all opens a person’s whole set and records each. People who have Blur screenshots switched on stay blurred until you click. Opening a person’s name takes you to their own page for their day in full.',

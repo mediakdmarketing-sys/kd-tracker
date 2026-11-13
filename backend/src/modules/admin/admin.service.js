@@ -497,8 +497,16 @@ async function attendanceSummary({ from, to }) {
   };
 }
 
+/** The kinds of action that appear in the audit log, for the page's filter. */
+async function listAuditActions() {
+  return db()('audit_logs').distinct('action').orderBy('action').pluck('action');
+}
+
 async function listAuditLogs({ adminId, targetEmployeeId, action, from, to, limit, offset }) {
-  const base = db()('audit_logs as l').leftJoin('employees as e', 'e.id', 'l.admin_id');
+  if (from && to && from > to) throw badRequest('The From date must not be after the To date.');
+  const base = db()('audit_logs as l')
+    .leftJoin('employees as e', 'e.id', 'l.admin_id')
+    .leftJoin('employees as tg', 'tg.id', 'l.target_employee_id');
   if (adminId) base.andWhere('l.admin_id', adminId);
   if (targetEmployeeId) base.andWhere('l.target_employee_id', targetEmployeeId);
   if (action) base.andWhere('l.action', action);
@@ -511,7 +519,7 @@ async function listAuditLogs({ adminId, targetEmployeeId, action, from, to, limi
     .orderBy('l.timestamp', 'desc')
     .limit(limit)
     .offset(offset)
-    .select('l.*', 'e.name as admin_name', 'e.email as admin_email');
+    .select('l.*', 'e.name as admin_name', 'e.email as admin_email', 'tg.name as target_name');
 
   return {
     rows: rows.map((r) => ({
@@ -521,6 +529,7 @@ async function listAuditLogs({ adminId, targetEmployeeId, action, from, to, limi
       adminEmail: r.admin_email,
       action: r.action,
       targetEmployeeId: r.target_employee_id,
+      targetName: r.target_name || null,
       targetType: r.target_type,
       targetId: r.target_id,
       ipAddress: r.ip_address,
@@ -708,6 +717,7 @@ module.exports = {
   updateEmployee,
   attendanceSummary,
   listAuditLogs,
+  listAuditActions,
   listDepartments,
   listEmployeeOptions,
   listDepartmentsFull,

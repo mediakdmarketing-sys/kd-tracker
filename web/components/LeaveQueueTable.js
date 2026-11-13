@@ -85,6 +85,18 @@ export default function LeaveQueueTable({ requests, reviewUrlBase, currentUserId
                   {r.startDate === r.endDate
                     ? dateLabel(r.startDate)
                     : `${dateLabel(r.startDate)} – ${dateLabel(r.endDate)}`}
+                  <div className="faint" style={{ fontSize: 11 }}>
+                    {r.days} working {r.days === 1 ? 'day' : 'days'}
+                  </div>
+                  {r.balance && (
+                    <div
+                      style={{ fontSize: 11, marginTop: 2, color: r.balance.leftIfApproved < 0 ? 'var(--danger)' : 'var(--text-muted)' }}
+                    >
+                      {r.balance.leftIfApproved < 0
+                        ? `${-r.balance.leftIfApproved} over the ${r.balance.allowance}-day allowance`
+                        : `${r.balance.leftIfApproved} of ${r.balance.allowance} days left if approved`}
+                    </div>
+                  )}
                 </td>
                 <td className="muted">{r.dayPartLabel}</td>
                 <td className="muted">{r.reason || '—'}</td>

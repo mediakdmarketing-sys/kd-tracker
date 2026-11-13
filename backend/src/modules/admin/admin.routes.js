@@ -574,6 +574,14 @@ const auditQuery = z.object({
   limit: z.coerce.number().int().min(1).max(200).optional(),
 });
 
+router.get(
+  '/audit-actions',
+  asyncHandler(async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    res.json(await service.listAuditActions());
+  })
+);
+
 // Read-only by design: there is no route that updates or deletes an audit row.
 router.get(
   '/audit-logs',
@@ -677,6 +685,21 @@ const settingsPatchSchema = z.object({
     })
     .optional(),
   retention: z.object({ days: z.number().int().min(1).max(365).optional() }).optional(),
+  // Days a person may take per year, per type, in half-day steps. null = no limit set.
+  leave: z
+    .object({
+      allowances: z
+        .object(
+          Object.fromEntries(
+            ['sick', 'bereavement', 'personal', 'emergency', 'vacation'].map((type) => [
+              type,
+              z.number().min(0).max(366).multipleOf(0.5).nullable().optional(),
+            ])
+          )
+        )
+        .optional(),
+    })
+    .optional(),
   payroll: z
     .object({
       deductIdle: z.boolean().optional(),

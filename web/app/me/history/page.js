@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Suspense } from 'react';
 import { api, requireUser } from '@/lib/api';
 import RangeFilter from '@/components/RangeFilter';
@@ -115,8 +116,15 @@ export default async function HistoryPage({ searchParams }) {
                           <span className="pill pill-flag" title={shift.reviewReason || ''}>
                             {shift.autoClosed ? 'Auto-closed' : 'Over break'}
                           </span>
+                        ) : shift.corrected ? (
+                          <span className="pill pill-working" title={shift.reviewReason || ''}>Corrected</span>
                         ) : (
                           <span className="faint">—</span>
+                        )}
+                        {shift.status === 'closed' && shift.date >= daysAgoDate(14, user.timezone) && (
+                          <div>
+                            <Link href={`/me/corrections?shift=${shift.id}`} style={{ fontSize: 12 }}>Fix times</Link>
+                          </div>
                         )}
                       </td>
                     </tr>

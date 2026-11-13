@@ -48,6 +48,16 @@ router.post(
   })
 );
 
+// What is left of this year's allowance, per leave type (when HR has set allowances).
+router.get(
+  '/balance',
+  validate(z.object({ year: z.coerce.number().int().min(2000).max(2100).optional() }), 'query'),
+  asyncHandler(async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    res.json(await service.balanceFor(req.user.id, q(req).year));
+  })
+);
+
 router.get(
   '/me',
   validate(statusQuerySchema, 'query'),

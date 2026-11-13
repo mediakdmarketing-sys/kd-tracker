@@ -1,6 +1,7 @@
 'use client';
 
 import { memo, useMemo, useState, useCallback } from 'react';
+import ScreenshotLightbox from './ScreenshotLightbox';
 
 /**
  * Story W-6 — the screenshot viewer.
@@ -36,7 +37,9 @@ export default function ScreenshotGrid({
   fileUrlBase,
   blurred = false,
   maxIntervalSec = 600,
+  title = '',
 }) {
+  const [viewer, setViewer] = useState(null); // { groupId, shot } while the lightbox is open
   const rangeLabel = from && to && from !== to ? `${from} to ${to}` : from || to || '';
   const multiDay = Boolean(from && to && from !== to);
   const [revealed, setRevealed] = useState(() => new Set());
@@ -80,6 +83,28 @@ export default function ScreenshotGrid({
   );
 
   const reveal = useCallback((id) => setRevealed((prev) => new Set(prev).add(id)), []);
+
+  // The lightbox steps through every capture that has a file, newest first like the grid.
+  const slides = useMemo(
+    () =>
+      openable.map((g) => ({
+        id: g.id,
+        label: formatWithFmt(timeFmt, g.capturedAt),
+        images: g.images
+          .filter((i) => !i.fileDeleted)
+          .map((i) => ({
+            id: i.id,
+            url: fileUrlBase ? `${fileUrlBase}/${i.id}` : `/bff${i.fileUrl}`,
+            label: i.displayLabel || `Display ${i.displayIndex + 1}`,
+          })),
+      })),
+    [openable, timeFmt, fileUrlBase]
+  );
+  const openViewer = useCallback((groupId, imageId) => {
+    const group = openable.find((g) => g.id === groupId);
+    const shot = Math.max(0, group ? group.images.filter((i) => !i.fileDeleted).findIndex((i) => i.id === imageId) : 0);
+    setViewer({ groupId, shot });
+  }, [openable]);
 
   const revealAll = useCallback(() => {
     setShowAll(true);
@@ -138,6 +163,7 @@ export default function ScreenshotGrid({
                   timeFmt={timeFmt}
                   revealed={revealed.has(group.id)}
                   onReveal={reveal}
+                  onOpenImage={openViewer}
                   fileUrlBase={fileUrlBase}
                   blurred={blurred}
                 />
@@ -153,6 +179,17 @@ export default function ScreenshotGrid({
             </div>
           )}
         </div>
+      )}
+
+      {viewer && (
+        <ScreenshotLightbox
+          slides={slides}
+          startIndex={Math.max(0, slides.findIndex((s) => s.id === viewer.groupId))}
+          startImage={viewer.shot}
+          blurred={blurred}
+          title={title}
+          onClose={() => setViewer(null)}
+        />
       )}
     </div>
   );
@@ -230,7 +267,7 @@ const RepeatTile = memo(function RepeatTile({ group, timeFmt, fileUrlBase, blurr
 // CaptureTile — memo so only the one revealed tile re-renders on setRevealed
 // ---------------------------------------------------------------------------
 
-const CaptureTile = memo(function CaptureTile({ group, timeFmt, revealed, onReveal, fileUrlBase, blurred }) {
+const CaptureTile = memo(function CaptureTile({ group, timeFmt, revealed, onReveal, onOpenImage, fileUrlBase, blurred }) {
   const available = group.images.filter((i) => !i.fileDeleted);
   const allPurged = available.length === 0;
   const [showClear, setShowClear] = useState(false);
@@ -254,7 +291,19 @@ const CaptureTile = memo(function CaptureTile({ group, timeFmt, revealed, onReve
               if (image.fileDeleted) return <div className="shot-gone" key={image.id}>Purged</div>;
               const url = fileUrlBase ? `${fileUrlBase}/${image.id}` : `/bff${image.fileUrl}`;
               return (
-                <a href={url} target="_blank" rel="noreferrer" key={image.id}>
+                <a
+                  href={url}
+                  target="_blank"
+                  rel="noreferrer"
+                  key={image.id}
+                  title="Click to view larger"
+                  onClick={(event) => {
+                    // A plain click opens the viewer; ctrl/cmd/shift-click keeps the browser's own "open in a tab".
+                    if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
+                    event.preventDefault();
+                    onOpenImage(group.id, image.id);
+                  }}
+                >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={url}

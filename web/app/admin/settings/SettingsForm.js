@@ -20,6 +20,14 @@ const WEEKDAYS = [[1, 'Mon'], [2, 'Tue'], [3, 'Wed'], [4, 'Thu'], [5, 'Fri'], [6
  * The API itself stays in seconds throughout (matches config.js's existing units, and every
  * other backend consumer of these values already expects seconds).
  */
+const ALLOWANCE_TYPES = [
+  ['sick', 'Sick leave'],
+  ['bereavement', 'Bereavement leave'],
+  ['personal', 'Personal leave'],
+  ['emergency', 'Emergency leave'],
+  ['vacation', 'Company vacation'],
+];
+
 /** Minutes after midnight <-> the "HH:MM" a time input uses. Empty = not set. */
 const toClock = (minutes) =>
   minutes == null ? '' : `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
@@ -41,6 +49,10 @@ export default function SettingsForm({ initial, showPayroll = true }) {
     idleThresholdMinutes: initial.shift.idleThresholdSeconds / 60,
     autoCloseHours: initial.shift.autoCloseHours,
     zoomCameraBreakMinutes: initial.shift.zoomCameraBreakMinutes ?? 0,
+    // Yearly leave allowance per type, as text so a blank box can mean "no limit".
+    allowances: Object.fromEntries(
+      ALLOWANCE_TYPES.map(([type]) => [type, initial.leave?.allowances?.[type] == null ? '' : String(initial.leave.allowances[type])])
+    ),
     workdayStart: toClock(initial.shift.workdayStartMinutes),
     workdayEnd: toClock(initial.shift.workdayEndMinutes),
     retentionDays: initial.retention.days,
@@ -91,6 +103,11 @@ export default function SettingsForm({ initial, showPayroll = true }) {
           zoomCameraBreakMinutes: Math.round(form.zoomCameraBreakMinutes),
           workdayStartMinutes: fromClock(form.workdayStart),
           workdayEndMinutes: fromClock(form.workdayEnd),
+        },
+        leave: {
+          allowances: Object.fromEntries(
+            ALLOWANCE_TYPES.map(([type]) => [type, form.allowances[type].trim() === '' ? null : Number(form.allowances[type])])
+          ),
         },
         retention: { days: Math.round(form.retentionDays) },
         ...(showPayroll
@@ -231,6 +248,36 @@ export default function SettingsForm({ initial, showPayroll = true }) {
             disabled={busy}
             hint="Windows only. 0 = off. The person is warned first, and the break ends when the camera comes on or the meeting ends. Break time is not paid, so turn this on knowingly."
           />
+        </div>
+      </div>
+
+      <div className="card card-pad">
+        <div style={{ fontWeight: 650, fontSize: 14, marginBottom: 4 }}>Leave allowance (days per year)</div>
+        <p className="faint" style={{ marginTop: 0, fontSize: 13 }}>
+          How many days each person may take in a calendar year. Employees see what is left; you see it next to each waiting
+          request. Leave over the allowance is not blocked, only shown. Leave blank for no limit. Half days are fine (for
+          example 7.5). Sundays, company holidays and non-working days do not count.
+        </p>
+        <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 16 }}>
+          {ALLOWANCE_TYPES.map(([type, label]) => (
+            <div className="field" key={type}>
+              <label htmlFor={`allow-${type}`}>{label}</label>
+              <input
+                id={`allow-${type}`}
+                type="number"
+                min={0}
+                max={366}
+                step={0.5}
+                placeholder="No limit"
+                value={form.allowances[type]}
+                disabled={busy}
+                onChange={(e) => {
+                  setForm((f) => ({ ...f, allowances: { ...f.allowances, [type]: e.target.value } }));
+                  setSaved(false);
+                }}
+              />
+            </div>
+          ))}
         </div>
       </div>
 

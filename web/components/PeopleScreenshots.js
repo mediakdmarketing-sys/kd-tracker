@@ -36,7 +36,7 @@ export default function PeopleScreenshots({ shots, timezone, page, pageHref }) {
               {p.blurScreenshots ? ' · blurred until you click' : ''}
             </span>
           </div>
-          <ScreenshotGrid items={p.items} timezone={timezone} from={shots.from} to={shots.to} blurred={p.blurScreenshots} />
+          <ScreenshotGrid items={p.items} timezone={timezone} from={shots.from} to={shots.to} blurred={p.blurScreenshots} title={p.name} />
         </section>
       ))}
 

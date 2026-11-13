@@ -45,6 +45,8 @@ function shape(row, breaks = []) {
     autoClosed: toBool(row.auto_closed),
     needsReview: toBool(row.needs_review),
     reviewReason: row.review_reason,
+    // True when HR changed this shift's times (or added it) at the employee's request.
+    corrected: toBool(row.corrected),
     // 'live' | 'queued' | 'admin'. A queued shift was replayed by an agent that was offline
     // when the employee punched in; the gap to `punchInReceivedAt` is how late it arrived.
     source: row.source || 'live',

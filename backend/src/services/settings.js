@@ -45,6 +45,7 @@ function defaults() {
       workdayEndMinutes: null,
     },
     retention: { days: config.retention.days },
+    leave: { allowances: { sick: null, bereavement: null, personal: null, emergency: null, vacation: null } },
     payroll: {
       deductIdle: config.payroll.deductIdle,
       fullDaySeconds: config.payroll.fullDaySeconds,
@@ -55,6 +56,21 @@ function defaults() {
     company: { name: null, logoKey: null, logoContentType: null, logoUpdatedAt: null },
     payslip: payslipTemplate.normalise(null),
   };
+}
+
+const LEAVE_TYPES = ['sick', 'bereavement', 'personal', 'emergency', 'vacation'];
+
+/** The yearly allowances as {type: days|null}; anything missing or unreadable is "no limit set". */
+function parseAllowances(text) {
+  let stored = {};
+  try {
+    stored = text ? JSON.parse(text) : {};
+  } catch {
+    stored = {};
+  }
+  return Object.fromEntries(
+    LEAVE_TYPES.map((type) => [type, Number.isFinite(stored?.[type]) && stored[type] >= 0 ? stored[type] : null])
+  );
 }
 
 /** A JSON array stored in a text column; the fallback when it is missing or unreadable. */
@@ -86,6 +102,7 @@ function rowToSettings(row) {
       workdayEndMinutes: row.workday_end_minutes ?? null,
     },
     retention: { days: row.retention_days },
+    leave: { allowances: parseAllowances(row.leave_allowances) },
     payroll: {
       deductIdle: toBool(row.payroll_deduct_idle),
       fullDaySeconds: row.payroll_full_day_seconds,
@@ -123,6 +140,7 @@ function settingsToRow(s) {
     workday_start_minutes: s.shift.workdayStartMinutes ?? null,
     workday_end_minutes: s.shift.workdayEndMinutes ?? null,
     retention_days: s.retention.days,
+    leave_allowances: JSON.stringify(s.leave.allowances),
     payroll_deduct_idle: s.payroll.deductIdle,
     payroll_full_day_seconds: s.payroll.fullDaySeconds,
     payroll_half_day_seconds: s.payroll.halfDaySeconds,
@@ -193,6 +211,7 @@ async function update(patch, { updatedBy } = {}) {
     capture: { ...cache.capture, ...patch.capture },
     shift: { ...cache.shift, ...patch.shift },
     retention: { ...cache.retention, ...patch.retention },
+    leave: { allowances: { ...cache.leave.allowances, ...(patch.leave?.allowances || {}) } },
     payroll: { ...cache.payroll, ...patch.payroll },
     company: { ...cache.company, ...patch.company },
     payslip: payslipTemplate.merge(cache.payslip, patch.payslip),

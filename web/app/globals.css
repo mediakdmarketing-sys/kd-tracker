@@ -1500,6 +1500,201 @@ select:focus {
   min-width: 150px;
 }
 
+/* Screenshot lightbox: always dark, whichever theme the page is in, so a screenshot is judged on a neutral ground. */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  color: #e8edf8;
+}
+.lightbox-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(8, 10, 16, 0.93);
+}
+.lightbox-bar,
+.lightbox-stage,
+.lightbox-foot {
+  position: relative;
+}
+.lightbox-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  padding: 12px 16px;
+}
+.lightbox-title {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-right: auto;
+  min-width: 0;
+}
+.lightbox-title span {
+  color: #aab6d3;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.lightbox-count {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  padding: 1px 9px;
+}
+.lightbox-screens {
+  display: inline-flex;
+  gap: 4px;
+  padding: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+}
+.lightbox-screens button.is-on {
+  background: rgba(255, 255, 255, 0.2);
+}
+.lightbox button,
+.lightbox a {
+  font: inherit;
+  font-size: 13px;
+  color: #e8edf8;
+  background: rgba(255, 255, 255, 0.1);
+  border: 0;
+  border-radius: 999px;
+  padding: 6px 14px;
+  cursor: pointer;
+  text-decoration: none;
+}
+.lightbox-screens button {
+  background: transparent;
+}
+.lightbox button:hover:not(:disabled),
+.lightbox a:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+.lightbox button:focus-visible,
+.lightbox a:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 2px;
+}
+.lightbox button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.lightbox-actions {
+  display: inline-flex;
+  gap: 8px;
+}
+.lightbox-nav {
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  width: 48px;
+  height: 48px;
+  margin-top: -24px;
+  padding: 0 !important;
+  font-size: 32px !important;
+  line-height: 1;
+  border-radius: 50% !important;
+  background: rgba(255, 255, 255, 0.14) !important;
+}
+.lightbox-prev {
+  left: 14px;
+}
+.lightbox-next {
+  right: 14px;
+}
+.lightbox-stage {
+  display: grid;
+  place-items: center;
+  min-height: 0;
+  padding: 0 72px;
+  overflow: hidden;
+}
+.lightbox-stage img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 6px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+  cursor: zoom-in;
+  user-select: none;
+}
+.lightbox-stage.is-zoomed {
+  overflow: auto;
+  place-items: start center;
+}
+.lightbox-stage.is-zoomed img {
+  max-width: none;
+  max-height: none;
+  cursor: zoom-out;
+}
+.lightbox-unblur {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(15, 17, 23, 0.8) !important;
+  padding: 10px 18px !important;
+}
+.lightbox-fail {
+  max-width: 420px;
+  text-align: center;
+  color: #aab6d3;
+}
+.lightbox-foot {
+  padding: 10px 16px 14px;
+  font-size: 12px;
+  color: #8f9bbb;
+  text-align: center;
+}
+@media (max-width: 640px) {
+  .lightbox-stage {
+    padding: 0 8px;
+  }
+  .lightbox-nav {
+    top: auto;
+    bottom: 54px;
+    margin-top: 0;
+  }
+}
+
+/* Leave balance cards (My leave) */
+.lb-item {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: var(--surface);
+  display: grid;
+  gap: 6px;
+}
+.lb-label {
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+.lb-main {
+  font-size: 26px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.lb-main small {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+.lb-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.lb-track i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+}
+
 /* Who needs attention (dashboard) */
 .pw-depts {
   display: flex;

@@ -19,6 +19,7 @@ async function migrate() {
 async function truncate() {
   for (const table of [
     'notifications',
+    'time_corrections',
     'leave_requests',
     'department_leaders',
     'app_categories',

@@ -116,6 +116,7 @@ function createApp() {
   app.use('/api/attendance', attendanceRoutes);
   app.use('/api/projects', projectRoutes);
   app.use('/api/leave', leaveRoutes);
+  app.use('/api/corrections', require('./modules/corrections/corrections.routes'));
   app.use('/api/notifications', require('./modules/notifications/notifications.routes'));
   // Single canonical path. The old /api/screenshot (singular) alias is removed: it allowed
   // the upload rate limit to be bypassed by splitting requests across both paths.
