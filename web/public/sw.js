@@ -1,4 +1,4 @@
-// KD Tracker service worker.
+// WorkInvigilator service worker.
 //
 // Strategy: network-first for all API/BFF calls (fresh data always matters for an attendance
 // portal) and for static assets (_next/static, cached only as an offline fallback — see the
