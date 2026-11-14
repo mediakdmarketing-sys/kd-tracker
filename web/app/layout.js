@@ -40,10 +40,11 @@ export default function RootLayout({ children }) {
     <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="manifest" href="/manifest.json" />
-        {/* Apply saved theme before first paint to avoid a flash of light mode on dark
-            preference. This tiny script runs synchronously in <head> before any CSS or
-            React hydration, so the correct data-theme is on <html> from frame 0. */}
-        <script dangerouslySetInnerHTML={{ __html: `(function(){try{var t=localStorage.getItem('kd_theme');if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme:dark)').matches)){document.documentElement.setAttribute('data-theme','dark');}}catch(e){}})();` }} />
+        {/* Light-only portal (fix #10): force data-theme="light" before first paint so there
+            is never a flash of dark even if a previous session stored "dark" in localStorage.
+            The ThemeToggle component clears the stale key on mount, but this script runs
+            synchronously before any CSS or React hydration so the page is never dark. */}
+        <script dangerouslySetInnerHTML={{ __html: `document.documentElement.setAttribute('data-theme','light');` }} />
       </head>
       <body>
         {children}
