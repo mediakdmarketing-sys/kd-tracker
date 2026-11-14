@@ -39,6 +39,8 @@ async function truncate() {
     'screenshots',
     'breaks',
     'attendance',
+    'login_events',
+    'sessions',
     'refresh_tokens',
     'employees',
   ]) {

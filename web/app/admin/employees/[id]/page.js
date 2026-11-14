@@ -8,6 +8,7 @@ import MicLogTable from '@/components/MicLogTable';
 import EmployeeActions from './EmployeeActions';
 import LeaderActions from './LeaderActions';
 import BankDetailsCard from './BankDetailsCard';
+import EmployeeSecurityCard from './EmployeeSecurityCard';
 import { duration, time, timeSec, dateLabel, todayIn, workedSecondsOf, isOpenShift } from '@/lib/format';
 import { averageActivity } from '@/lib/activity';
 
@@ -283,6 +284,13 @@ export default async function EmployeeDetailPage({ params, searchParams }) {
         {viewer.isAccountAdmin && (
           <BankDetailsCard employee={{ id: employee.id, name: employee.name }} initial={bank} unavailable={bankUnavailable} />
         )}
+
+        <EmployeeSecurityCard
+          employee={{ id: employee.id, name: employee.name }}
+          timezone={viewer.timezone}
+          canResetTwoStep={Boolean(viewer.isAccountAdmin)}
+          isSelf={viewer.id === employee.id}
+        />
 
         {/* Leader management — assign/remove this employee as dept leader */}
         <LeaderActions

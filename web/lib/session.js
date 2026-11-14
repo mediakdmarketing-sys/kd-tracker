@@ -60,6 +60,25 @@ export function clearSession(jar) {
   jar.set(EXPIRY_COOKIE,  '', zero);
 }
 
+/**
+ * Headers that tell the backend who is really signing in. The backend sees this server's address,
+ * not the visitor's, so for sign-in and token refresh the visitor's address and browser go along,
+ * with the shared key (BFF_KEY, the same value as on the backend) that proves they come from here.
+ * Without the key set, nothing extra is sent and the backend uses what it can see itself.
+ *
+ * @param {Headers} requestHeaders the incoming request's headers
+ */
+export function clientHeaders(requestHeaders) {
+  const key = process.env.BFF_KEY;
+  if (!key) return {};
+  const forwarded = requestHeaders.get('x-forwarded-for') || requestHeaders.get('x-real-ip') || '';
+  return {
+    'X-BFF-Key': key,
+    'X-Client-IP': forwarded.split(',')[0].trim(),
+    'X-Client-UA': (requestHeaders.get('user-agent') || '').slice(0, 255),
+  };
+}
+
 export function apiUrl(path) {
   const base = process.env.API_BASE_URL || 'http://localhost:4000';
   return `${base.replace(/\/$/, '')}${path}`;
