@@ -9,7 +9,6 @@ import { BY_KEY } from '../dashboard/states';
 const POLL_MS = 60 * 1000;
 
 const STATE_LABEL = { working: 'Working', on_break: 'On break', finished: 'Finished', not_started: 'Not started', on_leave: 'On leave' };
-// Override colour for on_leave to red in the timesheet (dashboard keeps its own purple).
 const STATE_COLOR_OVERRIDE = { on_leave: '#e11d48' };
 
 /**
@@ -46,7 +45,6 @@ export default function LiveTimesheet({ initial, query, timezone }) {
         setFetchedAt(Date.now());
         setError(null);
       } catch (err) {
-        // A missed poll is not worth blocking the page for: say so and try again next minute.
         if (!stopped) setError(err.message);
       }
     }
@@ -60,6 +58,9 @@ export default function LiveTimesheet({ initial, query, timezone }) {
   const lag = Math.max(0, Math.round((now - fetchedAt) / 1000));
   const multiDay = data.from !== data.to;
   const { summary, rows } = data;
+
+  // The export URL mirrors the same filters the timesheet is showing.
+  const exportUrl = `/bff/api/admin/timesheet/export?${query}`;
 
   return (
     <>
@@ -102,11 +103,32 @@ export default function LiveTimesheet({ initial, query, timezone }) {
 
       <div className="card">
         <div className="card-head">
-          <h2>Timesheet</h2>
-          <span className="faint">
-            Live: updated {lag < 5 ? 'just now' : `${lag}s ago`}, refreshes every minute
-            {error ? ' · the last refresh failed, showing the previous figures' : ''}
-          </span>
+          <div>
+            <h2>Timesheet</h2>
+            <span className="faint" style={{ fontSize: 12 }}>
+              Live · updated {lag < 5 ? 'just now' : `${lag}s ago`}, refreshes every minute
+              {error ? ' · last refresh failed, showing previous figures' : ''}
+            </span>
+          </div>
+          {/* Export + Print actions */}
+          <div className="inline" style={{ gap: 8 }}>
+            <a
+              href={exportUrl}
+              download={`timesheet_${data.from}_to_${data.to || data.from}.csv`}
+              className="btn"
+              title="Download this timesheet as a CSV file"
+            >
+              ↓ Export CSV
+            </a>
+            <button
+              type="button"
+              className="btn"
+              title="Print or save as PDF"
+              onClick={() => window.print()}
+            >
+              🖨 Print / PDF
+            </button>
+          </div>
         </div>
         {rows.length === 0 ? (
           <div className="empty">Nobody matches these filters{multiDay ? ' in this range' : ''}.</div>

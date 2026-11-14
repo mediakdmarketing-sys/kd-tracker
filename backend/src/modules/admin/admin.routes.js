@@ -1053,4 +1053,186 @@ router.get(
   })
 );
 
+// --- Employee CSV export ---------------------------------------------------------------
+
+/**
+ * GET /api/admin/employees/export
+ *
+ * Downloads the full employee list as a UTF-8 CSV file.
+ * Columns match the import template exactly so the same file can be edited and re-imported.
+ * Inactive employees are included (marked in the Status column) so a bulk export captures
+ * the full roster.
+ */
+router.get(
+  '/employees/export',
+  asyncHandler(async (req, res) => {
+    const { rows } = await service.listEmployees({ limit: 10000, offset: 0 });
+    await audit.record(req, {
+      action: audit.ACTIONS.EXPORTED_REPORT,
+      targetType: 'employee',
+      details: { kind: 'employees_csv', count: rows.length },
+    });
+    sendCsv(res, 'employees.csv', [
+      { key: 'name',           label: 'Name' },
+      { key: 'email',          label: 'Email' },
+      { key: 'employeeCode',   label: 'Employee Code' },
+      { key: 'department',     label: 'Department' },
+      { key: 'role',           label: 'Role' },
+      { key: 'timezone',       label: 'Timezone' },
+      { key: 'status',         label: 'Status' },
+      { key: 'birthday',       label: 'Birthday (YYYY-MM-DD)' },
+    ], rows.map((e) => ({
+      name:         e.name,
+      email:        e.email,
+      employeeCode: e.employeeCode || '',
+      department:   e.department  || '',
+      role:         e.role,
+      timezone:     e.timezone    || '',
+      status:       e.status,
+      birthday:     e.birthday    || '',
+    })));
+  })
+);
+
+// --- Employee CSV import ---------------------------------------------------------------
+
+/**
+ * POST /api/admin/employees/import
+ *
+ * Bulk-creates employees from a JSON array parsed from a CSV on the client.
+ * The browser parses the CSV and sends rows as JSON (avoids multipart/form-data
+ * complexity and aligns with how every other endpoint works).
+ *
+ * Each row is validated with the same rules as a single POST /employees.
+ * Duplicate emails are skipped (not an error) so the same file can be re-imported
+ * after a partial failure without creating duplicates.
+ *
+ * Returns:
+ *   { created, skipped, errors: [{ row, email, message }] }
+ */
+const importRowSchema = z.object({
+  name:         z.string().trim().min(1).max(200),
+  email:        z.string().trim().toLowerCase().email(),
+  employeeCode: z.string().trim().max(50).optional(),
+  department:   z.string().trim().max(120).optional(),
+  role:         z.enum(['admin', 'leader', 'user']).optional(),
+  timezone:     z.string().trim().max(64).optional(),
+  birthday:     z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+});
+
+const importBodySchema = z.object({
+  rows: z.array(importRowSchema).min(1).max(500),
+});
+
+router.post(
+  '/employees/import',
+  validate(importBodySchema),
+  asyncHandler(async (req, res) => {
+    const results = { created: 0, skipped: 0, errors: [] };
+
+    for (let i = 0; i < req.body.rows.length; i++) {
+      const row = req.body.rows[i];
+      try {
+        const created = await service.createEmployee({ ...row, mustChangePassword: true });
+        await audit.record(req, {
+          action: audit.ACTIONS.CREATED_EMPLOYEE,
+          targetEmployeeId: created.id,
+          targetType: 'employee',
+          targetId: created.id,
+          details: { email: created.email, role: created.role, source: 'csv_import' },
+        });
+        results.created++;
+      } catch (err) {
+        if (err.status === 409) {
+          // Duplicate email — treat as a skip, not an error.
+          results.skipped++;
+        } else {
+          results.errors.push({ row: i + 2, email: row.email, message: err.message });
+        }
+      }
+    }
+
+    res.json(results);
+  })
+);
+
+// --- Timesheet CSV export ---------------------------------------------------------------
+
+/**
+ * GET /api/admin/timesheet/export
+ *
+ * Downloads the current timesheet view as a CSV.
+ * Accepts the same filters as GET /api/admin/timesheet (from, to, department, etc.)
+ * so the downloaded file always matches what is on screen.
+ */
+router.get(
+  '/timesheet/export',
+  validate(z.object({
+    from: DATE.optional(),
+    to: DATE.optional(),
+    department: z.string().trim().max(120).optional(),
+    employee: z.string().trim().max(120).optional(),
+    employeeId: z.string().uuid().optional(),
+  }), 'query'),
+  asyncHandler(async (req, res) => {
+    const query = q(req);
+    const sheet = await timesheetService.timesheet({
+      from: query.from,
+      to: query.to,
+      department: query.department,
+      search: query.employee,
+      employeeId: query.employeeId,
+    });
+
+    const from = sheet.from || query.from || 'today';
+    const to   = sheet.to   || query.to   || from;
+
+    await audit.record(req, {
+      action: audit.ACTIONS.EXPORTED_REPORT,
+      targetType: 'timesheet',
+      details: { kind: 'timesheet_csv', from, to, rows: sheet.rows.length },
+    });
+
+    // Format seconds as HH:MM:SS for readability in spreadsheets.
+    function hhmmss(seconds) {
+      if (!seconds && seconds !== 0) return '';
+      const s = Math.max(0, Math.round(seconds));
+      const h = Math.floor(s / 3600);
+      const m = Math.floor((s % 3600) / 60);
+      const sec = s % 60;
+      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+    }
+
+    sendCsv(res, `timesheet_${from}_to_${to}.csv`, [
+      { key: 'date',       label: 'Date' },
+      { key: 'name',       label: 'Employee' },
+      { key: 'email',      label: 'Email' },
+      { key: 'department', label: 'Department' },
+      { key: 'state',      label: 'State' },
+      { key: 'punchIn',    label: 'Punch In' },
+      { key: 'punchOut',   label: 'Punch Out' },
+      { key: 'worked',     label: 'Worked (HH:MM:SS)' },
+      { key: 'breaks',     label: 'Break (HH:MM:SS)' },
+      { key: 'idle',       label: 'Idle (HH:MM:SS)' },
+      { key: 'shifts',     label: 'Shifts' },
+      { key: 'overBreak',  label: 'Over Break' },
+      { key: 'review',     label: 'Needs Review' },
+    ], sheet.rows.map((r) => ({
+      date:       r.date,
+      name:       r.name,
+      email:      r.email,
+      department: r.department || '',
+      state:      r.state,
+      punchIn:    r.punchIn  || '',
+      punchOut:   r.punchOut || '',
+      worked:     hhmmss(r.workedSeconds),
+      breaks:     hhmmss(r.breakSeconds),
+      idle:       hhmmss(r.idleSeconds),
+      shifts:     r.shifts   || 1,
+      overBreak:  r.overBreak  ? 'Yes' : 'No',
+      review:     r.needsReview ? 'Yes' : 'No',
+    })));
+  })
+);
+
 module.exports = router;

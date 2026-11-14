@@ -4,6 +4,7 @@ import { api, requireUser } from '@/lib/api';
 import RangeFilter from '@/components/RangeFilter';
 import Pager from '@/components/Pager';
 import NewEmployeeForm from './NewEmployeeForm';
+import EmployeeCsvActions from './EmployeeCsvActions';
 import { dateLabel } from '@/lib/format';
 
 export const metadata = { title: 'Employees · WorkInvigilator' };
@@ -32,6 +33,7 @@ export default async function EmployeesPage({ searchParams }) {
           <h1>Employees</h1>
           <p>{result.pagination.total} accounts</p>
         </div>
+        <EmployeeCsvActions />
       </div>
 
       <div className="stack">
