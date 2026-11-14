@@ -1,9 +1,10 @@
 'use client';
 
-import { memo, useCallback, useEffect, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { call } from '@/lib/client';
 import { duration, time, STATE_LABEL, STATE_CLASS } from '@/lib/format';
+import useSSE from '@/lib/useSSE';
 
 const FILTERS = [
   { key: 'all', label: 'Everyone' },
@@ -15,7 +16,9 @@ const FILTERS = [
   { key: 'flagged', label: 'Needs review' },
 ];
 
-const POLL_MS = 5 * 60 * 1000; // 5 minutes
+// Fallback poll interval when SSE is not available or has not sent an event recently.
+// This is intentionally generous — SSE handles the real-time case; polling is a safety net.
+const FALLBACK_POLL_MS = 5 * 60 * 1000; // 5 minutes
 
 // Active filter style defined once outside the component so it is not a new object on every
 // render — previously this was an inline literal inside a .map() that ran every second.
@@ -26,52 +29,46 @@ const ACTIVE_FILTER_STYLE = {
 };
 
 /**
- * Isolated countdown ticker.
+ * Isolated last-refresh display.
  *
- * This component owns the 1-second setInterval. By keeping it separate, the parent
- * LiveBoard (and its 60-row employee table) only re-renders when new data arrives from the
- * server — not every second. Previously secsLeft lived in LiveBoard state, causing the
- * entire board to re-render 60+ rows per second.
+ * Shows "Updated X ago" that ticks every 30 s without touching the board table.
  */
-function CountdownDisplay({ pollMs, onExpire }) {
-  const [secsLeft, setSecsLeft] = useState(pollMs / 1000);
+const LastUpdatedDisplay = memo(function LastUpdatedDisplay({ updatedAt, refreshing }) {
+  const [, setTick] = useState(0);
 
   useEffect(() => {
-    // The remaining time lives in a plain variable, not read back out of state. Calling
-    // onExpire() from inside a setState updater ran the parent's setState while React was
-    // rendering this component ("Cannot update a component while rendering a different one").
-    let left = pollMs / 1000;
-    const tick = setInterval(() => {
-      left -= 1;
-      if (left <= 0) {
-        left = pollMs / 1000;
-        onExpire();
-      }
-      setSecsLeft(left);
-    }, 1000);
-    return () => clearInterval(tick);
-  }, [pollMs, onExpire]);
+    const id = setInterval(() => setTick((n) => n + 1), 30_000);
+    return () => clearInterval(id);
+  }, []);
 
-  return (
-    <span>
-      {secsLeft >= 60 ? `${Math.ceil(secsLeft / 60)}m` : `${secsLeft}s`}
-    </span>
-  );
-}
+  if (refreshing) return <span>Refreshing…</span>;
+
+  const ageSeconds = Math.floor((Date.now() - updatedAt) / 1000);
+  if (ageSeconds < 10) return <span>Just updated</span>;
+  if (ageSeconds < 60) return <span>Updated {ageSeconds}s ago</span>;
+  const mins = Math.floor(ageSeconds / 60);
+  return <span>Updated {mins}m ago</span>;
+});
 
 /**
- * Story W-4. Polls every 5 minutes rather than holding a socket open: the payload is small,
- * 60 employees is a single query, and polling survives a dropped connection without reconnect
- * logic. Sockets are backlog I-3 for sub-second freshness.
+ * Live board for /admin.
  *
- * The countdown display is isolated in CountdownDisplay so the employee table only re-renders
- * when the data actually changes, not every second.
+ * Receives real-time `attendance_changed` events via SSE — any punch-in, punch-out or break
+ * triggers an immediate refetch so the board reflects the change within ~200 ms instead of
+ * waiting up to 5 minutes. The 5-minute fallback poll remains as a safety net in case SSE is
+ * unavailable (Vercel serverless, proxy timeout, etc.).
+ *
+ * Story W-4 originally deferred sockets to backlog I-3; SSE achieves the same goal with
+ * much less infrastructure change.
  */
 export default function LiveBoard({ initial, timezone, shiftTargetSeconds }) {
   const [data, setData] = useState(initial);
   const [filter, setFilter] = useState('all');
   const [stale, setStale] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [updatedAt, setUpdatedAt] = useState(() => Date.now());
+  // Track whether SSE is delivering events so the fallback poll knows when to step in.
+  const lastSseEventRef = useRef(null);
 
   const doRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -79,12 +76,31 @@ export default function LiveBoard({ initial, timezone, shiftTargetSeconds }) {
       const next = await call('/api/admin/dashboard');
       setData(next);
       setStale(false);
+      setUpdatedAt(Date.now());
     } catch {
       setStale(true);
     } finally {
       setRefreshing(false);
     }
   }, []);
+
+  // SSE: refresh immediately when any employee's attendance changes.
+  useSSE('attendance_changed', useCallback(() => {
+    lastSseEventRef.current = Date.now();
+    doRefresh();
+  }, [doRefresh]));
+
+  // Fallback polling — only fires if SSE hasn't delivered an event in a while.
+  // This covers: Vercel serverless (SSE times out at 25 s), proxy timeouts, or a
+  // browser that does not support EventSource.
+  useEffect(() => {
+    const id = setInterval(() => {
+      const lastSse = lastSseEventRef.current;
+      const sseIsLive = lastSse && Date.now() - lastSse < FALLBACK_POLL_MS * 1.5;
+      if (!sseIsLive) doRefresh();
+    }, FALLBACK_POLL_MS);
+    return () => clearInterval(id);
+  }, [doRefresh]);
 
   const rows = data.employees.filter((row) => {
     if (filter === 'all') return true;
@@ -126,9 +142,7 @@ export default function LiveBoard({ initial, timezone, shiftTargetSeconds }) {
           </div>
           <div className="inline" style={{ gap: 10 }}>
             <span className="faint">
-              Updated {time(data.generatedAt, timezone)}
-              {' · next in '}
-              <CountdownDisplay pollMs={POLL_MS} onExpire={doRefresh} />
+              <LastUpdatedDisplay updatedAt={updatedAt} refreshing={refreshing} />
             </span>
             <button
               type="button"

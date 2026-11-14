@@ -5,6 +5,7 @@ const { uuid } = require('../utils/ids');
 const t = require('../utils/time');
 const { toIso } = require('../utils/http');
 const logger = require('../utils/logger');
+const sse = require('./sse');
 
 /**
  * Writes one notification per recipient. Never throws: a notification that could not be saved
@@ -28,6 +29,17 @@ async function notify(recipientIds, { type, title, body, link, refId }) {
         read_at: null,
       }))
     );
+
+    // Push a real-time event so the recipient's notification badge updates immediately
+    // without waiting for the next 60-second poll.
+    for (const employeeId of ids) {
+      sse.emit(
+        'notification',
+        { type, title, link: link || null },
+        { employeeId }
+      );
+    }
+
     return ids.length;
   } catch (err) {
     logger.error('Could not save notifications', { type, message: err.message });

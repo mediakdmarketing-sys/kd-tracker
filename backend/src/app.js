@@ -23,6 +23,7 @@ const capture = require('./modules/capture/capture.routes');
 const adminRoutes = require('./modules/admin/admin.routes');
 const leaderRoutes = require('./modules/leader/leader.routes');
 const payrollRoutes = require('./modules/payroll/payroll.routes');
+const sseRoutes = require('./modules/sse/sse.routes');
 
 function createApp() {
   const app = express();
@@ -57,6 +58,7 @@ function createApp() {
     asyncHandler(async (req, res) => {
       // A process that is up but cannot reach its database is not healthy.
       await db().raw('select 1 as ok');
+      const sse = require('./services/sse');
       res.json({
         status: 'ok',
         version: require('../package.json').version,
@@ -64,6 +66,7 @@ function createApp() {
         database: config.db.client,
         storage: config.storage.driver,
         uptimeSeconds: Math.floor(process.uptime()),
+        sseConnections: sse.connectionCount(),
       });
     })
   );
@@ -112,6 +115,7 @@ function createApp() {
     });
   });
 
+  app.use('/api/sse', sseRoutes);
   app.use('/api/auth', authRoutes);
   app.use('/api/attendance', attendanceRoutes);
   app.use('/api/projects', projectRoutes);

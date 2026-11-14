@@ -6,6 +6,7 @@ import { call, post } from '@/lib/client';
 import { clock, duration, time } from '@/lib/format';
 import { syncDesktopAgent } from '@/lib/agentConnect';
 import { STATUS_EVENT } from '@/components/ShiftStats';
+import useSSE from '@/lib/useSSE';
 
 // ---------------------------------------------------------------------------
 // ClockDisplay
@@ -181,6 +182,7 @@ export default function ShiftPanel({ initial, timezone }) {
   const [status, setStatus] = useState(initial);
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState(null);
+  const lastSseEventRef = useRef(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -190,6 +192,13 @@ export default function ShiftPanel({ initial, timezone }) {
     }
   }, []);
 
+  // SSE: the server pushes `status_changed` immediately after any punch action.
+  // This covers changes made from the desktop agent or another browser tab too.
+  useSSE('status_changed', useCallback(() => {
+    lastSseEventRef.current = Date.now();
+    refresh();
+  }, [refresh]));
+
   // Tell the stat tiles below (ShiftStats) about every status this panel receives, so the two
   // never show different numbers.
   useEffect(() => {
@@ -197,9 +206,16 @@ export default function ShiftPanel({ initial, timezone }) {
   }, [status]);
 
   useEffect(() => {
-    // Poll every 5 minutes — ClockDisplay's local tick keeps the display live between polls.
-    const pollTimer = setInterval(refresh, 5 * 60 * 1000);
-    return () => clearInterval(pollTimer);
+    // Fallback poll — only runs if SSE hasn't delivered an event recently.
+    // Keeps the display accurate on Vercel serverless (SSE times out at ~25 s)
+    // or when a proxy interrupts the stream.
+    const FALLBACK_MS = 5 * 60 * 1000;
+    const id = setInterval(() => {
+      const lastSse = lastSseEventRef.current;
+      const sseIsLive = lastSse && Date.now() - lastSse < FALLBACK_MS * 1.5;
+      if (!sseIsLive) refresh();
+    }, FALLBACK_MS);
+    return () => clearInterval(id);
   }, [refresh]);
 
   const act = useCallback(async (path, label) => {

@@ -9,6 +9,7 @@ const { requireSelfOrAdmin } = require('../../middleware/rbac');
 const { validate, q } = require('../../middleware/validate');
 const { asyncHandler, pagination, paged } = require('../../utils/http');
 const audit = require('../../services/audit');
+const sse = require('../../services/sse');
 
 const router = express.Router();
 router.use(authenticate);
@@ -38,7 +39,10 @@ router.post(
   '/punch-in',
   validate(punchSchema),
   asyncHandler(async (req, res) => {
-    res.status(201).json(await service.punchIn({ employee: req.user, requestedAt: req.body.at }));
+    const result = await service.punchIn({ employee: req.user, requestedAt: req.body.at });
+    res.status(201).json(result);
+    // Push to the employee's own shift panel + admins/leaders so the live board updates.
+    emitAttendanceChange(req.user, 'working');
   })
 );
 
@@ -46,7 +50,9 @@ router.post(
   '/punch-out',
   validate(punchSchema),
   asyncHandler(async (req, res) => {
-    res.json(await service.punchOut({ employee: req.user, requestedAt: req.body.at }));
+    const result = await service.punchOut({ employee: req.user, requestedAt: req.body.at });
+    res.json(result);
+    emitAttendanceChange(req.user, 'punched_out');
   })
 );
 
@@ -58,7 +64,9 @@ router.post(
   '/break-start',
   validate(breakStartSchema),
   asyncHandler(async (req, res) => {
-    res.json(await service.startBreak({ employee: req.user, requestedAt: req.body.at, reason: req.body.reason || null }));
+    const result = await service.startBreak({ employee: req.user, requestedAt: req.body.at, reason: req.body.reason || null });
+    res.json(result);
+    emitAttendanceChange(req.user, 'on_break');
   })
 );
 
@@ -66,9 +74,38 @@ router.post(
   '/break-end',
   validate(punchSchema),
   asyncHandler(async (req, res) => {
-    res.json(await service.endBreak({ employee: req.user, requestedAt: req.body.at }));
+    const result = await service.endBreak({ employee: req.user, requestedAt: req.body.at });
+    res.json(result);
+    emitAttendanceChange(req.user, 'working');
   })
 );
+
+/**
+ * Emit SSE events after every punch action so connected browsers update immediately.
+ *
+ * Two events are always sent:
+ *   • `status_changed`      — delivered only to the acting employee's tab(s).
+ *                             Their ShiftPanel can call /api/attendance/status immediately.
+ *   • `attendance_changed`  — delivered to admins and leaders of the employee's department.
+ *                             Their LiveBoard / Leader board can refetch /api/admin/dashboard.
+ *
+ * We pass the new `state` so a client that wants to do an optimistic render can do so, but
+ * it should still re-fetch for authoritative data (worked seconds, break times, etc.).
+ */
+function emitAttendanceChange(employee, state) {
+  const payload = {
+    employeeId: employee.id,
+    name: employee.name,
+    department: employee.department || null,
+    state,
+  };
+
+  // The employee's own tabs
+  sse.emit('status_changed', payload, { employeeId: employee.id });
+
+  // Admin dashboard + department leaders
+  sse.emit('attendance_changed', payload, { department: employee.department });
+}
 
 const switchProjectSchema = z.object({
   // null (via JSON `"projectId": null`) returns to unassigned time; the field is required so
