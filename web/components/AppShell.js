@@ -210,6 +210,7 @@ const USER_GROUP = {
     { href: '/me/history', label: 'My history', icon: Icon.history },
     { href: '/me/leave', label: 'Leave', icon: Icon.leave },
     { href: '/me/corrections', label: 'Time corrections', icon: Icon.history },
+    { href: '/security', label: 'Security', icon: Icon.settings },
     { href: '/me/payslips', label: 'Payslips', icon: Icon.payroll },
     { href: '/calendar', label: 'Calendar', icon: Icon.history },
     { href: '/notifications', label: 'Notifications', icon: Icon.bell },

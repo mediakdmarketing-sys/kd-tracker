@@ -7,6 +7,7 @@ import {
   clearSession,
   parseDuration,
   apiUrl,
+  clientHeaders,
 } from '@/lib/session';
 
 const PUBLIC_PATHS = ['/login', '/bff/login'];
@@ -42,7 +43,7 @@ export async function middleware(request) {
   try {
     const res = await fetch(apiUrl('/api/auth/refresh'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept-Encoding': 'identity' },
+      headers: { 'Content-Type': 'application/json', 'Accept-Encoding': 'identity', ...clientHeaders(request.headers) },
       body: JSON.stringify({ refreshToken }),
       cache: 'no-store',
     });

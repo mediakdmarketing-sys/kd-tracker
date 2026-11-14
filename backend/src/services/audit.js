@@ -68,6 +68,10 @@ const ACTIONS = {
   GRANTED_ACCOUNT_ADMIN: 'granted_account_admin',
   REVOKED_ACCOUNT_ADMIN: 'revoked_account_admin',
   REVIEWED_TIME_CORRECTION: 'reviewed_time_correction',
+  RESET_TWO_FACTOR: 'reset_two_factor',
+  ENDED_SESSIONS: 'ended_sessions',
+  VIEWED_SECURITY: 'viewed_security',
+  CHANGED_TWO_FACTOR_RULE: 'changed_two_factor_rule',
 };
 
 module.exports = { record, ACTIONS };

@@ -45,6 +45,9 @@ export async function api(path, { method = 'GET', body, cache = 'no-store' } = {
   if (payload?.error?.code === 'PASSWORD_CHANGE_REQUIRED') {
     redirect('/change-password');
   }
+  if (payload?.error?.code === 'TWO_FACTOR_SETUP_REQUIRED') {
+    redirect('/security?required=1');
+  }
 
   if (!res.ok) {
     const error = new Error(payload?.error?.message || `Request failed (${res.status})`);
@@ -73,10 +76,12 @@ export async function getSessionUser() {
  * The consent screen has to be unavoidable rather than a link somebody can skip — the
  * employee sees exactly what is captured before any capture is possible.
  */
-export async function requireUser({ adminOnly = false, accountAdminOnly = false } = {}) {
+export async function requireUser({ adminOnly = false, accountAdminOnly = false, allowTwoFactorSetup = false } = {}) {
   const user = await getSessionUser();
 
   if (user.mustChangePassword) redirect('/change-password');
+  // An admin whom HR requires to use two-step sign-in sets it up before anything else.
+  if (user.twoFactorSetupRequired && !allowTwoFactorSetup) redirect('/security?required=1');
   if (user.consent.required) redirect('/consent');
   if ((adminOnly || accountAdminOnly) && user.role !== 'admin') redirect('/me');
   // Payroll and payments: an ordinary HR admin goes back to the dashboard, not to an error.

@@ -23,6 +23,8 @@ const birthdays = require('../../services/birthdays');
 const bankDetails = require('../../services/bankDetails');
 const timesheetService = require('./timesheet.service');
 const performanceService = require('./performance.service');
+const twoFactorService = require('../auth/twoFactor.service');
+const sessionsService = require('../auth/sessions.service');
 
 const router = express.Router();
 
@@ -653,6 +655,65 @@ router.delete(
   })
 );
 
+// --- A person's security: two-step sign-in, sessions, sign-in history ---------------------------
+//
+// HR can see where someone is signed in and how they have been signing in, end their sessions, and
+// (account admins only) switch off two-step sign-in for someone who lost their phone and recovery
+// codes. Looking is audited: sign-in addresses are personal data.
+
+const employeeIdParam = z.object({ id: z.string().uuid() });
+
+router.get(
+  '/employees/:id/security',
+  validate(employeeIdParam, 'params'),
+  asyncHandler(async (req, res) => {
+    const id = req.params.id;
+    const [status, live, history] = await Promise.all([
+      twoFactorService.status(id),
+      sessionsService.listSessions(id),
+      sessionsService.loginHistory(id, 30),
+    ]);
+    await audit.record(req, { action: audit.ACTIONS.VIEWED_SECURITY, targetEmployeeId: id, targetType: 'employee', targetId: id });
+    res.set('Cache-Control', 'no-store');
+    res.json({ twoFactor: status, sessions: live, history });
+  })
+);
+
+router.post(
+  '/employees/:id/sessions/revoke-all',
+  validate(employeeIdParam, 'params'),
+  asyncHandler(async (req, res) => {
+    const ended = await sessionsService.revokeAll(req.params.id, { reason: 'admin' });
+    await audit.record(req, {
+      action: audit.ACTIONS.ENDED_SESSIONS,
+      targetEmployeeId: req.params.id,
+      targetType: 'employee',
+      targetId: req.params.id,
+      details: { ended },
+    });
+    res.json({ ended });
+  })
+);
+
+router.post(
+  '/employees/:id/2fa/reset',
+  requireAccountAdmin,
+  validate(employeeIdParam, 'params'),
+  asyncHandler(async (req, res) => {
+    if (req.params.id === req.user.id) {
+      throw forbidden('You cannot reset your own two-step sign-in. Another account admin has to.');
+    }
+    const result = await twoFactorService.adminReset(req.params.id);
+    await audit.record(req, {
+      action: audit.ACTIONS.RESET_TWO_FACTOR,
+      targetEmployeeId: req.params.id,
+      targetType: 'employee',
+      targetId: req.params.id,
+    });
+    res.json(result);
+  })
+);
+
 // --- Settings (Settings module) ----------------------------------------------------------
 //
 // Deliberately not everything in config/index.js — only the operational values that are safe
@@ -685,6 +746,8 @@ const settingsPatchSchema = z.object({
     })
     .optional(),
   retention: z.object({ days: z.number().int().min(1).max(365).optional() }).optional(),
+  // Every admin must sign in with a code from an authenticator app.
+  security: z.object({ requireAdmin2fa: z.boolean().optional() }).optional(),
   // Days a person may take per year, per type, in half-day steps. null = no limit set.
   leave: z
     .object({
@@ -778,6 +841,11 @@ router.patch(
     // cross-field mistake) only becomes checkable once the patch is merged onto whatever is
     // NOT being changed in this request — so that check happens here, against the merged
     // result, rather than as a zod .refine() on the raw partial patch.
+    // Switching the admin rule on locks out every admin who has not set it up, so the person
+    // switching it on must have it themselves, and there must be a way back for the others.
+    if (req.body.security?.requireAdmin2fa === true && !settings.get().security.requireAdmin2fa && !req.user.twoFactorEnabled) {
+      throw badRequest('Set up two-step sign-in for your own account first, then turn this on.');
+    }
     const current = settings.get();
     const merged = {
       capture: { ...current.capture, ...req.body.capture },

@@ -160,6 +160,18 @@ const SECTIONS = [
     ],
   },
   {
+    id: 'security',
+    title: 'Keeping your account safe (Security)',
+    roles: ALL,
+    body: [
+      'Open Security in the menu. It has three parts: two-step sign-in, where you are signed in, and your recent sign-ins.',
+      'Two-step sign-in: after your password you also enter a 6-digit code from an authenticator app (Google Authenticator, Microsoft Authenticator or Authy). Click Set up, scan the picture with the app (or type the key), enter the code it shows, then save the 10 recovery codes. A stolen password alone then cannot sign in. If you lose your phone, a recovery code signs you in once (use “Use a recovery code” on the sign-in page). Five wrong codes in 15 minutes pause the account for the rest of that time.',
+      'Admins: HR can require two-step sign-in for every admin. Until you set it up you can only open Security. The desktop agent and the Android app sign in through the web portal for an account that uses two-step, so sign in on the portal first.',
+      'Where you are signed in lists every device with its last activity. Sign out ends that device at once, not when its login would have expired. Lost a laptop or left a shared computer signed in? End it here, then change your password: that signs out everything.',
+      'Recent sign-ins shows every sign-in and every failed try on your account. When a device you have not used before signs in you get a notification (and an email, if email is set up). If it was not you, change your password and end that session.',
+    ],
+  },
+  {
     id: 'time-corrections',
     title: 'Fixing a punch-in or punch-out (time corrections)',
     roles: ALL,
@@ -278,6 +290,7 @@ const SECTIONS = [
     body: [
       'Time corrections (menu) lists what employees have asked for: the times as they are, the times asked for, how much the hours change, and the reason. Approve changes the shift (its hours, and its pay if the month is open) and clears its review flag; Reject needs a short note. Approving checks that the new times still do not overlap another shift. A finalized payroll month is refused until you reopen it. You cannot decide your own request.',
       'Audit log (menu) shows who opened a screenshot, played audio, viewed or saved bank details, changed settings, decided leave or corrections, finalized payroll and so on, with the time and where it came from. Filter by dates, by what was done, or by the employee it was about. Entries cannot be edited or deleted. The most private actions are highlighted.',
+      'Two-step sign-in for admins: Settings has “Require two-step sign-in for every admin” (set it up for yourself first). On an employee’s page, Sign-in security shows their sessions and sign-in history (looking is audited), lets you sign them out everywhere, and, for an account admin, reset their two-step sign-in when they lost their phone and recovery codes (it also signs them out). You cannot reset your own.',
       'Leave allowance: in Settings, set how many days each leave type allows per year (blank = no limit). Next to each waiting leave request you then see its working days and how many days would be left if you approve it, in red when that is over the allowance.',
     ],
   },
