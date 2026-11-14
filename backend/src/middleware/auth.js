@@ -3,12 +3,26 @@
 const jwt = require('jsonwebtoken');
 const config = require('../config');
 const { db } = require('../db');
-const { unauthorized, accountDeactivated, passwordChangeRequired } = require('../utils/errors');
+const { unauthorized, accountDeactivated, passwordChangeRequired, twoFactorSetupRequired } = require('../utils/errors');
+const settings = require('../services/settings');
+const sessions = require('../modules/auth/sessions.service');
 
 // The only calls a person with a temporary password may make: see who they are, set a new
 // password, and sign out. Everything else waits until the password has been changed.
 const ALLOWED_WHILE_PASSWORD_PENDING = new Set([
   '/api/auth/me',
+  '/api/auth/change-password',
+  '/api/auth/logout',
+  '/api/auth/logout-all',
+]);
+
+// What an admin may do while HR requires two-step sign-in and they have not set it up: look at their
+// own security page, set it up, and leave.
+const ALLOWED_WHILE_2FA_SETUP = new Set([
+  '/api/auth/me',
+  '/api/auth/security',
+  '/api/auth/2fa/setup',
+  '/api/auth/2fa/enable',
   '/api/auth/change-password',
   '/api/auth/logout',
   '/api/auth/logout-all',
@@ -50,6 +64,7 @@ async function authenticate(req, res, next) {
 
     if (payload.type !== 'access') throw unauthorized('Wrong token type');
 
+
     // Request-level cache: same sub on the same request → single DB read.
     // The cache key includes the employee id so a crafted request that somehow changes
     // sub mid-request (not currently possible, but defensive) cannot serve stale data.
@@ -58,6 +73,14 @@ async function authenticate(req, res, next) {
       const row = await db()('employees').where({ id: payload.sub }).first();
       if (!row) throw unauthorized('Account no longer exists');
       if (row.status !== 'active') throw accountDeactivated();
+
+      // The session this token came from may have been ended (signed out elsewhere, or by HR). Checked
+      // here, not left to the token's expiry, so it takes effect on the very next request. After the
+      // deactivation check, so a deactivated account still gets ACCOUNT_DEACTIVATED, which the desktop
+      // agent tells apart from an ordinary sign-out.
+      if (payload.sid && (await sessions.isLive(payload.sid)) === false) {
+        throw unauthorized('This session was ended. Please sign in again.');
+      }
 
       req[cacheKey] = {
         id: row.id,
@@ -71,10 +94,18 @@ async function authenticate(req, res, next) {
         mustChangePassword: toBool(row.must_change_password),
         consentMonitoring: toBool(row.consent_monitoring),
         consentAudio: toBool(row.consent_audio),
+        twoFactorEnabled: Boolean(row.totp_enabled_at),
+        twoFactorSetupRequired:
+          row.role === 'admin' && settings.get().security.requireAdmin2fa && !row.totp_enabled_at,
+        sessionId: payload.sid || null,
       };
     }
 
     req.user = req[cacheKey];
+
+    if (req.user.twoFactorSetupRequired && !ALLOWED_WHILE_2FA_SETUP.has(req.originalUrl.split('?')[0])) {
+      throw twoFactorSetupRequired();
+    }
 
     if (req.user.mustChangePassword && !ALLOWED_WHILE_PASSWORD_PENDING.has(req.originalUrl.split('?')[0])) {
       throw passwordChangeRequired();

@@ -63,6 +63,12 @@ const config = {
     // A rotated refresh token stays usable for this long. Covers the case where the server
     // rotated but the response never reached the client (ADR-0004).
     refreshGraceSeconds: int('REFRESH_GRACE_SECONDS', 120),
+    // Shared secret the portal's server sends (X-BFF-Key) so the backend believes the visitor's
+    // address and browser it passes along. Empty = not used: the request's own address is taken.
+    bffKey: str('BFF_KEY', ''),
+    // Wrong two-step codes allowed in the window before the account is held for a while.
+    maxBadCodes: int('TWO_STEP_MAX_BAD_CODES', 5),
+    badCodeWindowMinutes: int('TWO_STEP_LOCK_MINUTES', 15),
   },
 
   // Key that encrypts employees' bank details: 32 bytes, as 64 hex characters or base64. Make one

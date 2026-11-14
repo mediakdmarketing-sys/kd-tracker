@@ -46,6 +46,7 @@ function defaults() {
     },
     retention: { days: config.retention.days },
     leave: { allowances: { sick: null, bereavement: null, personal: null, emergency: null, vacation: null } },
+    security: { requireAdmin2fa: false },
     payroll: {
       deductIdle: config.payroll.deductIdle,
       fullDaySeconds: config.payroll.fullDaySeconds,
@@ -103,6 +104,7 @@ function rowToSettings(row) {
     },
     retention: { days: row.retention_days },
     leave: { allowances: parseAllowances(row.leave_allowances) },
+    security: { requireAdmin2fa: toBool(row.require_admin_2fa) },
     payroll: {
       deductIdle: toBool(row.payroll_deduct_idle),
       fullDaySeconds: row.payroll_full_day_seconds,
@@ -141,6 +143,7 @@ function settingsToRow(s) {
     workday_end_minutes: s.shift.workdayEndMinutes ?? null,
     retention_days: s.retention.days,
     leave_allowances: JSON.stringify(s.leave.allowances),
+    require_admin_2fa: Boolean(s.security.requireAdmin2fa),
     payroll_deduct_idle: s.payroll.deductIdle,
     payroll_full_day_seconds: s.payroll.fullDaySeconds,
     payroll_half_day_seconds: s.payroll.halfDaySeconds,
@@ -212,6 +215,7 @@ async function update(patch, { updatedBy } = {}) {
     shift: { ...cache.shift, ...patch.shift },
     retention: { ...cache.retention, ...patch.retention },
     leave: { allowances: { ...cache.leave.allowances, ...(patch.leave?.allowances || {}) } },
+    security: { ...cache.security, ...patch.security },
     payroll: { ...cache.payroll, ...patch.payroll },
     company: { ...cache.company, ...patch.company },
     payslip: payslipTemplate.merge(cache.payslip, patch.payslip),

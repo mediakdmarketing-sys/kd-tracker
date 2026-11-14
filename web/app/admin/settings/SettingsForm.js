@@ -53,6 +53,7 @@ export default function SettingsForm({ initial, showPayroll = true }) {
     allowances: Object.fromEntries(
       ALLOWANCE_TYPES.map(([type]) => [type, initial.leave?.allowances?.[type] == null ? '' : String(initial.leave.allowances[type])])
     ),
+    requireAdmin2fa: Boolean(initial.security?.requireAdmin2fa),
     workdayStart: toClock(initial.shift.workdayStartMinutes),
     workdayEnd: toClock(initial.shift.workdayEndMinutes),
     retentionDays: initial.retention.days,
@@ -104,6 +105,7 @@ export default function SettingsForm({ initial, showPayroll = true }) {
           workdayStartMinutes: fromClock(form.workdayStart),
           workdayEndMinutes: fromClock(form.workdayEnd),
         },
+        security: { requireAdmin2fa: form.requireAdmin2fa },
         leave: {
           allowances: Object.fromEntries(
             ALLOWANCE_TYPES.map(([type]) => [type, form.allowances[type].trim() === '' ? null : Number(form.allowances[type])])
@@ -249,6 +251,27 @@ export default function SettingsForm({ initial, showPayroll = true }) {
             hint="Windows only. 0 = off. The person is warned first, and the break ends when the camera comes on or the meeting ends. Break time is not paid, so turn this on knowingly."
           />
         </div>
+      </div>
+
+      <div className="card card-pad">
+        <div style={{ fontWeight: 650, fontSize: 14, marginBottom: 4 }}>Sign-in security</div>
+        <label className="inline" style={{ gap: 8, cursor: busy ? 'default' : 'pointer', alignItems: 'flex-start' }}>
+          <input
+            type="checkbox"
+            checked={form.requireAdmin2fa}
+            disabled={busy}
+            onChange={(e) => set('requireAdmin2fa', e.target.checked)}
+            style={{ marginTop: 3 }}
+          />
+          <span>
+            Require two-step sign-in for every admin
+            <span className="faint" style={{ display: 'block', fontSize: 13 }}>
+              Admins then sign in with a code from an authenticator app as well as their password. An admin who has not set it
+              up yet can only open their Security page until they have. Set it up for your own account first. Employees and team
+              leaders can use it too, but it is not required of them.
+            </span>
+          </span>
+        </label>
       </div>
 
       <div className="card card-pad">

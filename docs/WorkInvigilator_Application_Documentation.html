@@ -1,0 +1,1936 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>WorkInvigilator – Full Application Documentation</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', Arial, sans-serif; font-size: 13px; color: #1a1a2e; background: #fff; line-height: 1.65; }
+
+  /* ---- COVER PAGE ---- */
+  .cover { page-break-after: always; min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); color: #fff; text-align: center; padding: 60px 40px; }
+  .cover-logo { width: 80px; height: 80px; background: #e94560; border-radius: 20px; display: flex; align-items: center; justify-content: center; font-size: 36px; margin-bottom: 32px; }
+  .cover h1 { font-size: 42px; font-weight: 700; letter-spacing: -1px; margin-bottom: 12px; }
+  .cover .subtitle { font-size: 18px; color: #a0aec0; margin-bottom: 40px; }
+  .cover-meta { display: flex; gap: 40px; margin-top: 20px; }
+  .cover-meta-item { text-align: center; }
+  .cover-meta-item .label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #718096; margin-bottom: 4px; }
+  .cover-meta-item .value { font-size: 14px; font-weight: 600; }
+  .cover-divider { width: 60px; height: 3px; background: #e94560; border-radius: 2px; margin: 32px auto; }
+  .cover-desc { max-width: 540px; font-size: 14px; color: #cbd5e0; line-height: 1.7; }
+  .cover-badges { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 32px; }
+  .badge { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 20px; padding: 5px 14px; font-size: 12px; color: #e2e8f0; }
+
+  /* ---- TOC ---- */
+  .toc-page { page-break-after: always; padding: 60px 60px 40px; }
+  .toc-page h2 { font-size: 28px; font-weight: 700; color: #0f3460; margin-bottom: 8px; }
+  .toc-page .toc-sub { font-size: 13px; color: #718096; margin-bottom: 36px; }
+  .toc-section { margin-bottom: 24px; }
+  .toc-section-title { font-size: 12px; text-transform: uppercase; letter-spacing: 1.5px; color: #e94560; font-weight: 600; margin-bottom: 10px; border-bottom: 1px solid #f0f0f0; padding-bottom: 6px; }
+  .toc-item { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px dotted #e2e8f0; font-size: 13px; }
+  .toc-item a { color: #1a1a2e; text-decoration: none; }
+  .toc-item .toc-pg { color: #718096; font-size: 12px; }
+
+  /* ---- CONTENT ---- */
+  .page-section { padding: 50px 60px; page-break-before: always; }
+  .page-section:first-of-type { page-break-before: avoid; }
+
+  h1.section-title { font-size: 32px; font-weight: 700; color: #0f3460; margin-bottom: 8px; border-bottom: 3px solid #e94560; padding-bottom: 14px; margin-bottom: 28px; }
+  h2.sub-title { font-size: 20px; font-weight: 700; color: #16213e; margin: 32px 0 14px; }
+  h3.sub-sub { font-size: 15px; font-weight: 600; color: #0f3460; margin: 24px 0 10px; }
+  h4.mini-head { font-size: 13px; font-weight: 600; color: #2d3748; margin: 16px 0 8px; }
+  p { margin-bottom: 12px; color: #2d3748; }
+  ul, ol { margin: 0 0 14px 20px; }
+  li { margin-bottom: 5px; color: #2d3748; }
+
+  /* ---- TABLES ---- */
+  .data-table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; font-size: 12px; }
+  .data-table th { background: #0f3460; color: #fff; padding: 9px 12px; text-align: left; font-weight: 600; font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase; }
+  .data-table td { padding: 8px 12px; border-bottom: 1px solid #edf2f7; vertical-align: top; }
+  .data-table tr:nth-child(even) td { background: #f7fafc; }
+  .data-table tr:hover td { background: #ebf8ff; }
+
+  /* ---- CALLOUT BOXES ---- */
+  .callout { border-left: 4px solid; padding: 14px 16px; border-radius: 0 8px 8px 0; margin: 16px 0; font-size: 13px; }
+  .callout.info { border-color: #3182ce; background: #ebf8ff; }
+  .callout.warn { border-color: #d69e2e; background: #fffaf0; }
+  .callout.success { border-color: #38a169; background: #f0fff4; }
+  .callout.danger { border-color: #e53e3e; background: #fff5f5; }
+  .callout strong { display: block; margin-bottom: 4px; }
+
+  /* ---- FLOW DIAGRAMS (text-based) ---- */
+  .flow-box { background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin: 16px 0; font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.8; color: #2d3748; overflow-x: auto; }
+
+  /* ---- PILL TAGS ---- */
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; margin: 1px; }
+  .pill-blue { background: #bee3f8; color: #2a69ac; }
+  .pill-green { background: #c6f6d5; color: #22543d; }
+  .pill-red { background: #fed7d7; color: #742a2a; }
+  .pill-orange { background: #feebc8; color: #744210; }
+  .pill-purple { background: #e9d8fd; color: #553c9a; }
+  .pill-gray { background: #edf2f7; color: #4a5568; }
+
+  /* ---- GRID CARDS ---- */
+  .card-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin: 16px 0; }
+  .card { border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 18px; background: #fff; }
+  .card h4 { font-size: 13px; font-weight: 700; color: #0f3460; margin-bottom: 8px; }
+  .card p { font-size: 12px; color: #4a5568; margin: 0; }
+
+  /* ---- STEP LIST ---- */
+  .steps { list-style: none; margin: 0 0 20px; padding: 0; counter-reset: step; }
+  .steps li { counter-increment: step; display: flex; align-items: flex-start; gap: 14px; margin-bottom: 14px; }
+  .steps li::before { content: counter(step); min-width: 28px; height: 28px; background: #0f3460; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+  .steps li .step-body { flex: 1; }
+  .steps li .step-title { font-weight: 600; font-size: 13px; color: #16213e; }
+  .steps li .step-desc { font-size: 12px; color: #4a5568; margin-top: 3px; }
+
+  /* ---- SECTION HEADER BADGE ---- */
+  .section-num { display: inline-block; background: #e94560; color: #fff; border-radius: 6px; padding: 2px 10px; font-size: 12px; font-weight: 700; margin-bottom: 10px; }
+
+  /* ---- API ENDPOINT ---- */
+  .endpoint { display: flex; gap: 10px; align-items: flex-start; padding: 7px 10px; border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 6px; font-size: 12px; }
+  .method { padding: 2px 7px; border-radius: 4px; font-weight: 700; font-size: 10px; min-width: 44px; text-align: center; }
+  .method.get { background: #c6f6d5; color: #22543d; }
+  .method.post { background: #bee3f8; color: #2a69ac; }
+  .method.patch { background: #feebc8; color: #744210; }
+  .method.delete { background: #fed7d7; color: #742a2a; }
+  .endpoint-path { font-family: 'Courier New', monospace; color: #2d3748; font-weight: 600; }
+  .endpoint-desc { color: #718096; }
+
+  /* ---- PRINT ---- */
+  @media print {
+    body { font-size: 11px; }
+    .page-section { padding: 40px 50px; }
+    .cover { min-height: 100vh; }
+    h1.section-title { font-size: 26px; }
+    .card-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════════
+     COVER PAGE
+══════════════════════════════════════════════════════════════ -->
+<div class="cover">
+  <div class="cover-logo">👁</div>
+  <h1>WorkInvigilator</h1>
+  <div class="subtitle">KD Tracker — Full Application Documentation</div>
+  <div class="cover-divider"></div>
+  <p class="cover-desc">
+    A comprehensive technical and functional reference for the WorkInvigilator disclosed
+    workplace monitoring platform — covering architecture, workflows, database schema,
+    API surface, and all user-facing features.
+  </p>
+  <div class="cover-badges">
+    <span class="badge">Node.js + Express</span>
+    <span class="badge">Next.js 14 App Router</span>
+    <span class="badge">SQLite / PostgreSQL</span>
+    <span class="badge">Electron Desktop Agent</span>
+    <span class="badge">Android Agent</span>
+    <span class="badge">JWT Auth + 2FA</span>
+    <span class="badge">S3 / Local Storage</span>
+  </div>
+  <div class="cover-meta" style="margin-top: 48px;">
+    <div class="cover-meta-item"><div class="label">Version</div><div class="value">1.0</div></div>
+    <div class="cover-meta-item"><div class="label">Date</div><div class="value">November 2026</div></div>
+    <div class="cover-meta-item"><div class="label">Status</div><div class="value">Production</div></div>
+    <div class="cover-meta-item"><div class="label">Audience</div><div class="value">Developers · HR · Ops</div></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     TABLE OF CONTENTS
+══════════════════════════════════════════════════════════════ -->
+<div class="toc-page">
+  <h2>Table of Contents</h2>
+  <p class="toc-sub">Complete reference documentation with workflows and architecture</p>
+
+  <div class="toc-section">
+    <div class="toc-section-title">Overview</div>
+    <div class="toc-item"><a href="#s1">1. What is WorkInvigilator?</a></div>
+    <div class="toc-item"><a href="#s2">2. System Architecture</a></div>
+    <div class="toc-item"><a href="#s3">3. Technology Stack</a></div>
+  </div>
+
+  <div class="toc-section">
+    <div class="toc-section-title">Backend</div>
+    <div class="toc-item"><a href="#s4">4. Database Schema — All Tables</a></div>
+    <div class="toc-item"><a href="#s5">5. API Reference — All Routes</a></div>
+    <div class="toc-item"><a href="#s6">6. Scheduled Jobs &amp; Cron</div>
+    <div class="toc-item"><a href="#s7">7. Configuration &amp; Environment Variables</a></div>
+  </div>
+
+  <div class="toc-section">
+    <div class="toc-section-title">Authentication &amp; Security</div>
+    <div class="toc-item"><a href="#s8">8. Authentication Flow</a></div>
+    <div class="toc-item"><a href="#s9">9. Two-Factor Authentication</a></div>
+    <div class="toc-item"><a href="#s10">10. Session Management</a></div>
+    <div class="toc-item"><a href="#s11">11. Consent System</a></div>
+  </div>
+
+  <div class="toc-section">
+    <div class="toc-section-title">Core Workflows</div>
+    <div class="toc-item"><a href="#s12">12. Attendance — Punch In / Out / Break Workflow</a></div>
+    <div class="toc-item"><a href="#s13">13. Capture Pipeline — Screenshots, Audio, Activity</a></div>
+    <div class="toc-item"><a href="#s14">14. Leave Management Workflow</a></div>
+    <div class="toc-item"><a href="#s15">15. Payroll Generation Workflow</a></div>
+    <div class="toc-item"><a href="#s16">16. Attendance Corrections Workflow</a></div>
+    <div class="toc-item"><a href="#s17">17. Offline Resilience &amp; Outbox Queue</a></div>
+  </div>
+
+  <div class="toc-section">
+    <div class="toc-section-title">Components</div>
+    <div class="toc-item"><a href="#s18">18. Web Portal — All Pages by Role</a></div>
+    <div class="toc-item"><a href="#s19">19. Desktop Agent — Internal Architecture</a></div>
+    <div class="toc-item"><a href="#s20">20. Android Agent</a></div>
+    <div class="toc-item"><a href="#s21">21. BFF Proxy Architecture</a></div>
+  </div>
+
+  <div class="toc-section">
+    <div class="toc-section-title">Administration</div>
+    <div class="toc-item"><a href="#s22">22. Roles &amp; Permissions</a></div>
+    <div class="toc-item"><a href="#s23">23. Departments &amp; Leaders</a></div>
+    <div class="toc-item"><a href="#s24">24. Projects &amp; Time Tracking</a></div>
+    <div class="toc-item"><a href="#s25">25. Audit Log</a></div>
+    <div class="toc-item"><a href="#s26">26. Notifications</a></div>
+    <div class="toc-item"><a href="#s27">27. Branding &amp; Company Calendar</a></div>
+    <div class="toc-item"><a href="#s28">28. Data Retention &amp; Purge Policy</a></div>
+  </div>
+
+  <div class="toc-section">
+    <div class="toc-section-title">Deployment</div>
+    <div class="toc-item"><a href="#s29">29. Deployment &amp; Infrastructure</a></div>
+    <div class="toc-item"><a href="#s30">30. GitHub Actions CI/CD</a></div>
+  </div>
+</div>
+
+<!-- ══════ SECTION 1: WHAT IS WORKINVIGILATOR ══════ -->
+<div class="page-section" id="s1">
+  <div class="section-num">01</div>
+  <h1 class="section-title">What is WorkInvigilator?</h1>
+
+  <p>WorkInvigilator (internally codenamed <strong>kd-tracker</strong>) is a <strong>disclosed workplace monitoring and HR management platform</strong> built for remote work-from-home teams. The word "disclosed" is central to its design — employees are always aware they are being monitored, must provide explicit consent before any capture begins, and see a visible tray icon at all times while the desktop agent is running.</p>
+
+  <p>The platform was designed for KD Marketing, a company whose remote employees are distributed across multiple time zones. It solves four problems simultaneously: attendance accountability, productivity visibility, payroll accuracy, and HR compliance.</p>
+
+  <h2 class="sub-title">Core Capabilities</h2>
+  <div class="card-grid">
+    <div class="card">
+      <h4>⏱ Attendance Tracking</h4>
+      <p>Punch in/out with break management, 9-hour shift targets, idle detection, auto-close for forgotten shifts, and attendance correction requests.</p>
+    </div>
+    <div class="card">
+      <h4>📸 Capture Pipeline</h4>
+      <p>Randomised screenshots of all displays, periodic audio samples (consent-gated), keystroke/mouse counts and active window title — all with a 31-day retention policy.</p>
+    </div>
+    <div class="card">
+      <h4>💰 Payroll</h4>
+      <p>Monthly payroll generation with daily rates, bonuses, paid leave, company holiday pay, idle deduction option, payslip PDF generation and email delivery via Resend.</p>
+    </div>
+    <div class="card">
+      <h4>🏖 Leave Management</h4>
+      <p>Sick, bereavement, personal, emergency, and vacation leave — with half-day support, proof document upload, approval workflow, and payroll integration.</p>
+    </div>
+    <div class="card">
+      <h4>🏢 Department Hierarchy</h4>
+      <p>First-class departments with assigned leaders. Leaders can view their team, approve leave, and monitor live attendance — without admin-level access.</p>
+    </div>
+    <div class="card">
+      <h4>🔒 Security &amp; Consent</h4>
+      <p>JWT auth with rotating refresh tokens, TOTP 2FA, full session management, login history, consent-at-ingest-time for audio, and complete audit logging.</p>
+    </div>
+  </div>
+
+  <h2 class="sub-title">Design Principles</h2>
+  <ul>
+    <li><strong>Disclosed monitoring:</strong> Employees always know. Consent is a hard gate — the server rejects audio unless <code>consent_audio = true</code> at ingest time.</li>
+    <li><strong>Offline-first agent:</strong> Network outages do not penalise employees. Punch events and captures queue locally and are delivered with original timestamps when connectivity returns.</li>
+    <li><strong>Portable persistence:</strong> SQLite by default, PostgreSQL-ready. No SQLite-specific SQL, no floating-point money, epoch milliseconds everywhere.</li>
+    <li><strong>httpOnly cookies only:</strong> The web portal never exposes tokens to browser JavaScript. All API calls go through a BFF proxy that injects tokens server-side.</li>
+    <li><strong>Idempotent operations:</strong> Payroll regeneration overwrites via unique constraints. Scheduled jobs are safe to re-run.</li>
+    <li><strong>Least privilege:</strong> Leaders see only their department. Employees see only themselves. Audit logs record every admin access to monitoring data.</li>
+  </ul>
+</div>
+
+<!-- ══════ SECTION 2: ARCHITECTURE ══════ -->
+<div class="page-section" id="s2">
+  <div class="section-num">02</div>
+  <h1 class="section-title">System Architecture</h1>
+
+  <p>WorkInvigilator is a <strong>monorepo</strong> containing four deployable components. The backend is the single source of truth; every other component communicates with it over HTTPS REST APIs.</p>
+
+  <h2 class="sub-title">Component Overview</h2>
+  <table class="data-table">
+    <thead><tr><th>Component</th><th>Directory</th><th>Tech</th><th>Purpose</th><th>Talks To</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Backend API</strong></td><td><code>backend/</code></td><td>Node.js 20, Express 4, Knex, SQLite/PG</td><td>REST API, DB, storage, jobs, email</td><td>DB, S3/disk, Resend</td></tr>
+      <tr><td><strong>Web Portal</strong></td><td><code>web/</code></td><td>Next.js 14 App Router, React 18</td><td>HR Admin + Employee web UI, PWA</td><td>Backend (via BFF proxy)</td></tr>
+      <tr><td><strong>Desktop Agent</strong></td><td><code>desktop-agent/</code></td><td>Electron, Node.js</td><td>Employee tray app — capture and punch</td><td>Backend (direct JWT)</td></tr>
+      <tr><td><strong>Android Agent</strong></td><td><code>android-agent/</code></td><td>Android / Kotlin</td><td>Mobile agent (early stage)</td><td>Backend (planned)</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="sub-title">Architecture Diagram</h2>
+  <div class="flow-box">
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           EMPLOYEE'S COMPUTER                           │
+│                                                                         │
+│  ┌─────────────────────────────────────────────┐                       │
+│  │         Desktop Agent (Electron)            │                       │
+│  │  • Tray icon (always visible)               │                       │
+│  │  • Punch in / out / break                   │  Bearer JWT            │
+│  │  • Screenshot (random 5-10 min interval)    │──────────────────┐    │
+│  │  • Audio sample (5 min / 8 min gap)         │                  │    │
+│  │  • Keystroke + mouse counts                 │                  │    │
+│  │  • Offline outbox (SQLite queue)            │                  │    │
+│  └─────────────────────────────────────────────┘                  │    │
+└───────────────────────────────────────────────────────────────────│────┘
+                                                                    │
+┌────────────────────────────────────────┐                          │
+│        BROWSER (Employee / Admin)      │                          ▼
+│                                        │         ┌───────────────────────────┐
+│  ┌──────────────────────────────────┐  │         │   Backend API (Express)   │
+│  │   Next.js Web Portal (port 3000) │  │  BFF    │   port 4000               │
+│  │                                  │──┼────────▶│                           │
+│  │  httpOnly cookies (no JS access) │  │  proxy  │   /api/auth/*             │
+│  │  Middleware: auto token refresh  │  │         │   /api/attendance/*       │
+│  │  BFF: injects Bearer token       │  │         │   /api/screenshots        │
+│  └──────────────────────────────────┘  │         │   /api/audio              │
+└────────────────────────────────────────┘         │   /api/leave              │
+                                                   │   /api/payroll/*          │
+                                                   │   /api/admin/*            │
+                                                   │   /api/leader/*           │
+                                                   └───────────┬───────────────┘
+                                                               │
+                              ┌────────────────────┬──────────┴──────────┐
+                              ▼                    ▼                     ▼
+                       ┌─────────┐        ┌──────────────┐      ┌──────────────┐
+                       │ SQLite  │        │  File Storage│      │  Resend API  │
+                       │  (or   │        │  (local disk │      │  (Payslip    │
+                       │  PG)   │        │   or S3/R2)  │      │   emails)    │
+                       └─────────┘        └──────────────┘      └──────────────┘
+
+SCHEDULED JOBS (node-cron):
+  • Purge (daily 02:15)      → delete capture files older than 31 days
+  • Close shifts (hourly)    → auto-close shifts open > 16 hours
+  • Payroll (1st of month)   → generate monthly payroll summaries
+  • Birthdays (8am–8pm)      → send birthday notification
+  </div>
+
+  <h2 class="sub-title">Communication Patterns</h2>
+  <table class="data-table">
+    <thead><tr><th>From</th><th>To</th><th>How</th><th>Auth</th></tr></thead>
+    <tbody>
+      <tr><td>Desktop Agent</td><td>Backend</td><td>HTTPS REST (direct)</td><td>Bearer JWT (agent token pair)</td></tr>
+      <tr><td>Web Portal (browser)</td><td>Web Portal (server)</td><td>Next.js internal</td><td>httpOnly session cookies</td></tr>
+      <tr><td>Web Portal (server BFF)</td><td>Backend</td><td>HTTPS REST (server-to-server)</td><td>Bearer JWT from cookie</td></tr>
+      <tr><td>Backend jobs</td><td>Resend API</td><td>HTTPS (Resend SDK)</td><td>RESEND_API_KEY</td></tr>
+      <tr><td>Backend</td><td>S3 / R2</td><td>AWS SDK v3</td><td>S3_ACCESS_KEY / S3_SECRET_KEY</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ══════ SECTION 3: TECH STACK ══════ -->
+<div class="page-section" id="s3">
+  <div class="section-num">03</div>
+  <h1 class="section-title">Technology Stack</h1>
+
+  <div class="card-grid">
+    <div class="card">
+      <h4>Backend</h4>
+      <p><strong>Runtime:</strong> Node.js 20<br>
+      <strong>Framework:</strong> Express 4<br>
+      <strong>ORM/Query:</strong> Knex.js<br>
+      <strong>Database:</strong> SQLite (better-sqlite3) / PostgreSQL<br>
+      <strong>Auth:</strong> jsonwebtoken, bcrypt<br>
+      <strong>2FA:</strong> TOTP (otpauth)<br>
+      <strong>Validation:</strong> Zod<br>
+      <strong>Rate Limit:</strong> express-rate-limit<br>
+      <strong>Security:</strong> helmet, cors<br>
+      <strong>Email:</strong> Resend HTTP API<br>
+      <strong>Jobs:</strong> node-cron<br>
+      <strong>PDF:</strong> (payslip generation)<br>
+      <strong>Storage:</strong> AWS SDK v3 (S3 / R2 / local)</p>
+    </div>
+    <div class="card">
+      <h4>Web Portal</h4>
+      <p><strong>Framework:</strong> Next.js 14 (App Router)<br>
+      <strong>React:</strong> 18 (RSC + Client Components)<br>
+      <strong>PWA:</strong> manifest.json, service worker<br>
+      <strong>Fonts:</strong> Plus Jakarta Sans, Inter (self-hosted)<br>
+      <strong>Session:</strong> httpOnly cookies (3 cookies)<br>
+      <strong>API calls:</strong> BFF proxy (/bff/api/...)<br>
+      <strong>Auth middleware:</strong> Next.js middleware.js<br>
+      <strong>No external UI lib:</strong> custom CSS variables</p>
+    </div>
+    <div class="card">
+      <h4>Desktop Agent</h4>
+      <p><strong>Framework:</strong> Electron (cross-platform)<br>
+      <strong>OS Support:</strong> Windows, macOS, Linux<br>
+      <strong>Local DB:</strong> better-sqlite3 (offline outbox)<br>
+      <strong>Capture:</strong> Electron desktopCapturer API<br>
+      <strong>Audio:</strong> MediaRecorder (renderer process)<br>
+      <strong>Activity:</strong> Platform-native hooks<br>
+      <strong>Update:</strong> electron-updater (auto-update)<br>
+      <strong>Build:</strong> electron-builder (NSIS/dmg/deb)</p>
+    </div>
+    <div class="card">
+      <h4>Infrastructure</h4>
+      <p><strong>CI/CD:</strong> GitHub Actions<br>
+      <strong>Agent build:</strong> build-agent.yml workflow<br>
+      <strong>Android build:</strong> build-android.yml workflow<br>
+      <strong>Scheduled:</strong> scheduled-jobs.yml<br>
+      <strong>Deploy:</strong> Vercel (web), any Node.js host (backend)<br>
+      <strong>File storage:</strong> Cloudflare R2 / AWS S3 / local<br>
+      <strong>DNS:</strong> Cloudflare (recommended)</p>
+    </div>
+  </div>
+
+  <h2 class="sub-title">Key Architecture Decisions</h2>
+  <table class="data-table">
+    <thead><tr><th>Decision</th><th>What</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td>ADR-0001</td><td>SQLite-first, Postgres-compatible schema</td><td>Small team can run on a single VPS without a DB server; schema uses no SQLite-specific features, so migration to Postgres requires only a config change</td></tr>
+      <tr><td>ADR-0004</td><td>Offline outbox with backdating</td><td>Employees' internet can drop; a network outage must not create an absence. Backdated timestamps accepted up to 4 hours; server rejects beyond that</td></tr>
+      <tr><td>ADR-0005</td><td>Multi-display capture</td><td>Each display is a separate row so a failed upload of one screen does not lose the others</td></tr>
+      <tr><td>Money as integers</td><td>All pay stored as whole cents</td><td>Floating-point arithmetic cannot sum a month of daily rates without drifting; integers are exact on both SQLite and Postgres</td></tr>
+      <tr><td>httpOnly cookies</td><td>Web portal never exposes tokens</td><td>XSS cannot steal tokens if they are never in JS scope; BFF proxy adds the Bearer header server-side</td></tr>
+      <tr><td>Consent at ingest</td><td><code>consent_verified</code> written to each audio row</td><td>Admin changing consent later cannot retroactively alter whether a past recording was legally taken</td></tr>
+      <tr><td>Employee timezone in profile</td><td>Date stored per-employee, not derived from server TZ</td><td>WFH team across timezones — "which day was this shift" must be correct per person</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ══════ SECTION 4: DATABASE SCHEMA ══════ -->
+<div class="page-section" id="s4">
+  <div class="section-num">04</div>
+  <h1 class="section-title">Database Schema — All Tables</h1>
+
+  <p>All IDs are CHAR(36) UUID, generated in the application layer. Timestamps are <strong>epoch milliseconds</strong> (bigInteger). Dates are <strong>CHAR(10) "YYYY-MM-DD"</strong>. Enums are VARCHAR + CHECK constraint — identical on SQLite and PostgreSQL.</p>
+
+  <h2 class="sub-title">employees</h2>
+  <table class="data-table">
+    <thead><tr><th>Column</th><th>Type</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>id</td><td>CHAR(36) PK</td><td>UUID, app-generated</td></tr>
+      <tr><td>name</td><td>VARCHAR(200)</td><td>Full name</td></tr>
+      <tr><td>email</td><td>VARCHAR(255) UNIQUE</td><td>Work email, used for login</td></tr>
+      <tr><td>password_hash</td><td>VARCHAR(255) nullable</td><td>bcrypt hash; null for SSO-only accounts</td></tr>
+      <tr><td>role</td><td>VARCHAR(20)</td><td><span class="pill pill-blue">admin</span> <span class="pill pill-green">leader</span> <span class="pill pill-gray">user</span></td></tr>
+      <tr><td>department</td><td>VARCHAR(120) nullable</td><td>Name string; kept in sync with departments table</td></tr>
+      <tr><td>employee_code</td><td>VARCHAR(50) nullable</td><td>HR reference code</td></tr>
+      <tr><td>status</td><td>VARCHAR(20)</td><td><span class="pill pill-green">active</span> <span class="pill pill-red">inactive</span></td></tr>
+      <tr><td>timezone</td><td>VARCHAR(64)</td><td>IANA zone, e.g. "Asia/Kolkata". Default: "Asia/Kolkata"</td></tr>
+      <tr><td>consent_monitoring</td><td>BOOLEAN</td><td>Screenshot + activity capture gate</td></tr>
+      <tr><td>consent_audio</td><td>BOOLEAN</td><td>Microphone capture gate (server enforces this on every audio upload)</td></tr>
+      <tr><td>consent_given_at</td><td>BIGINT nullable</td><td>Epoch ms when consent was recorded</td></tr>
+      <tr><td>consent_version</td><td>VARCHAR(20) nullable</td><td>Version of the consent disclosure shown</td></tr>
+      <tr><td>totp_secret</td><td>TEXT nullable</td><td>Encrypted TOTP secret; non-null once 2FA is set up</td></tr>
+      <tr><td>totp_enabled_at</td><td>BIGINT nullable</td><td>When the first TOTP code was confirmed</td></tr>
+      <tr><td>totp_last_step</td><td>BIGINT nullable</td><td>Last 30-second step used (replay prevention)</td></tr>
+      <tr><td>recovery_codes</td><td>TEXT nullable</td><td>JSON array of hashed recovery codes</td></tr>
+      <tr><td>must_change_password</td><td>BOOLEAN</td><td>Force password change on next login</td></tr>
+      <tr><td>date_of_birth</td><td>CHAR(10) nullable</td><td>For birthday notifications</td></tr>
+      <tr><td>is_account_admin</td><td>BOOLEAN</td><td>Super-flag within admin role (payroll access)</td></tr>
+      <tr><td>created_at / updated_at</td><td>BIGINT</td><td>Epoch milliseconds</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="sub-title">attendance</h2>
+  <table class="data-table">
+    <thead><tr><th>Column</th><th>Type</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>id</td><td>CHAR(36) PK</td><td></td></tr>
+      <tr><td>employee_id</td><td>CHAR(36) FK→employees</td><td>CASCADE DELETE</td></tr>
+      <tr><td>punch_in</td><td>BIGINT</td><td>Epoch ms; may be backdated up to 4 h (offline)</td></tr>
+      <tr><td>punch_out</td><td>BIGINT nullable</td><td>null while shift is open</td></tr>
+      <tr><td>date</td><td>CHAR(10)</td><td>YYYY-MM-DD in employee's own timezone</td></tr>
+      <tr><td>total_break_seconds</td><td>INTEGER</td><td>Rolled-up sum from breaks table</td></tr>
+      <tr><td>total_worked_seconds</td><td>INTEGER nullable</td><td>(punch_out − punch_in) − breaks; filled on close</td></tr>
+      <tr><td>idle_seconds</td><td>INTEGER</td><td>Time with no keystroke/mouse input</td></tr>
+      <tr><td>status</td><td>VARCHAR(20)</td><td><span class="pill pill-green">open</span> <span class="pill pill-orange">on_break</span> <span class="pill pill-gray">closed</span></td></tr>
+      <tr><td>over_break</td><td>BOOLEAN</td><td>Breaks exceeded the allowance</td></tr>
+      <tr><td>auto_closed</td><td>BOOLEAN</td><td>Closed by the hourly sweeper, not the employee</td></tr>
+      <tr><td>needs_review</td><td>BOOLEAN</td><td>Flagged for HR attention</td></tr>
+      <tr><td>review_reason</td><td>VARCHAR(255) nullable</td><td>Why it was flagged</td></tr>
+      <tr><td>corrected</td><td>BOOLEAN</td><td>Times were edited by an approved correction request</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="sub-title">breaks</h2>
+  <table class="data-table">
+    <thead><tr><th>Column</th><th>Type</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>id</td><td>CHAR(36) PK</td><td></td></tr>
+      <tr><td>attendance_id</td><td>CHAR(36) FK→attendance</td><td>CASCADE DELETE</td></tr>
+      <tr><td>employee_id</td><td>CHAR(36) FK→employees</td><td>CASCADE DELETE</td></tr>
+      <tr><td>break_start</td><td>BIGINT</td><td>Epoch ms</td></tr>
+      <tr><td>break_end</td><td>BIGINT nullable</td><td>null while break is in progress</td></tr>
+      <tr><td>duration_seconds</td><td>INTEGER nullable</td><td>Computed on break end</td></tr>
+      <tr><td>reason</td><td>VARCHAR(60) nullable</td><td>e.g. "zoom_camera_off" for auto-breaks</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="sub-title">screenshots / audio_recordings / activity_logs</h2>
+  <table class="data-table">
+    <thead><tr><th>Column</th><th>Table</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>image_url / file_url</td><td>screenshots, audio_recordings</td><td>Storage key; NULL after 31-day purge. Row is kept permanently for audit.</td></tr>
+      <tr><td>captured_at / recorded_at / timestamp</td><td>all three</td><td>Epoch ms, in the agent's submitted time</td></tr>
+      <tr><td>date</td><td>all three</td><td>YYYY-MM-DD, employee's timezone</td></tr>
+      <tr><td>consent_verified</td><td>audio_recordings</td><td>Copied from employee record at ingest; legal proof consent existed at capture time</td></tr>
+      <tr><td>mic_muted</td><td>audio_recordings</td><td>null = unknown, false = live mic, true = muted during recording</td></tr>
+      <tr><td>file_deleted</td><td>screenshots, audio_recordings</td><td>true once the file has been purged</td></tr>
+      <tr><td>keystroke_count / mouse_count</td><td>activity_logs</td><td>Counts only — keystrokes themselves are never transmitted or stored</td></tr>
+      <tr><td>window_title</td><td>activity_logs</td><td>Active application name only (not URL bar content)</td></tr>
+      <tr><td>domain</td><td>activity_logs</td><td>Top-level domain of active browser tab (optional)</td></tr>
+      <tr><td>capture_group_id</td><td>screenshots</td><td>Groups all displays captured at the same moment</td></tr>
+      <tr><td>display_index / display_count / display_label</td><td>screenshots</td><td>Multi-display support (ADR-0005)</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="sub-title">leave_requests</h2>
+  <table class="data-table">
+    <thead><tr><th>Column</th><th>Type</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>type</td><td>VARCHAR(20)</td><td><span class="pill pill-blue">sick</span> <span class="pill pill-orange">bereavement</span> <span class="pill pill-gray">personal</span> <span class="pill pill-red">emergency</span> <span class="pill pill-green">vacation</span></td></tr>
+      <tr><td>day_part</td><td>VARCHAR(20)</td><td><span class="pill pill-gray">full</span> <span class="pill pill-blue">half_am</span> <span class="pill pill-blue">half_pm</span></td></tr>
+      <tr><td>start_date / end_date</td><td>CHAR(10)</td><td>YYYY-MM-DD inclusive range; same day for half-day requests</td></tr>
+      <tr><td>status</td><td>VARCHAR(20)</td><td><span class="pill pill-orange">pending</span> <span class="pill pill-green">approved</span> <span class="pill pill-red">rejected</span> <span class="pill pill-gray">cancelled</span></td></tr>
+      <tr><td>proof_url / proof_content_type</td><td>TEXT nullable</td><td>Uploaded proof document (JPEG/PNG/WEBP/PDF, max 5 MB)</td></tr>
+      <tr><td>reviewed_by / reviewed_at / review_note</td><td>FK / BIGINT / TEXT</td><td>Who approved/rejected, when, and why</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="sub-title">pay_rates / payroll_summary / payroll_bonuses / payroll_months</h2>
+  <table class="data-table">
+    <thead><tr><th>Table</th><th>Key Columns</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td>pay_rates</td><td>employee_id, daily_rate_cents, effective_from (YYYY-MM-DD)</td><td>Rate history — a raise is a new row, not an update. Each worked day is priced at the rate effective on that date.</td></tr>
+      <tr><td>payroll_bonuses</td><td>employee_id, month (YYYY-MM), amount_cents, reason</td><td>One-off bonuses added on top of base pay. Added after generation without needing a regenerate.</td></tr>
+      <tr><td>payroll_summary</td><td>employee_id, month — UNIQUE. base_pay_cents, priced_days, total_hours, leave_days, holiday_days, finalized_at, snapshot</td><td>Idempotent: regenerating overwrites. Snapshot = frozen payslip at finalization time.</td></tr>
+      <tr><td>payroll_months</td><td>month PK, finalized_at, finalized_by, employees, net_total_cents</td><td>One row per finalized month. Present = locked. Remove row = reopen (audited).</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="sub-title">Other Tables</h2>
+  <table class="data-table">
+    <thead><tr><th>Table</th><th>Key Purpose</th></tr></thead>
+    <tbody>
+      <tr><td>refresh_tokens</td><td>Rotating refresh token hashes (only hash stored). Session-linked after sessions migration.</td></tr>
+      <tr><td>sessions</td><td>One row per sign-in. Tracks client type, IP, device label, 2FA completion, last-seen, revoke reason.</td></tr>
+      <tr><td>login_events</td><td>Every sign-in attempt (success + failure). Tracks new devices, bad passwords, locked accounts.</td></tr>
+      <tr><td>departments</td><td>First-class department entities. id, name (UNIQUE), description.</td></tr>
+      <tr><td>projects</td><td>id, name, client, department (nullable = shared), status (active/archived)</td></tr>
+      <tr><td>project_time_entries</td><td>Segments of a shift spent on a project. start/end timestamps, duration_seconds.</td></tr>
+      <tr><td>time_corrections</td><td>Employee requests to change punch-in/out times. Original + requested times preserved for audit.</td></tr>
+      <tr><td>settings</td><td>Single row ('default'). All admin-editable capture/shift/payroll parameters.</td></tr>
+      <tr><td>company_holidays</td><td>date (UNIQUE), name. Used for payroll holiday pay and blocking punch-ins.</td></tr>
+      <tr><td>notifications</td><td>In-app notification inbox rows per recipient employee.</td></tr>
+      <tr><td>audit_logs</td><td>Every admin access to monitoring data (screenshots viewed, audio played, reports downloaded).</td></tr>
+      <tr><td>agent_connect_codes</td><td>Short-lived one-time codes for the desktop agent connect flow. Only hash stored.</td></tr>
+      <tr><td>mic_events</td><td>Microphone state change log (muted / unavailable / live). Start and end times.</td></tr>
+      <tr><td>job_runs</td><td>Log of every scheduled job execution: status, affected count, details.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ══════ SECTION 5: API REFERENCE ══════ -->
+<div class="page-section" id="s5">
+  <div class="section-num">05</div>
+  <h1 class="section-title">API Reference — All Routes</h1>
+
+  <div class="callout info"><strong>Base URL:</strong> All routes are prefixed with the backend server address. Web portal calls go through <code>/bff/api/...</code> which proxies to the backend. Desktop agent calls the backend directly.</div>
+
+  <h2 class="sub-title">Authentication — /api/auth</h2>
+  <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/api/auth/login</span><span class="endpoint-desc">Email + password sign-in. Returns accessToken, refreshToken. Rate limited.</span></div>
+  <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/api/auth/2fa/verify</span><span class="endpoint-desc">Complete 2FA login with TOTP code or recovery code using challengeToken from login.</span></div>
+  <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/api/auth/refresh</span><span class="endpoint-desc">Rotate refresh token. Returns new accessToken + refreshToken. 120-sec grace window.</span></div>
+  <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/api/auth/logout</span><span class="endpoint-desc">Revoke refresh token. Auto-puts active shift on break.</span></div>
+  <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/api/auth/logout-all</span><span class="endpoint-desc">Revoke all sessions for current user. Auth required.</span></div>
+  <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/api/auth/me</span><span class="endpoint-desc">Current user profile. Auth required.</span></div>
+  <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/api/auth/change-password</span><span class="endpoint-desc">Self-service password change. Rate limited. Auth required.</span></div>
+  <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/api/auth/agent-code</span><span class="endpoint-desc">Mint a one-time connect code for desktop agent. Auth required.</span></div>
+  <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/api/auth/agent-token</span><span class="endpoint-desc">Exchange connect code for agent token pair. Rate limited.</span></div>
+  <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/api/auth/consent</span><span class="endpoint-desc">Get consent disclosure text. Auth required.</span></div>
+  <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/api/auth/consent</span><span class="endpoint-desc">Record monitoring and/or audio consent. Auth required.</span></div>
+  <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/api/auth/security</span><span class="endpoint-desc">2FA status and current session ID. Auth required.</span></div>
+  <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/api/auth/2fa/setup</span><span class="endpoint-desc">Begin TOTP setup — returns QR code URI. Auth required.</span></div>
+  <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/api/auth/2fa/enable</span><span class="endpoint-desc">Confirm TOTP setup with first code. Auth required.</span></div>
+  <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/api/auth/2fa/disable</span><span class="endpoint-desc">Disable 2FA with password + current code. Auth required.</span></div>
+  <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/api/auth/2fa/recovery-codes</span><span class="endpoint-desc">Regenerate recovery codes. Auth required.</span></div>
+  <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/api/auth/sessions</span><span class="endpoint-desc">List active sessions. Auth required.</span></div>
+  <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/api/auth/sessions/revoke-others</span><span class="endpoint-desc">End all other sessions, keep current. Auth required.</span></div>
+  <div class="endpoint"><span class="method delete">DELETE</span><span class="endpoint-path">/api/auth/sessions/:id</span><span class="endpoint-desc">End a specific session. Auth required.</span></div>
+  <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/api/auth/login-history</span><span class="endpoint-desc">Last 50 login events. Auth required.</span></div>
+
+  <h2 class="sub-title">Attendance — /api/attendance</h2>
+  <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/api/attendance/punch-in</span><span class="endpoint-desc">Start a shift. Blocked on holidays/Sundays if enforceDayOff. Auth required.</span></div>
+  <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/api/attendance/punch-out</span><span class="endpoint-desc">End the active shift. Auth required.</span></div>
+  <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/api/attendance/break-start</span><span class="endpoint-desc">Start a break within the active shift. Auth required.</span></div>
+  <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/api/attendance/break-end</span><span class="endpoint-desc">End the active break. Auth required.</span></div>
+  <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/api/attendance/status</span><span class="endpoint-desc">Current shift state: state, shift detail, captureAllowed, audioAllowed, breakRemainingSeconds. Auth required.</span></div>
+  <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/api/attendance/history</span><span class="endpoint-desc">Own attendance history with filters. Auth required.</span></div>
+  <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/api/attendance/mic-status</span><span class="endpoint-desc">Agent reports mic state (muted/unavailable/live). Auth required.</span></div>
+
+  <h2 class="sub-title">Capture — /api/screenshots, /api/audio, /api/activity</h2>
+  <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/api/screenshots/upload</span><span class="endpoint-desc">Upload a screenshot (base64 JSON). Agent only. Rate limited. captureAllowed must be true.</span></div>
+  <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/api/screenshots</span><span class="endpoint-desc">List screenshots for a date range. Admin only.</span></div>
+  <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/api/screenshots/:id/image</span><span class="endpoint-desc">Serve screenshot file. Admin only. Audit-logged.</span></div>
+  <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/api/audio/upload</span><span class="endpoint-desc">Upload audio sample (base64 JSON). consent_audio enforced server-side.</span></div>
+  <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/api/audio/:id/file</span><span class="endpoint-desc">Stream audio file (supports Range header for seeking). Admin only. Audit-logged.</span></div>
+  <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/api/activity/log</span><span class="endpoint-desc">Log keystroke/mouse counts + window title. Auth required.</span></div>
+
+  <h2 class="sub-title">Leave — /api/leave</h2>
+  <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/api/leave</span><span class="endpoint-desc">Submit leave request. Optional proof document as base64. Auth required.</span></div>
+  <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/api/leave</span><span class="endpoint-desc">Own leave requests list. Auth required.</span></div>
+  <div class="endpoint"><span class="method patch">PATCH</span><span class="endpoint-path">/api/leave/:id/cancel</span><span class="endpoint-desc">Cancel own pending request. Auth required.</span></div>
+
+  <h2 class="sub-title">Payroll — /api/payroll</h2>
+  <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/api/payroll/generate</span><span class="endpoint-desc">Generate payroll for a month. Admin only. Idempotent — overwrites.</span></div>
+  <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/api/payroll/:month</span><span class="endpoint-desc">Get payroll summary for a month. Admin only.</span></div>
+  <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/api/payroll/:month/finalize</span><span class="endpoint-desc">Lock a month. Writes payroll_months row + snapshot. Account admin only.</span></div>
+  <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/api/payroll/:month/reopen</span><span class="endpoint-desc">Remove finalized lock (audited). Account admin only.</span></div>
+  <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/api/payroll/:month/export</span><span class="endpoint-desc">Download CSV of finalized month. Admin only.</span></div>
+  <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/api/payroll/:month/send-payslips</span><span class="endpoint-desc">Email payslips via Resend. Admin only.</span></div>
+  <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/api/payslips</span><span class="endpoint-desc">Employee's own payslip list. Auth required.</span></div>
+  <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/api/payslips/:month</span><span class="endpoint-desc">Own payslip for a month. Auth required.</span></div>
+
+  <h2 class="sub-title">Admin — /api/admin</h2>
+  <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/api/admin/dashboard</span><span class="endpoint-desc">Live board — all employees, current state. Admin only.</span></div>
+  <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/api/admin/employees</span><span class="endpoint-desc">All employees list with filters. Admin only.</span></div>
+  <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/api/admin/employees</span><span class="endpoint-desc">Create employee. Admin only.</span></div>
+  <div class="endpoint"><span class="method patch">PATCH</span><span class="endpoint-path">/api/admin/employees/:id</span><span class="endpoint-desc">Update employee (name, role, department, status, etc.). Admin only.</span></div>
+  <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/api/admin/reports</span><span class="endpoint-desc">Attendance reports with date/employee filters. Admin only.</span></div>
+  <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/api/admin/reports/csv</span><span class="endpoint-desc">Export attendance report as CSV. Admin only. Audit-logged.</span></div>
+  <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/api/admin/audit</span><span class="endpoint-desc">Audit log of admin media access. Admin only.</span></div>
+  <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/api/admin/settings</span><span class="endpoint-desc">Get current settings. Admin only.</span></div>
+  <div class="endpoint"><span class="method patch">PATCH</span><span class="endpoint-path">/api/admin/settings</span><span class="endpoint-desc">Update settings. Admin only. Running agents pick up changes within one tick.</span></div>
+  <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/api/admin/departments</span><span class="endpoint-desc">All departments. Admin only.</span></div>
+  <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/api/admin/departments</span><span class="endpoint-desc">Create department. Admin only.</span></div>
+  <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/api/admin/leave</span><span class="endpoint-desc">All leave requests with filters. Admin only.</span></div>
+  <div class="endpoint"><span class="method patch">PATCH</span><span class="endpoint-path">/api/admin/leave/:id</span><span class="endpoint-desc">Approve or reject a leave request. Admin only.</span></div>
+  <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/api/admin/corrections</span><span class="endpoint-desc">All time correction requests. Admin only.</span></div>
+  <div class="endpoint"><span class="method patch">PATCH</span><span class="endpoint-path">/api/admin/corrections/:id</span><span class="endpoint-desc">Approve or reject a correction. Admin only. Approval edits attendance.</span></div>
+
+  <h2 class="sub-title">Leader — /api/leader</h2>
+  <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/api/leader/departments</span><span class="endpoint-desc">Departments led by the caller, with member list and live counts. Leader only.</span></div>
+  <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/api/leader/members</span><span class="endpoint-desc">Live attendance board, own department only. Leader only.</span></div>
+  <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/api/leader/members/:id</span><span class="endpoint-desc">Single member detail + recent shifts. Leader only.</span></div>
+  <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/api/leader/leave</span><span class="endpoint-desc">Leave requests for own department. Leader only.</span></div>
+  <div class="endpoint"><span class="method patch">PATCH</span><span class="endpoint-path">/api/leader/leave/:id</span><span class="endpoint-desc">Approve or reject department leave. Leader only.</span></div>
+
+  <h2 class="sub-title">Other Routes</h2>
+  <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/api/config</span><span class="endpoint-desc">Capture/shift config for the desktop agent. Auth required. Polled on every status sync.</span></div>
+  <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/api/projects</span><span class="endpoint-desc">Active project list for assignment. Auth required.</span></div>
+  <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/api/notifications</span><span class="endpoint-desc">In-app notification inbox. Auth required.</span></div>
+  <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/api/notifications/:id/read</span><span class="endpoint-desc">Mark notification read. Auth required.</span></div>
+  <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/api/calendar</span><span class="endpoint-desc">Company holiday calendar. Auth required.</span></div>
+  <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/api/branding</span><span class="endpoint-desc">Company logo and branding. Auth required.</span></div>
+  <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/health</span><span class="endpoint-desc">DB liveness check. Public. Returns version, uptime, storage driver.</span></div>
+  <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/health/jobs</span><span class="endpoint-desc">Scheduled job health (last run per job). Auth required.</span></div>
+</div>
+
+<!-- ══════ SECTION 6: SCHEDULED JOBS ══════ -->
+<div class="page-section" id="s6">
+  <div class="section-num">06</div>
+  <h1 class="section-title">Scheduled Jobs &amp; Cron</h1>
+  <p>Four jobs run automatically via node-cron. Each execution is recorded in the <code>job_runs</code> table. The <code>GET /health/jobs</code> endpoint exposes the last run of each job for external monitoring. If the purge job has not run in 48 hours, the endpoint returns HTTP 503.</p>
+  <table class="data-table">
+    <thead><tr><th>Job</th><th>Cron (default)</th><th>What it does</th><th>Key behavior</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>purge</strong></td>
+        <td><code>15 2 * * *</code><br>(2:15 AM daily)</td>
+        <td>Delete capture files older than RETENTION_DAYS (default 31)</td>
+        <td>Sets <code>file_deleted = true</code>, nulls <code>image_url / file_url</code>. Rows kept permanently for audit. Deletes from both local disk and S3 if configured.</td>
+      </tr>
+      <tr>
+        <td><strong>close-shifts</strong></td>
+        <td><code>10 * * * *</code><br>(every hour :10)</td>
+        <td>Auto-close any shift open longer than SHIFT_AUTO_CLOSE_HOURS (default 16 h)</td>
+        <td>Sets <code>status = closed</code>, <code>auto_closed = true</code>, <code>needs_review = true</code>. Calculates worked seconds at close time. Does not touch breaks in progress.</td>
+      </tr>
+      <tr>
+        <td><strong>payroll</strong></td>
+        <td><code>0 3 1 * *</code><br>(3 AM on 1st of month)</td>
+        <td>Generate payroll summaries for the previous month for all active employees</td>
+        <td>Idempotent: regenerates if already present. Applies daily rates, leave days, holiday pay. Does not finalize — HR must do that manually.</td>
+      </tr>
+      <tr>
+        <td><strong>birthdays</strong></td>
+        <td><code>5 8-20 * * *</code><br>(every hour 8am–8pm)</td>
+        <td>Send birthday notifications for employees whose birthday is today (company timezone)</td>
+        <td>Writes one notification per birthday per day (idempotent — safe to repeat). Only active employees.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2 class="sub-title">Job Flow Diagram</h2>
+  <div class="flow-box">
+CRON TRIGGER
+    │
+    ▼
+jobRunner.run(jobName)
+    │
+    ├─ Create job_runs row (status = 'running')
+    │
+    ├─ Execute job logic
+    │      • purge: scan captures WHERE captured_at < cutoff → delete files → update DB
+    │      • close-shifts: SELECT open shifts > 16h → compute worked_seconds → UPDATE status
+    │      • payroll: for each active employee → aggregate attendance → compute pay → upsert
+    │      • birthdays: SELECT employees WHERE DOB = today → write notifications
+    │
+    ├─ Success: UPDATE job_runs SET status='success', affected_count=N, finished_at=now()
+    │
+    └─ Failure: UPDATE job_runs SET status='failed', details=error.message, finished_at=now()
+  </div>
+</div>
+
+<!-- ══════ SECTION 7: CONFIGURATION ══════ -->
+<div class="page-section" id="s7">
+  <div class="section-num">07</div>
+  <h1 class="section-title">Configuration &amp; Environment Variables</h1>
+  <p>All deploy-time configuration lives in <code>backend/.env</code>. Operational settings (shift targets, capture intervals) are in the <code>settings</code> database table, editable from the admin panel without a restart.</p>
+
+  <table class="data-table">
+    <thead><tr><th>Variable</th><th>Default</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td colspan="3" style="background:#f0f4ff;font-weight:700;color:#0f3460;">Database</td></tr>
+      <tr><td>DB_CLIENT</td><td>sqlite</td><td>sqlite or pg (PostgreSQL)</td></tr>
+      <tr><td>SQLITE_FILE</td><td>./data/kdtracker.sqlite3</td><td>Path to SQLite database file</td></tr>
+      <tr><td>DATABASE_URL</td><td>—</td><td>PostgreSQL connection string (when DB_CLIENT=pg)</td></tr>
+
+      <tr><td colspan="3" style="background:#f0f4ff;font-weight:700;color:#0f3460;">Authentication</td></tr>
+      <tr><td>JWT_SECRET</td><td><em>required in prod</em></td><td>Access token signing key (32+ chars in production)</td></tr>
+      <tr><td>JWT_REFRESH_SECRET</td><td><em>required in prod</em></td><td>Refresh token signing key</td></tr>
+      <tr><td>JWT_EXPIRES_IN</td><td>30m</td><td>Access token lifetime</td></tr>
+      <tr><td>JWT_REFRESH_EXPIRES_IN</td><td>14d</td><td>Refresh token lifetime</td></tr>
+      <tr><td>REFRESH_GRACE_SECONDS</td><td>120</td><td>Old refresh token stays valid this long after rotation (ADR-0004)</td></tr>
+      <tr><td>BCRYPT_ROUNDS</td><td>10</td><td>bcrypt work factor (4 in test)</td></tr>
+      <tr><td>BANK_DATA_KEY</td><td>—</td><td>32-byte hex key for encrypting bank details at rest</td></tr>
+
+      <tr><td colspan="3" style="background:#f0f4ff;font-weight:700;color:#0f3460;">Storage</td></tr>
+      <tr><td>STORAGE_DRIVER</td><td>local</td><td>local or s3</td></tr>
+      <tr><td>STORAGE_LOCAL_DIR</td><td>./storage</td><td>Base directory for local file storage</td></tr>
+      <tr><td>S3_BUCKET / S3_REGION</td><td>—</td><td>S3 / R2 bucket and region</td></tr>
+      <tr><td>S3_ACCESS_KEY / S3_SECRET_KEY</td><td>—</td><td>S3 credentials</td></tr>
+      <tr><td>S3_ENDPOINT</td><td>—</td><td>Custom endpoint for R2/MinIO/Backblaze</td></tr>
+
+      <tr><td colspan="3" style="background:#f0f4ff;font-weight:700;color:#0f3460;">Capture</td></tr>
+      <tr><td>SCREENSHOT_MIN_INTERVAL_SEC</td><td>300</td><td>Minimum screenshot interval (5 min)</td></tr>
+      <tr><td>SCREENSHOT_MAX_INTERVAL_SEC</td><td>600</td><td>Maximum screenshot interval (10 min)</td></tr>
+      <tr><td>AUDIO_SAMPLE_DURATION_SEC</td><td>300</td><td>Audio recording length (5 min)</td></tr>
+      <tr><td>AUDIO_SAMPLE_GAP_SEC</td><td>480</td><td>Silence gap after each audio sample (8 min)</td></tr>
+      <tr><td>MAX_UPLOAD_BYTES</td><td>5242880 (5 MB)</td><td>Max file size per upload</td></tr>
+
+      <tr><td colspan="3" style="background:#f0f4ff;font-weight:700;color:#0f3460;">Shift &amp; Payroll</td></tr>
+      <tr><td>SHIFT_TARGET_SECONDS</td><td>32400 (9 h)</td><td>Target shift length</td></tr>
+      <tr><td>BREAK_ALLOWANCE_SECONDS</td><td>3600 (1 h)</td><td>Total allowed break time per shift</td></tr>
+      <tr><td>IDLE_THRESHOLD_SECONDS</td><td>600 (10 min)</td><td>Inactivity before marking as idle</td></tr>
+      <tr><td>SHIFT_AUTO_CLOSE_HOURS</td><td>16</td><td>Auto-close open shifts after this many hours</td></tr>
+      <tr><td>ZOOM_CAMERA_BREAK_MINUTES</td><td>0</td><td>Minutes camera-off in Zoom triggers auto-break (0 = disabled)</td></tr>
+      <tr><td>PAYROLL_DEDUCT_IDLE</td><td>false</td><td>Deduct idle seconds from paid hours</td></tr>
+      <tr><td>PAYROLL_PAID_LEAVE_TYPES</td><td>vacation</td><td>Comma-separated leave types that count as paid days</td></tr>
+      <tr><td>PAYROLL_WORK_DAYS</td><td>1,2,3,4,5</td><td>Working weekdays (0=Sun … 6=Sat)</td></tr>
+
+      <tr><td colspan="3" style="background:#f0f4ff;font-weight:700;color:#0f3460;">Email (Resend)</td></tr>
+      <tr><td>RESEND_API_KEY</td><td>—</td><td>Resend API key for payslip email delivery</td></tr>
+      <tr><td>MAIL_FROM</td><td>—</td><td>"Name &lt;address@verified-domain&gt;" — must be on a Resend-verified domain</td></tr>
+      <tr><td>PUBLIC_API_URL</td><td>—</td><td>Public URL of this API (for email logo links)</td></tr>
+
+      <tr><td colspan="3" style="background:#f0f4ff;font-weight:700;color:#0f3460;">Server</td></tr>
+      <tr><td>PORT</td><td>4000</td><td>HTTP port</td></tr>
+      <tr><td>CORS_ORIGINS</td><td>http://localhost:3000</td><td>Comma-separated allowed browser origins</td></tr>
+      <tr><td>APP_TIMEZONE</td><td>America/New_York</td><td>Company timezone for the live dashboard and notifications</td></tr>
+      <tr><td>NODE_ENV</td><td>development</td><td>production / development / test</td></tr>
+      <tr><td>ENFORCE_DAY_OFF</td><td>true (prod)</td><td>Block punch-ins on Sundays and company holidays</td></tr>
+      <tr><td>RETENTION_DAYS</td><td>31</td><td>Days before capture files are purged</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ══════ SECTION 8: AUTH FLOW ══════ -->
+<div class="page-section" id="s8">
+  <div class="section-num">08</div>
+  <h1 class="section-title">Authentication Flow</h1>
+
+  <h2 class="sub-title">Web Portal Login Flow</h2>
+  <ol class="steps">
+    <li>
+      <div class="step-body">
+        <div class="step-title">Employee submits email + password at /login</div>
+        <div class="step-desc">Browser POSTs to <code>/bff/login</code> (Next.js route handler, not the BFF proxy). Rate limited: 5 attempts per 15 minutes.</div>
+      </div>
+    </li>
+    <li>
+      <div class="step-body">
+        <div class="step-title">BFF login handler calls backend POST /api/auth/login</div>
+        <div class="step-desc">If 2FA is not enabled, backend returns <code>{ accessToken, refreshToken, expiresIn, employee }</code>. If 2FA is enabled, returns <code>{ challengeToken }</code> instead.</div>
+      </div>
+    </li>
+    <li>
+      <div class="step-body">
+        <div class="step-title">[2FA only] Employee enters TOTP code at /login/2fa</div>
+        <div class="step-desc">Browser POSTs <code>{ challengeToken, code }</code> to <code>/bff/api/auth/2fa/verify</code>. After 5 wrong codes in 15 minutes, the account is temporarily locked.</div>
+      </div>
+    </li>
+    <li>
+      <div class="step-body">
+        <div class="step-title">BFF writes three httpOnly cookies</div>
+        <div class="step-desc"><code>kd_access</code> = access token · <code>kd_refresh</code> = refresh token · <code>kd_expiry</code> = expiry epoch ms. All cookies are httpOnly, SameSite=Lax. JS cannot read them.</div>
+      </div>
+    </li>
+    <li>
+      <div class="step-body">
+        <div class="step-title">Middleware transparently refreshes the token when needed</div>
+        <div class="step-desc">On every request, middleware checks kd_expiry. If the token expires within 60 seconds, it POSTs to <code>/api/auth/refresh</code>, updates all three cookies, and patches the in-flight request so the page sees the new token — zero user action required.</div>
+      </div>
+    </li>
+    <li>
+      <div class="step-body">
+        <div class="step-title">All API calls go through the BFF proxy</div>
+        <div class="step-desc">Browser calls <code>/bff/api/...</code>. The BFF route handler reads the access token from the httpOnly cookie and adds <code>Authorization: Bearer &lt;token&gt;</code> before forwarding to the backend. Tokens are never in browser memory.</div>
+      </div>
+    </li>
+  </ol>
+
+  <h2 class="sub-title">Desktop Agent Login Flow (Connect Code)</h2>
+  <ol class="steps">
+    <li>
+      <div class="step-body">
+        <div class="step-title">Employee signs into the web portal (steps 1–4 above)</div>
+        <div class="step-desc">The web portal shows a "Connect desktop agent" button on the /download page.</div>
+      </div>
+    </li>
+    <li>
+      <div class="step-body">
+        <div class="step-title">Portal calls POST /api/auth/agent-code</div>
+        <div class="step-desc">Backend generates a random code, stores its SHA-256 hash in <code>agent_connect_codes</code>, returns the plain code. Single-use, expires in ~5 minutes.</div>
+      </div>
+    </li>
+    <li>
+      <div class="step-body">
+        <div class="step-title">Portal opens workbuddy://connect?code=... deep link</div>
+        <div class="step-desc">The Electron app registers the <code>workbuddy://</code> URI scheme. This deep link launches/focuses the agent and passes the code.</div>
+      </div>
+    </li>
+    <li>
+      <div class="step-body">
+        <div class="step-title">Agent calls POST /api/auth/agent-token with the code</div>
+        <div class="step-desc">Backend verifies the hash, marks the code used, issues a fresh <em>agent-scoped</em> token pair for that employee. The agent stores tokens in its encrypted local token store.</div>
+      </div>
+    </li>
+    <li>
+      <div class="step-body">
+        <div class="step-title">Agent uses Bearer tokens for all subsequent calls</div>
+        <div class="step-desc">The ApiClient auto-refreshes the access token on 401. If a 401 persists after refresh (account deactivated or password reset), <code>agent.markSignedOut()</code> is called — the tray icon prompts re-login.</div>
+      </div>
+    </li>
+  </ol>
+
+  <div class="flow-box">
+TOKEN LIFECYCLE:
+  Access Token  → 30 min TTL → refreshed by middleware (web) or ApiClient (agent)
+  Refresh Token → 14 day TTL → rotated on every use → old token valid for 120s grace window
+                                                        (covers lost responses in transit)
+
+SECURITY NOTES:
+  • Wrong password: rate limited (5 / 15 min)
+  • Account inactive: login returns 401 'deactivated'
+  • Token stolen + used: rotation means old token is immediately invalid
+  • 401 after refresh: session revoked → agent/portal prompts re-login
+  • Admin can revoke any session via /api/auth/sessions/:id
+  </div>
+</div>
+
+<!-- ══════ SECTION 9: 2FA ══════ -->
+<div class="page-section" id="s9">
+  <div class="section-num">09</div>
+  <h1 class="section-title">Two-Factor Authentication (TOTP)</h1>
+
+  <h2 class="sub-title">Setup Flow</h2>
+  <ol class="steps">
+    <li><div class="step-body"><div class="step-title">Employee visits /security → clicks "Set up two-step sign-in"</div><div class="step-desc">Calls POST /api/auth/2fa/setup. Backend generates a TOTP secret (encrypted before storing in employees.totp_secret), returns a QR code URI for the authenticator app.</div></div></li>
+    <li><div class="step-body"><div class="step-title">Employee scans QR code with an authenticator app (Google Authenticator, Authy, etc.)</div></div></li>
+    <li><div class="step-body"><div class="step-title">Employee enters the 6-digit code</div><div class="step-desc">Calls POST /api/auth/2fa/enable with the code. Backend verifies using the secret, records <code>totp_enabled_at</code>, and generates 10 one-time recovery codes (hashed, stored in <code>recovery_codes</code>). Recovery codes are shown once — employee must save them.</div></div></li>
+  </ol>
+
+  <h2 class="sub-title">Login with 2FA</h2>
+  <ol class="steps">
+    <li><div class="step-body"><div class="step-title">POST /api/auth/login — backend sees totp_enabled_at is set</div><div class="step-desc">Returns <code>{ challengeToken }</code> instead of tokens. The challenge token is a short-lived JWT containing the employee ID.</div></div></li>
+    <li><div class="step-body"><div class="step-title">POST /api/auth/2fa/verify with challengeToken + code (or recoveryCode)</div><div class="step-desc">Backend verifies the code against the TOTP secret. <code>totp_last_step</code> is updated to prevent code replay. After 5 wrong codes in 15 minutes → account held, further attempts rejected.</div></div></li>
+    <li><div class="step-body"><div class="step-title">Backend issues full token pair on success</div><div class="step-desc">Session is created with <code>second_factor = true</code>.</div></div></li>
+  </ol>
+
+  <div class="callout info">
+    <strong>Admin enforcement:</strong> Settings can require all admin accounts to have 2FA enabled (<code>require_admin_2fa = true</code>). An admin without 2FA is redirected to set it up on their next login.
+  </div>
+</div>
+
+<!-- ══════ SECTION 10: SESSIONS ══════ -->
+<div class="page-section" id="s10">
+  <div class="section-num">10</div>
+  <h1 class="section-title">Session Management</h1>
+
+  <p>Every sign-in creates a row in the <code>sessions</code> table. A session groups all the token rotations for one sign-in event — the session ID persists through rotations.</p>
+
+  <table class="data-table">
+    <thead><tr><th>Session Column</th><th>What it records</th></tr></thead>
+    <tbody>
+      <tr><td>client</td><td>web / desktop / chromeos / android</td></tr>
+      <tr><td>ip</td><td>IP address at sign-in</td></tr>
+      <tr><td>device_label</td><td>Human-readable "Chrome on Windows", "Safari on macOS"</td></tr>
+      <tr><td>device_hash</td><td>Fingerprint for "new device" detection</td></tr>
+      <tr><td>second_factor</td><td>Whether 2FA was completed for this session</td></tr>
+      <tr><td>last_seen_at</td><td>Updated on every token refresh</td></tr>
+      <tr><td>revoked_at / revoked_reason</td><td>logout / signed_out_other / admin / security / password</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="sub-title">What an employee can do at /security</h2>
+  <ul>
+    <li>See all active sessions with device label, IP, and last-seen time</li>
+    <li>End any individual session remotely (DELETE /api/auth/sessions/:id)</li>
+    <li>End all other sessions (POST /api/auth/sessions/revoke-others)</li>
+    <li>See the last 50 login events including failed attempts and new-device flags</li>
+    <li>Set up / disable 2FA and regenerate recovery codes</li>
+  </ul>
+</div>
+
+<!-- ══════ SECTION 11: CONSENT ══════ -->
+<div class="page-section" id="s11">
+  <div class="section-num">11</div>
+  <h1 class="section-title">Consent System</h1>
+
+  <p>Consent is a hard gate — no capture happens without it. The consent disclosure text is served from the backend (<code>GET /api/auth/consent</code>) so it cannot drift between client versions.</p>
+
+  <h2 class="sub-title">Consent Fields</h2>
+  <table class="data-table">
+    <thead><tr><th>Field</th><th>What it gates</th></tr></thead>
+    <tbody>
+      <tr><td>consent_monitoring</td><td>Screenshots and activity (keystroke/mouse) capture. Required for capture to begin.</td></tr>
+      <tr><td>consent_audio</td><td>Microphone audio recording. Separate consent, enforced server-side on every audio upload. Even if the agent sends audio, the server rejects it if this is false.</td></tr>
+      <tr><td>consent_given_at</td><td>Timestamp when consent was last updated.</td></tr>
+      <tr><td>consent_version</td><td>Version of the disclosure text the employee saw, for compliance records.</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="sub-title">Consent Enforcement Points</h2>
+  <ul>
+    <li><strong>Web portal:</strong> New employees are redirected to /consent before they can punch in. Without consent_monitoring, the punch-in call is blocked.</li>
+    <li><strong>Desktop agent:</strong> <code>captureAllowed</code> is returned by <code>GET /api/attendance/status</code>. If false, the agent stops all capture immediately and the screenshot/audio schedulers are disarmed.</li>
+    <li><strong>Audio upload:</strong> Server checks <code>employee.consent_audio</code> at ingest time and rejects with 403 if false. The <code>consent_verified</code> column on the row records the consent state at the moment of upload — an admin changing consent later cannot retroactively affect past rows.</li>
+  </ul>
+</div>
+
+<!-- ══════ SECTION 12: ATTENDANCE WORKFLOW ══════ -->
+<div class="page-section" id="s12">
+  <div class="section-num">12</div>
+  <h1 class="section-title">Attendance — Punch In / Out / Break Workflow</h1>
+
+  <h2 class="sub-title">Shift State Machine</h2>
+  <div class="flow-box">
+         [punched_out]
+              │
+              │  POST /api/attendance/punch-in
+              │  (blocked on Sundays + holidays if enforceDayOff=true)
+              │  (blocked if another open shift exists for this employee)
+              ▼
+          [working]  ◀──────────────────────────────────────────────┐
+              │                                                      │
+              │  POST /api/attendance/break-start                   │  POST /api/attendance/break-end
+              ▼                                                      │
+          [on_break] ───────────────────────────────────────────────┘
+              │
+              │  POST /api/attendance/punch-out
+              │  OR auto-close (cron, after 16+ hours)
+              │  OR logout (puts on break instead of closing)
+              ▼
+          [closed]
+
+  CONSTRAINTS:
+  • One open shift per employee (DB unique partial index)
+  • Backdating: agent can submit timestamps up to 4 hours in the past (offline resilience)
+  • Clock skew: timestamps more than 2 minutes in the future are rejected
+  • Break allowance: 1 hour total per shift (configurable). Exceeding it sets over_break=true
+  • Idle detection: no input for 10+ min → idle_seconds accumulates
+  </div>
+
+  <h2 class="sub-title">Punch-In Flow (Detailed)</h2>
+  <ol class="steps">
+    <li><div class="step-body"><div class="step-title">Employee clicks "Punch In" (web portal) or presses the button in the desktop agent</div></div></li>
+    <li><div class="step-body"><div class="step-title">POST /api/attendance/punch-in</div><div class="step-desc">Backend checks: employee active? consent_monitoring true? no existing open shift? not a holiday/Sunday (if enforceDayOff)? If all pass, creates attendance row with status=open.</div></div></li>
+    <li><div class="step-body"><div class="step-title">Response includes captureAllowed and audioAllowed</div><div class="step-desc">Desktop agent immediately starts screenshot capture and (if audioAllowed) arms the audio scheduler. First screenshot is taken immediately, not after the first random interval.</div></div></li>
+    <li><div class="step-body"><div class="step-title">Agent polls GET /api/attendance/status every tick</div><div class="step-desc">Response includes current state, worked seconds, break remaining seconds, captureAllowed. Agent updates tray icon and tooltip to reflect live state.</div></div></li>
+  </ol>
+
+  <h2 class="sub-title">Break Management</h2>
+  <table class="data-table">
+    <thead><tr><th>Scenario</th><th>What happens</th></tr></thead>
+    <tbody>
+      <tr><td>Employee starts break</td><td>POST /api/attendance/break-start → new breaks row (break_end=null) → attendance.status=on_break → capture stops</td></tr>
+      <tr><td>Employee ends break</td><td>POST /api/attendance/break-end → breaks row updated (break_end, duration_seconds) → attendance.total_break_seconds updated → status=open → capture resumes</td></tr>
+      <tr><td>Break overdue</td><td>Desktop agent computes breakDeadline from breakRemainingSeconds. When exceeded, sends a notification every few minutes until the break is ended.</td></tr>
+      <tr><td>Logout while punched in</td><td>POST /api/auth/logout calls attendance.breakOnSignOut(employeeId) — shift goes on break rather than closing.</td></tr>
+      <tr><td>Zoom camera off (Windows)</td><td>After ZOOM_CAMERA_BREAK_MINUTES of camera-off in a Zoom meeting, agent auto-calls break-start with reason="zoom_camera_off". Camera back on → break-end automatically.</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="sub-title">Idle Detection</h2>
+  <div class="flow-box">
+Agent records activity every sample interval:
+  • keystrokes, mouse clicks, window title → POST /api/activity/log
+
+Backend tracks last activity timestamp per employee.
+If (now - last_activity) > IDLE_THRESHOLD_SECONDS (default 600 = 10 min):
+  → attendance.idle_seconds incremented by idle duration
+  → If PAYROLL_DEDUCT_IDLE=true: idle_seconds deducted from paid hours at payroll generation
+
+The admin Reports page shows idle time alongside worked time per shift.
+  </div>
+</div>
+
+<!-- ══════ SECTION 13: CAPTURE PIPELINE ══════ -->
+<div class="page-section" id="s13">
+  <div class="section-num">13</div>
+  <h1 class="section-title">Capture Pipeline — Screenshots, Audio, Activity</h1>
+
+  <h2 class="sub-title">Screenshot Capture Flow</h2>
+  <div class="flow-box">
+DESKTOP AGENT — captureScreens()
+│
+├─ RandomIntervalScheduler fires (5–10 min random interval)
+│   Purpose: employees cannot predict timing → cannot stage appearance
+│
+├─ capture.screenshots() → Electron desktopCapturer.getSources({types:['screen']})
+│   Returns array of JPEG buffers, one per connected display
+│
+├─ For each display:
+│   outbox.enqueue({
+│     kind: 'screenshot',
+│     endpoint: '/api/screenshots/upload',
+│     blob: jpegBuffer,
+│     payload: {
+│       captureGroupId: uuid(),   ← groups all displays of this moment together
+│       displayIndex, displayCount, displayLabel,
+│       capturedAt, contentType: 'image/jpeg'
+│     }
+│   })
+│
+└─ Uploader drains outbox → POST /api/screenshots/upload (base64 JSON)
+
+BACKEND — POST /api/screenshots/upload
+├─ Authenticate employee, verify captureAllowed
+├─ Check MAX_UPLOAD_BYTES, validate content type
+├─ Store file: storage.save(buffer) → returns storageKey
+│   Local: writes to STORAGE_LOCAL_DIR/screenshots/YYYY/MM/DD/
+│   S3/R2: s3.putObject(bucket, key, buffer)
+├─ Insert screenshots row (image_url=storageKey, captured_at, attendance_id, ...)
+└─ Return { id, capturedAt }
+  </div>
+
+  <div class="callout info">
+    <strong>Multi-display:</strong> All displays captured at the same moment share a <code>captureGroupId</code>. The portal groups them visually. Each display is a separate DB row, so a failed upload of one display does not lose others.
+  </div>
+  <div class="callout success">
+    <strong>Blur option:</strong> Admins can enable screenshot blurring in Settings. The portal renders captured screenshots with a CSS blur filter, so HR can verify the employee was at their computer without reading sensitive content.
+  </div>
+
+  <h2 class="sub-title">Audio Capture Flow</h2>
+  <div class="flow-box">
+DESKTOP AGENT — SamplingScheduler
+│
+├─ Scheduler fires: record for AUDIO_SAMPLE_DURATION_SEC (default 300s = 5 min)
+│   Gap enforced from END of recording → next start = recordingEnd + AUDIO_SAMPLE_GAP_SEC
+│   This prevents back-to-back recording — the gap is structurally guaranteed.
+│
+├─ capture.audioSample(durationSeconds)
+│   Renderer process uses MediaRecorder API to capture microphone
+│   Returns { buffer: WebM/Opus, durationSeconds, micMuted: bool|null, contentType }
+│
+├─ micMuted checks:
+│   null = renderer couldn't determine | false = live audio | true = muted
+│   If muted → agent notifies employee + marks micReportedBad = true
+│            → Server is notified via POST /api/audio/mic-status
+│
+└─ outbox.enqueue({ kind:'audio', endpoint:'/api/audio/upload', blob, payload:{...} })
+
+BACKEND — POST /api/audio/upload
+├─ Verify consent_audio = true (server-side hard gate, regardless of agent-side state)
+├─ Write consent_verified = true to the row (snapshots the consent state at ingest time)
+├─ Store file → audio_recordings row
+└─ If micMuted = true: start a mic_events row (state='muted', started_at=recordedAt)
+   If micMuted = false: close any open mic_events row (ended_at=now)
+  </div>
+
+  <h2 class="sub-title">Activity Logging Flow</h2>
+  <div class="flow-box">
+DESKTOP AGENT — recordActivity(sample)
+│
+├─ main process reads native input hooks every N seconds
+│   • Windows: RegisterRawInputDevices
+│   • macOS:   CGEventTap
+│   • Linux:   /dev/input polling
+│
+├─ Counts: keystrokeCount (how many keys pressed, not which keys)
+│          mouseCount (click and scroll events)
+│          windowTitle (active window name, e.g. "Visual Studio Code")
+│          domain (browser tab hostname, e.g. "github.com")
+│
+└─ POST /api/activity/log → activity_logs row
+
+BACKEND: idle detection
+If the gap between consecutive activity_logs timestamps > IDLE_THRESHOLD_SECONDS:
+  → idle duration added to attendance.idle_seconds
+  → Reports show it; payroll optionally deducts it (PAYROLL_DEDUCT_IDLE)
+  </div>
+</div>
+
+<!-- ══════ SECTION 14: LEAVE MANAGEMENT ══════ -->
+<div class="page-section" id="s14">
+  <div class="section-num">14</div>
+  <h1 class="section-title">Leave Management Workflow</h1>
+
+  <h2 class="sub-title">Leave Types &amp; Rules</h2>
+  <table class="data-table">
+    <thead><tr><th>Type</th><th>Label</th><th>Proof Required</th><th>Paid (default)</th></tr></thead>
+    <tbody>
+      <tr><td>sick</td><td>Sick leave (Illness or Injury)</td><td>✅ Yes</td><td>No (configurable)</td></tr>
+      <tr><td>bereavement</td><td>Bereavement leave (Immediate Family)</td><td>✅ Yes</td><td>No (configurable)</td></tr>
+      <tr><td>personal</td><td>Personal leave</td><td>❌ Optional</td><td>No (configurable)</td></tr>
+      <tr><td>emergency</td><td>Emergency leave</td><td>✅ Yes</td><td>No (configurable)</td></tr>
+      <tr><td>vacation</td><td>Company Vacation (Paid)</td><td>❌ Optional</td><td>✅ Yes (default)</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout info"><strong>Day parts:</strong> Leave can be for a full day, half-day AM, or half-day PM. A half-day request locks start_date = end_date.</div>
+
+  <h2 class="sub-title">Leave Request Workflow</h2>
+  <div class="flow-box">
+EMPLOYEE submits at /me/leave
+│
+├─ Fills form: type, day_part (full/half_am/half_pm), start_date, end_date, reason
+│   If proof required (sick/bereavement/emergency):
+│   → Uploads JPEG/PNG/WEBP/PDF file (max 5 MB)
+│   → File read as base64 in browser → sent as proofBase64 in JSON body
+│
+├─ POST /api/leave
+│   Backend validates dates, day_part logic, file size, content type
+│   Creates leave_requests row (status=pending)
+│   Sends notification to Admin + Leader of employee's department
+│
+▼
+[Status: PENDING]
+│
+├─── ADMIN at /admin/leave   ───────────────────────────────────────────┐
+│    OR LEADER at /leader/leave (own department only)                   │
+│                                                                        │
+│    Can view: request details, reason, proof document link             │
+│    PATCH /api/admin/leave/:id  { status: 'approved' | 'rejected',    │
+│                                  reviewNote: 'optional note' }        │
+│                                                                        │
+├─── APPROVE ────────────────────────────────────────────────────────────┤
+│    → leave_requests.status = 'approved'                               │
+│    → reviewed_by, reviewed_at, review_note written                    │
+│    → Notification sent to employee                                    │
+│    → Reports/live board shows those days as "On leave"                │
+│    → Payroll: if leave type is in PAYROLL_PAID_LEAVE_TYPES             │
+│               those days count as paid leave days                     │
+│                                                                        │
+└─── REJECT ──────────────────────────────────────────────────────────── ┤
+     → leave_requests.status = 'rejected'                              │
+     → Notification sent to employee                                   │
+     → Employee can submit a new request                               │
+     ─────────────────────────────────────────────────────────────────── │
+
+EMPLOYEE can CANCEL a pending request:
+     PATCH /api/leave/:id/cancel → status = 'cancelled'
+     (Cannot cancel approved/rejected requests)
+  </div>
+
+  <h2 class="sub-title">How Approved Leave Affects Reports &amp; Payroll</h2>
+  <ul>
+    <li>Admin reports show those days as "On leave" rather than "Absent"</li>
+    <li>Live board does not show the employee as "not punched in" — their status shows "On approved leave"</li>
+    <li>Payroll generation queries leave_requests WHERE status='approved' AND type IN (paidLeaveTypes) for the month's date range → adds leave_days count to payroll_summary</li>
+    <li>Half-day leave counts as 0.5 days in payroll</li>
+  </ul>
+</div>
+
+<!-- ══════ SECTION 15: PAYROLL WORKFLOW ══════ -->
+<div class="page-section" id="s15">
+  <div class="section-num">15</div>
+  <h1 class="section-title">Payroll Generation Workflow</h1>
+
+  <h2 class="sub-title">Complete Payroll Flow</h2>
+  <div class="flow-box">
+STEP 1: HR sets pay rates
+   POST /api/admin/employees/:id/pay-rates
+   { daily_rate_cents: 350000, effective_from: '2026-11-01' }
+   → pay_rates row created (history — a raise is a new row, not an update)
+
+STEP 2: Monthly generation (automatic on 1st, or manual at any time)
+   POST /api/payroll/generate  { month: '2026-11' }
+   │
+   ├─ For each active employee:
+   │   ├─ Fetch all attendance rows for the month
+   │   ├─ Count total_hours, total_worked_seconds, total_break_seconds, idle_seconds
+   │   ├─ Count days_present (days with at least one shift)
+   │   ├─ Count days_flagged (over_break or auto_closed)
+   │   │
+   │   ├─ BASE PAY CALCULATION:
+   │   │   For each worked day → find effective pay_rate on that date
+   │   │   total_worked_seconds ≥ PAYROLL_FULL_DAY_SECONDS  → 1.0 day
+   │   │   total_worked_seconds ≥ PAYROLL_HALF_DAY_SECONDS  → 0.5 day
+   │   │   else                                             → pro-rata hours
+   │   │   base_pay_cents = SUM(priced_days × daily_rate_cents)
+   │   │
+   │   ├─ LEAVE PAY:
+   │   │   Count approved leave days in month WHERE type IN paidLeaveTypes
+   │   │   Only on PAYROLL_WORK_DAYS (default Mon-Fri), not weekends/holidays
+   │   │   leave_days × daily_rate_cents → added to base_pay
+   │   │
+   │   ├─ HOLIDAY PAY:
+   │   │   Count company_holidays in month that fall on PAYROLL_WORK_DAYS
+   │   │   holiday_days × daily_rate_cents → added to base_pay
+   │   │
+   │   ├─ IDLE DEDUCTION (if PAYROLL_DEDUCT_IDLE=true):
+   │   │   idle_seconds → converted to hours → deducted from total_hours
+   │   │
+   │   └─ UPSERT payroll_summary (employee_id, month) → overwrites if exists
+
+STEP 3: HR reviews at /admin/payroll
+   View each employee's summary: hours, days, base pay, leave days, holiday days
+   Add bonuses: POST /api/payroll/bonuses { employee_id, month, amount_cents, reason }
+   (Bonuses are added on-the-fly; no regeneration needed)
+
+STEP 4: Finalize
+   POST /api/payroll/:month/finalize
+   → Writes payroll_months row (month is now LOCKED)
+   → Writes snapshot (frozen payslip JSON) to each employee's payroll_summary row
+   → Finalized month cannot be regenerated or have bonuses changed until reopened
+
+STEP 5: Export or Email
+   GET /api/payroll/:month/export → CSV download
+   POST /api/payroll/:month/send-payslips → email PDF to each employee via Resend API
+   Employee: GET /api/payslips/:month → view own payslip
+
+STEP 6: Reopen (if corrections needed)
+   POST /api/payroll/:month/reopen → deletes payroll_months row (audited)
+   → Month is now editable again; run generate + finalize again after corrections
+  </div>
+
+  <h2 class="sub-title">Payroll Summary Fields</h2>
+  <table class="data-table">
+    <thead><tr><th>Field</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td>total_hours</td><td>Total worked hours (decimal), after idle deduction if enabled</td></tr>
+      <tr><td>total_worked_seconds</td><td>Raw worked seconds (sum of all closed shifts)</td></tr>
+      <tr><td>total_break_seconds</td><td>Total break time taken</td></tr>
+      <tr><td>total_idle_seconds</td><td>Total idle time logged</td></tr>
+      <tr><td>days_present</td><td>Number of days at least one shift was worked</td></tr>
+      <tr><td>days_flagged</td><td>Shifts that were auto-closed or had over-break</td></tr>
+      <tr><td>priced_days</td><td>Days that could be priced (had a rate on that date)</td></tr>
+      <tr><td>rate_missing_days</td><td>Days with no pay rate — HR must fix before finalizing</td></tr>
+      <tr><td>base_pay_cents</td><td>Computed base pay in whole cents (integer)</td></tr>
+      <tr><td>leave_days</td><td>Paid leave days count for the month</td></tr>
+      <tr><td>holiday_days</td><td>Company holiday days count for the month</td></tr>
+      <tr><td>finalized_at</td><td>When this row was included in a finalized payroll</td></tr>
+      <tr><td>snapshot</td><td>Frozen JSON copy of the payslip at finalization time</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ══════ SECTION 16: CORRECTIONS ══════ -->
+<div class="page-section" id="s16">
+  <div class="section-num">16</div>
+  <h1 class="section-title">Attendance Corrections Workflow</h1>
+
+  <p>An employee can request changes to a closed shift's punch-in or punch-out times, or request a whole missed shift to be added. HR approves or rejects. Only an approval touches the attendance record.</p>
+
+  <div class="flow-box">
+EMPLOYEE at /me/corrections
+│
+├─ Submits: date, requested_punch_in, requested_punch_out, reason
+│   attendance_id is nullable — null means "I forgot to punch in at all"
+│
+├─ POST /api/corrections
+│   Creates time_corrections row:
+│   { original_punch_in, original_punch_out, requested_punch_in,
+│     requested_punch_out, reason, status: 'pending' }
+│
+▼
+[Pending]
+│
+ADMIN at /admin/corrections
+│
+├─ APPROVE → PATCH /api/admin/corrections/:id  { status: 'approved', reviewNote }
+│   Backend:
+│   • If attendance_id is set: UPDATE attendance SET punch_in=requested, punch_out=requested, corrected=true
+│   • If attendance_id is null: INSERT new attendance row for that date
+│   • Recalculates total_worked_seconds
+│   • review_note, reviewed_by, reviewed_at written
+│   • Notification sent to employee
+│
+└─ REJECT → PATCH /api/admin/corrections/:id  { status: 'rejected', reviewNote }
+   • No attendance change
+   • Notification sent to employee
+
+AUDIT: original_punch_in and original_punch_out are always preserved in time_corrections.
+       The change is auditable: who requested, who approved, what it was before.
+  </div>
+</div>
+
+<!-- ══════ SECTION 17: OFFLINE RESILIENCE ══════ -->
+<div class="page-section" id="s17">
+  <div class="section-num">17</div>
+  <h1 class="section-title">Offline Resilience &amp; Outbox Queue</h1>
+
+  <div class="callout success"><strong>Design goal:</strong> An employee's broadband going down for a few hours should not create gaps in attendance records or capture uploads.</div>
+
+  <div class="flow-box">
+OUTBOX QUEUE (desktop-agent/src/core/outbox.js)
+│
+Local SQLite database on the agent machine
+│
+├─ Accepts any enqueued item immediately (never blocks)
+│   Item types: punch | screenshot | audio | activity
+│
+├─ When network is available:
+│   uploader.drain() → processes queue in order:
+│   │
+│   ├─ POST item to backend endpoint
+│   │   • punch events include the original `at` timestamp
+│   │   • captures include their `capturedAt` / `recordedAt`
+│   │
+│   ├─ Success (2xx): remove item from queue
+│   ├─ 4xx (bad request): mark item abandoned (do not retry indefinitely)
+│   └─ Network error / 5xx: leave in queue, retry after backoff
+│
+└─ agent.refreshQueueStats() called after each drain pass
+   → updates tray icon's "pending: N" display
+
+BACKEND CONTRACT (ADR-0004):
+  • punch-in with at= up to MAX_BACKDATE_HOURS (4h) in the past → accepted as backdated
+  • captures with capturedAt up to MAX_CAPTURE_AGE_DAYS (7d) in the past → accepted
+  • timestamps more than MAX_CLOCK_SKEW_SECONDS (120s) in the future → rejected (clock error)
+
+OPTIMISTIC STATE (agent while offline):
+  When a punch event is queued (network down):
+  • Agent immediately shows the optimistic state (working / on_break / punched_out)
+  • Capture starts or stops based on the optimistic state
+  • Break deadline estimated from last server figure: allowance − already-used seconds
+  • When network returns: syncStatus() corrects state from server
+  </div>
+
+  <h2 class="sub-title">Outbox Item Schema</h2>
+  <table class="data-table">
+    <thead><tr><th>Field</th><th>All items</th><th>Capture items only</th></tr></thead>
+    <tbody>
+      <tr><td>kind</td><td>punch / screenshot / audio / activity</td><td></td></tr>
+      <tr><td>endpoint</td><td>Backend API path</td><td></td></tr>
+      <tr><td>payload</td><td>JSON body fields</td><td>Includes capturedAt/recordedAt timestamp</td></tr>
+      <tr><td>at</td><td>Epoch ms when queued</td><td></td></tr>
+      <tr><td>blob</td><td>—</td><td>Binary buffer (screenshot JPEG or audio WebM)</td></tr>
+      <tr><td>blobField</td><td>—</td><td>"imageBase64" or "audioBase64" — which JSON field to populate</td></tr>
+      <tr><td>captureId</td><td>—</td><td>UUID for idempotent server-side dedup</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ══════ SECTION 18: WEB PORTAL PAGES ══════ -->
+<div class="page-section" id="s18">
+  <div class="section-num">18</div>
+  <h1 class="section-title">Web Portal — All Pages by Role</h1>
+
+  <h2 class="sub-title">Public / Pre-login</h2>
+  <table class="data-table">
+    <thead><tr><th>Route</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td>/login</td><td>Email + password sign-in. Redirects to ?next= after login.</td></tr>
+      <tr><td>/login/2fa</td><td>TOTP or recovery-code second step (shown after login if 2FA enabled)</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="sub-title">Employee (role: user)</h2>
+  <table class="data-table">
+    <thead><tr><th>Route</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td>/consent</td><td>Monitoring + audio consent disclosure. Must be accepted before first punch-in.</td></tr>
+      <tr><td>/me</td><td>Main employee page: punch in/out/break buttons, live shift clock, today's shift detail, break table.</td></tr>
+      <tr><td>/me/history</td><td>Own attendance history with date filters. Shows worked time, idle, breaks, flags per day.</td></tr>
+      <tr><td>/me/leave</td><td>Submit leave request form + view own requests + leave allowance balance.</td></tr>
+      <tr><td>/me/corrections</td><td>Submit attendance time correction requests + view status.</td></tr>
+      <tr><td>/me/payslips</td><td>View own payslips for each finalized month.</td></tr>
+      <tr><td>/me/calendar</td><td>Company holiday calendar view.</td></tr>
+      <tr><td>/download</td><td>Download desktop agent installer + connect agent deep-link button.</td></tr>
+      <tr><td>/notifications</td><td>In-app notification inbox with unread badge in sidebar.</td></tr>
+      <tr><td>/security</td><td>Sessions, 2FA setup/disable, login history, recovery codes.</td></tr>
+      <tr><td>/change-password</td><td>Self-service password change form.</td></tr>
+      <tr><td>/calendar</td><td>Shared company calendar / holidays.</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="sub-title">Leader (role: leader) — All /me pages + below</h2>
+  <table class="data-table">
+    <thead><tr><th>Route</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td>/leader</td><td>Overview of led departments — member count, live count.</td></tr>
+      <tr><td>/leader/members</td><td>Live attendance board for the leader's department(s). Shows current state per member.</td></tr>
+      <tr><td>/leader/members/:id</td><td>Single member detail — recent shifts, today's status.</td></tr>
+      <tr><td>/leader/leave</td><td>Leave requests for the leader's department. Approve / reject with optional note.</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="sub-title">Admin (role: admin) — All /me pages + below</h2>
+  <table class="data-table">
+    <thead><tr><th>Route</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td>/admin</td><td>Live board — all employees, current shift state, refreshed every 5 minutes.</td></tr>
+      <tr><td>/admin/timesheet</td><td>Live timesheet — one row per employee per day. Filter by date and department.</td></tr>
+      <tr><td>/admin/reports</td><td>Attendance reports with date/employee/department filters. CSV export (audit-logged).</td></tr>
+      <tr><td>/admin/employees</td><td>Employee list. Create, edit, deactivate employees. Set pay rates. View per-employee day detail with screenshot and audio viewer.</td></tr>
+      <tr><td>/admin/screenshots</td><td>Screenshot viewer by employee and date range. Grouped by capture moment (multi-display). Images served with blur option. Audit-logged.</td></tr>
+      <tr><td>/admin/mic-log</td><td>Microphone event log — who had mic issues, start and end times.</td></tr>
+      <tr><td>/admin/productivity</td><td>App usage breakdown — time per application/domain per employee.</td></tr>
+      <tr><td>/admin/payroll</td><td>Payroll generation, review, bonuses, finalize, CSV export, payslip email. Account admin only.</td></tr>
+      <tr><td>/admin/leave</td><td>All leave requests with filters. Approve / reject with note.</td></tr>
+      <tr><td>/admin/corrections</td><td>All attendance correction requests. Approve (edits attendance) / reject.</td></tr>
+      <tr><td>/admin/departments</td><td>Department management — create, rename, assign leaders.</td></tr>
+      <tr><td>/admin/settings</td><td>All configurable settings: shift target, break allowance, screenshot intervals, audio, retention, payroll, 2FA requirement.</td></tr>
+      <tr><td>/admin/audit</td><td>Audit log of every admin access to monitoring media.</td></tr>
+      <tr><td>/admin/dashboard</td><td>Company-wide stats dashboard.</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="sub-title">BFF Proxy Architecture</h2>
+  <div class="flow-box">
+Every browser-side API call in the web portal:
+
+  fetch('/bff/api/attendance/status')
+       │
+       ▼
+  Next.js Route: /app/bff/[...path]/route.js
+       │
+       ├─ Reads kd_access cookie from server-side cookies() store
+       │   (httpOnly — browser JS cannot read this)
+       │
+       ├─ CSRF check for mutations: Origin header must match portal's own origin
+       │
+       ├─ Builds target URL: API_BASE_URL/api/attendance/status
+       │
+       ├─ Fetches with:
+       │   Authorization: Bearer <access_token_from_cookie>
+       │   Accept-Encoding: identity  (avoid CDN compression length mismatch)
+       │   Range: (forwarded if present, for audio seeking)
+       │
+       ├─ Buffers response body (calculates correct content-length)
+       │
+       └─ Returns response to browser with original status + headers
+
+MIDDLEWARE (web/middleware.js) runs BEFORE every request:
+  ├─ Public paths (/login) → pass through
+  ├─ No refresh cookie → redirect to /login
+  ├─ Token expires within 60s → POST /api/auth/refresh
+  │   ├─ Success: update 3 cookies, patch in-flight request headers
+  │   └─ Failure: redirect to /login, clear cookies
+  └─ Token still valid → pass through
+  </div>
+</div>
+
+<!-- ══════ SECTION 19: DESKTOP AGENT ══════ -->
+<div class="page-section" id="s19">
+  <div class="section-num">19</div>
+  <h1 class="section-title">Desktop Agent — Internal Architecture</h1>
+
+  <h2 class="sub-title">Process Structure (Electron)</h2>
+  <div class="flow-box">
+Main Process (Node.js)
+│  Runs as a system tray application — no window by default
+│
+├─ Agent class (core/agent.js)
+│   Central state machine: signedIn, shiftState, captureAllowed, audioAllowed, online
+│   tick() called every second by setInterval in main/index.js
+│
+├─ ApiClient (core/apiClient.js)
+│   HTTPS requests to backend. Auto-refreshes token on 401.
+│   Calls agent.markSignedOut() if 401 persists after refresh.
+│
+├─ TokenStore (core/tokenStore.js)
+│   Encrypted local storage for access + refresh tokens.
+│   Survives process restart.
+│
+├─ Outbox (core/outbox.js)
+│   SQLite-based queue for offline punch events and captures.
+│
+├─ Uploader (core/uploader.js)
+│   Drains the outbox when online. Base64-encodes blobs. Handles retries.
+│
+├─ Capture layer (main/)
+│   screenshots.js: desktopCapturer → JPEG compress → buffer
+│   audio.js: creates hidden BrowserWindow that records via MediaRecorder
+│   activity.js: platform-native input hooks → keystroke/mouse counts
+│
+├─ Tray (main/tray.js)
+│   System tray icon, context menu (Punch In/Out, Break, Sign Out)
+│   Updates icon and tooltip with live shift state
+│
+├─ Popup window (renderer/)
+│   Small BrowserWindow shown on tray click
+│   Shows shift state, worked time, break timer, queue depth
+│
+└─ Auto-updater
+    Checks for updates on start and on a schedule
+    Downloads and installs in the background; prompts to restart
+
+Renderer Process (Chromium)
+│  Used only for audio capture (MediaRecorder API, mic access)
+│  Communicates with main via ipcMain/ipcRenderer
+  </div>
+
+  <h2 class="sub-title">Agent Tick Loop</h2>
+  <div class="flow-box">
+Every second: agent.tick()
+│
+├─ Not signed in? → return
+│
+├─ checkBreakOverdue()
+│   breakDeadline != null AND shiftState == on_break AND now > breakDeadline?
+│   → notify("breakOverdue", overdueSecs)  — repeats every BREAK_REMINDER_MS
+│
+├─ watchZoomCamera()  [Windows only, if zoomCameraBreakMinutes > 0]
+│   meetingCheck() → { inMeeting, cameraOn, supported }
+│   Camera off for > zoomCameraBreakMinutes AND working?
+│   → punch("breakStart", { reason: "zoom_camera_off" })
+│   Camera back on OR meeting ended?
+│   → punch("breakEnd")
+│
+├─ Screenshot due?  (screenshotScheduler.isDue(now))
+│   captureAllowed must be true
+│   → captureScreens() → enqueue all displays to outbox
+│   → rearm scheduler with new random interval (5–10 min)
+│
+├─ Audio start due?  (audioScheduler.shouldStart(now))
+│   audioAllowed must be true
+│   → captureAudio() → record for AUDIO_SAMPLE_DURATION_SEC → enqueue
+│   → scheduler.stopped() → next start = now + AUDIO_SAMPLE_GAP_SEC
+│
+└─ Mic check due?  (every ~1 min while audio active)
+    capture.micCheck() → { status: 'live'|'muted'|'silent'|'unavailable' }
+    Status change? → POST /api/audio/mic-status  (best effort, not queued)
+    notify("micMuted") on first detection
+  </div>
+
+  <h2 class="sub-title">Status Sync vs. Config Sync</h2>
+  <table class="data-table">
+    <thead><tr><th>Call</th><th>Endpoint</th><th>Frequency</th><th>What it updates</th></tr></thead>
+    <tbody>
+      <tr><td>syncStatus()</td><td>GET /api/attendance/status</td><td>After every punch action + periodic</td><td>shiftState, captureAllowed, audioAllowed, breakRemainingSeconds, worked time</td></tr>
+      <tr><td>syncConfig()</td><td>GET /api/config</td><td>On sign-in + each status sync</td><td>Screenshot interval, audio duration/gap, shift targets, break allowance, zoom camera setting, retention days</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout info"><strong>Live settings pickup:</strong> An admin changes the screenshot interval in Settings → agents pick it up within one tick cycle (the next periodic status sync calls syncConfig). No agent restart required.</div>
+</div>
+
+<!-- ══════ SECTION 20: ANDROID AGENT ══════ -->
+<div class="page-section" id="s20">
+  <div class="section-num">20</div>
+  <h1 class="section-title">Android Agent</h1>
+
+  <div class="callout warn">
+    <strong>Status: Early stage.</strong> The Android agent project (<code>android-agent/</code>) has a complete Gradle/Kotlin build structure in place, but source files are empty. This component is on the roadmap but not yet implemented.
+  </div>
+
+  <h2 class="sub-title">Project Structure</h2>
+  <table class="data-table">
+    <thead><tr><th>File</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td>android-agent/settings.gradle.kts</td><td>Gradle settings, app module declaration</td></tr>
+      <tr><td>android-agent/build.gradle.kts</td><td>Top-level build config</td></tr>
+      <tr><td>android-agent/app/build.gradle.kts</td><td>App module: dependencies, build types, signing</td></tr>
+      <tr><td>android-agent/app/src/main/AndroidManifest.xml</td><td>App manifest (permissions, activities)</td></tr>
+      <tr><td>.github/workflows/build-android.yml</td><td>CI workflow ready to build APK/AAB</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="sub-title">Planned Capabilities</h2>
+  <ul>
+    <li>Same punch in/out/break workflow as the desktop agent</li>
+    <li>Screenshot capture (Android screencap API)</li>
+    <li>Activity and app usage logging</li>
+    <li>Same connect-code auth flow</li>
+    <li>Offline outbox (Room database)</li>
+  </ul>
+</div>
+
+<!-- ══════ SECTION 21: BFF PROXY ══════ -->
+<div class="page-section" id="s21">
+  <div class="section-num">21</div>
+  <h1 class="section-title">BFF Proxy Architecture</h1>
+  <p>The <strong>Backend For Frontend (BFF)</strong> pattern keeps access tokens out of browser JavaScript entirely. The BFF is a Next.js Route Handler at <code>/app/bff/[...path]/route.js</code> that acts as an authenticated reverse proxy.</p>
+
+  <table class="data-table">
+    <thead><tr><th>Concern</th><th>How it's handled</th></tr></thead>
+    <tbody>
+      <tr><td>Token storage</td><td>Three httpOnly cookies: kd_access, kd_refresh, kd_expiry. Browser JS has zero access.</td></tr>
+      <tr><td>Token injection</td><td>BFF reads kd_access from Next.js cookies() store (server-side), adds Authorization: Bearer header.</td></tr>
+      <tr><td>Token refresh</td><td>Middleware runs before every request (pages and BFF calls). Refreshes transparently if token expires within 60s.</td></tr>
+      <tr><td>CSRF protection</td><td>Cookies are SameSite=Lax. BFF additionally checks Origin header on all mutating requests — must match the portal's own origin.</td></tr>
+      <tr><td>Path restriction</td><td>BFF only forwards /api/* paths. Any other path returns 404. Cannot be used as an open proxy.</td></tr>
+      <tr><td>Audio seeking</td><td>Range header forwarded through; content-range and accept-ranges headers returned. Enables HTML audio seek without re-downloading.</td></tr>
+      <tr><td>Content-length accuracy</td><td>Body buffered in full; content-length set from actual bytes. Avoids CDN compression length mismatch (compressed header + decoded body = wrong length).</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ══════ SECTION 22: ROLES & PERMISSIONS ══════ -->
+<div class="page-section" id="s22">
+  <div class="section-num">22</div>
+  <h1 class="section-title">Roles &amp; Permissions</h1>
+
+  <table class="data-table">
+    <thead><tr><th>Permission</th><th>user</th><th>leader</th><th>admin</th><th>account_admin</th></tr></thead>
+    <tbody>
+      <tr><td>Punch in/out/break (own)</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td></tr>
+      <tr><td>View own attendance, leave, payslips</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td></tr>
+      <tr><td>Submit leave request</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td></tr>
+      <tr><td>Submit correction request</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td></tr>
+      <tr><td>View own department live board</td><td>❌</td><td>✅</td><td>✅</td><td>✅</td></tr>
+      <tr><td>Approve/reject department leave</td><td>❌</td><td>✅</td><td>✅</td><td>✅</td></tr>
+      <tr><td>View all employees' attendance</td><td>❌</td><td>❌</td><td>✅</td><td>✅</td></tr>
+      <tr><td>View screenshots (audit-logged)</td><td>❌</td><td>❌</td><td>✅</td><td>✅</td></tr>
+      <tr><td>View audio recordings (audit-logged)</td><td>❌</td><td>❌</td><td>✅</td><td>✅</td></tr>
+      <tr><td>Approve/reject corrections (edits attendance)</td><td>❌</td><td>❌</td><td>✅</td><td>✅</td></tr>
+      <tr><td>Manage employees (create/edit/deactivate)</td><td>❌</td><td>❌</td><td>✅</td><td>✅</td></tr>
+      <tr><td>Manage departments &amp; projects</td><td>❌</td><td>❌</td><td>✅</td><td>✅</td></tr>
+      <tr><td>Edit settings</td><td>❌</td><td>❌</td><td>✅</td><td>✅</td></tr>
+      <tr><td>Generate payroll</td><td>❌</td><td>❌</td><td>✅</td><td>✅</td></tr>
+      <tr><td>Finalize/reopen payroll, email payslips</td><td>❌</td><td>❌</td><td>❌</td><td>✅</td></tr>
+      <tr><td>Set pay rates, bonuses</td><td>❌</td><td>❌</td><td>❌</td><td>✅</td></tr>
+      <tr><td>Super admin (multi-company)</td><td>❌</td><td>❌</td><td>❌</td><td>Super route only</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout info">
+    <strong>account_admin</strong> is a flag (<code>is_account_admin</code>) within the admin role, not a separate role value. It gates payroll finalization and pay rate management so not every HR admin can process payroll.
+  </div>
+  <div class="callout info">
+    <strong>leader</strong> scope is strictly limited to their assigned departments. API routes under <code>/api/leader/*</code> filter all queries by the calling user's department memberships.
+  </div>
+</div>
+
+<!-- ══════ SECTION 23: DEPARTMENTS ══════ -->
+<div class="page-section" id="s23">
+  <div class="section-num">23</div>
+  <h1 class="section-title">Departments &amp; Leaders</h1>
+
+  <h2 class="sub-title">How Departments Work</h2>
+  <ul>
+    <li>Departments are first-class entities in the <code>departments</code> table (id, name, description).</li>
+    <li>Each employee has a <code>department</code> VARCHAR column that stores the department name, kept in sync when HR assigns an employee to a department.</li>
+    <li>The <code>leader</code> role is assigned to individual employees. A leader can be assigned to one or more departments.</li>
+    <li>The <code>department_leaders</code> junction links leader employee IDs to department names.</li>
+    <li>All <code>/api/leader/*</code> queries filter by the calling leader's department memberships — a leader cannot see data from other departments.</li>
+  </ul>
+
+  <h2 class="sub-title">Admin Workflow for Departments</h2>
+  <ol class="steps">
+    <li><div class="step-body"><div class="step-title">Create a department at /admin/departments</div><div class="step-desc">POST /api/admin/departments { name, description }</div></div></li>
+    <li><div class="step-body"><div class="step-title">Assign employees to the department</div><div class="step-desc">PATCH /api/admin/employees/:id { department: "Sales" }</div></div></li>
+    <li><div class="step-body"><div class="step-title">Assign a leader role to an employee</div><div class="step-desc">PATCH /api/admin/employees/:id { role: "leader", leaderDepartments: ["Sales"] }</div></div></li>
+    <li><div class="step-body"><div class="step-title">Leader signs in → sees /leader with their departments</div><div class="step-desc">Leader's department list, member live counts, and leave queue are scoped to their departments.</div></div></li>
+  </ol>
+</div>
+
+<!-- ══════ SECTION 24: PROJECTS ══════ -->
+<div class="page-section" id="s24">
+  <div class="section-num">24</div>
+  <h1 class="section-title">Projects &amp; Time Tracking</h1>
+
+  <p>Projects fill the "what work drove the hours" gap. Within a shift, an employee can switch between projects, and each segment of time is recorded with a start and nullable end time — the same pattern as breaks.</p>
+
+  <h2 class="sub-title">Tables</h2>
+  <table class="data-table">
+    <thead><tr><th>Table</th><th>Key Fields</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>projects</td><td>name (UNIQUE), client, department (nullable), status (active/archived)</td><td>department=null means shared / available to everyone. Archived projects are hidden from the picker but time entries against them are preserved.</td></tr>
+      <tr><td>project_time_entries</td><td>attendance_id, employee_id, project_id (nullable), started_at, ended_at, duration_seconds</td><td>project_id=null = unassigned time. No FK on project_id — archiving a project must not sever history.</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="sub-title">How Project Switching Works</h2>
+  <div class="flow-box">
+Employee selects a project during a shift:
+  POST /api/attendance/project  { projectId: 'uuid' }
+  │
+  ├─ End current project_time_entries row (ended_at=now, duration_seconds=N)
+  │
+  └─ Create new project_time_entries row (project_id=new, started_at=now, ended_at=null)
+
+Punch-out:
+  → Closes any open project_time_entries row (ended_at=punch_out)
+
+Reports can then show:
+  "Employee X spent 3h on Project A and 2h on Project B today"
+  </div>
+</div>
+
+<!-- ══════ SECTION 25: AUDIT LOG ══════ -->
+<div class="page-section" id="s25">
+  <div class="section-num">25</div>
+  <h1 class="section-title">Audit Log</h1>
+
+  <p>Every time an admin accesses monitoring data (screenshots, audio, activity exports), a row is written to <code>audit_logs</code>. The audit log cannot be deleted or modified through the UI.</p>
+
+  <h2 class="sub-title">What Gets Logged</h2>
+  <table class="data-table">
+    <thead><tr><th>Action</th><th>When it's logged</th></tr></thead>
+    <tbody>
+      <tr><td>Screenshot viewed</td><td>GET /api/screenshots/:id/image</td></tr>
+      <tr><td>Audio played</td><td>GET /api/audio/:id/file</td></tr>
+      <tr><td>Report exported (CSV)</td><td>GET /api/admin/reports/csv</td></tr>
+      <tr><td>Payroll accessed</td><td>Payroll detail views by admin</td></tr>
+      <tr><td>Employee detail viewed</td><td>Admin opens a specific employee's monitoring data</td></tr>
+    </tbody>
+  </table>
+
+  <p>Each audit entry records: who accessed (admin employee_id), what resource, the target employee, the IP address, the timestamp. Viewable at /admin/audit.</p>
+</div>
+
+<!-- ══════ SECTION 26: NOTIFICATIONS ══════ -->
+<div class="page-section" id="s26">
+  <div class="section-num">26</div>
+  <h1 class="section-title">Notifications</h1>
+
+  <p>In-app notifications are delivered to individual employees' inboxes. Each notification has a type, message, and read status. The sidebar badge shows unread count.</p>
+
+  <h2 class="sub-title">Notification Triggers</h2>
+  <table class="data-table">
+    <thead><tr><th>Event</th><th>Recipients</th></tr></thead>
+    <tbody>
+      <tr><td>Leave request submitted</td><td>Admin + Leader of employee's department</td></tr>
+      <tr><td>Leave approved/rejected</td><td>The requesting employee</td></tr>
+      <tr><td>Correction request submitted</td><td>Admin</td></tr>
+      <tr><td>Correction approved/rejected</td><td>The requesting employee</td></tr>
+      <tr><td>Employee birthday</td><td>All employees (sent by birthday cron job)</td></tr>
+      <tr><td>System announcements</td><td>All employees (admin-initiated)</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ══════ SECTION 27: BRANDING & CALENDAR ══════ -->
+<div class="page-section" id="s27">
+  <div class="section-num">27</div>
+  <h1 class="section-title">Branding &amp; Company Calendar</h1>
+
+  <h2 class="sub-title">Branding</h2>
+  <ul>
+    <li>Admin can upload a company logo via <code>POST /api/branding/logo</code></li>
+    <li>Logo is served at <code>GET /api/branding/logo</code> and embedded in payslip emails</li>
+    <li>The <code>PUBLIC_API_URL</code> env var provides the publicly reachable URL for email clients to fetch the logo image</li>
+  </ul>
+
+  <h2 class="sub-title">Company Calendar (Holidays)</h2>
+  <ul>
+    <li>Admins manage company holidays at <code>/admin/settings</code> → Calendar tab</li>
+    <li>Each holiday: date (YYYY-MM-DD, unique), name, created_by</li>
+    <li>Holidays affect three features:
+      <ol>
+        <li><strong>Attendance:</strong> Punch-ins blocked on holidays (if ENFORCE_DAY_OFF=true)</li>
+        <li><strong>Payroll:</strong> Holidays on working days → holiday_days count → paid at daily rate</li>
+        <li><strong>Leave:</strong> Leave spanning holidays only consumes working days (not the holiday itself)</li>
+      </ol>
+    </li>
+    <li>Employees view the calendar at <code>/me/calendar</code> and <code>/calendar</code></li>
+  </ul>
+</div>
+
+<!-- ══════ SECTION 28: RETENTION ══════ -->
+<div class="page-section" id="s28">
+  <div class="section-num">28</div>
+  <h1 class="section-title">Data Retention &amp; Purge Policy</h1>
+
+  <div class="callout warn"><strong>Retention applies to files only.</strong> Database rows are never deleted by the purge job. Only the binary files (screenshot images, audio recordings) are removed after RETENTION_DAYS (default 31 days).</div>
+
+  <table class="data-table">
+    <thead><tr><th>Data Type</th><th>Retention</th><th>After purge</th></tr></thead>
+    <tbody>
+      <tr><td>Screenshot files (JPEG)</td><td>RETENTION_DAYS (default 31)</td><td>File deleted from storage. image_url=null, file_deleted=true. Row kept permanently for attendance audit.</td></tr>
+      <tr><td>Audio files (WebM)</td><td>RETENTION_DAYS (default 31)</td><td>File deleted from storage. file_url=null, file_deleted=true. Row kept permanently (includes consent_verified).</td></tr>
+      <tr><td>Activity logs</td><td>Permanent</td><td>Never deleted (no binary data, low storage cost)</td></tr>
+      <tr><td>Attendance records</td><td>Permanent</td><td>Never deleted (payroll history, legal requirement)</td></tr>
+      <tr><td>Payroll data</td><td>Permanent</td><td>Never deleted</td></tr>
+      <tr><td>Audit logs</td><td>Permanent</td><td>Never deleted</td></tr>
+      <tr><td>Leave requests</td><td>Permanent</td><td>Never deleted</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="sub-title">Purge Mechanics</h2>
+  <div class="flow-box">
+Purge job (daily 2:15 AM):
+│
+├─ Query: SELECT id, image_url FROM screenshots
+│         WHERE captured_at < (NOW - RETENTION_DAYS * 86400000)
+│           AND file_deleted = false
+│
+├─ For each row:
+│   ├─ storage.delete(image_url)   ← deletes from local disk or S3/R2
+│   └─ UPDATE screenshots SET image_url=null, file_deleted=true WHERE id=?
+│
+├─ Same process for audio_recordings
+│
+└─ job_runs row updated with affected_count = total files deleted
+  </div>
+</div>
+
+<!-- ══════ SECTION 29: DEPLOYMENT ══════ -->
+<div class="page-section" id="s29">
+  <div class="section-num">29</div>
+  <h1 class="section-title">Deployment &amp; Infrastructure</h1>
+
+  <h2 class="sub-title">Recommended Deployment Stack</h2>
+  <table class="data-table">
+    <thead><tr><th>Component</th><th>Recommended Host</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Backend API</td><td>Any Node.js host (Railway, Render, VPS, AWS EC2)</td><td>Needs persistent disk for SQLite, or use PostgreSQL for multi-instance. Set all env vars.</td></tr>
+      <tr><td>Web Portal</td><td>Vercel (primary), Netlify, or self-hosted Next.js</td><td>Set API_BASE_URL to point to backend. Set BFF_KEY for the shared secret.</td></tr>
+      <tr><td>File Storage</td><td>Cloudflare R2 (cheapest), AWS S3, MinIO, Backblaze B2</td><td>Set STORAGE_DRIVER=s3, S3_BUCKET, S3_REGION, S3_ACCESS_KEY, S3_SECRET_KEY. For R2: set S3_ENDPOINT and S3_REGION=auto.</td></tr>
+      <tr><td>Database (scale)</td><td>PostgreSQL (Neon, Supabase, AWS RDS)</td><td>Set DB_CLIENT=pg, DATABASE_URL. Run knex migrate:latest before first start.</td></tr>
+      <tr><td>Desktop Agent</td><td>GitHub Releases</td><td>Built via GitHub Actions build-agent.yml. Distributed as NSIS installer (Windows), DMG (macOS), DEB/AppImage (Linux).</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="sub-title">Backend First-Start Checklist</h2>
+  <ol class="steps">
+    <li><div class="step-body"><div class="step-title">Set all required environment variables</div><div class="step-desc">JWT_SECRET, JWT_REFRESH_SECRET (32+ chars each), DB config, STORAGE config, CORS_ORIGINS pointing to your web portal URL.</div></div></li>
+    <li><div class="step-body"><div class="step-title">Run database migrations</div><div class="step-desc"><code>node src/db/cli.js migrate:latest</code> — creates all tables from migration files in order.</div></div></li>
+    <li><div class="step-body"><div class="step-title">Create the first admin account</div><div class="step-desc"><code>node src/db/createAdmin.js</code> — creates an admin employee with the email and password you provide.</div></div></li>
+    <li><div class="step-body"><div class="step-title">Start the server</div><div class="step-desc"><code>node index.js</code> or <code>pm2 start index.js --name workinvigilator-api</code></div></div></li>
+    <li><div class="step-body"><div class="step-title">Verify health</div><div class="step-desc"><code>GET /health</code> — should return <code>{ status: "ok", database: "sqlite", ... }</code></div></div></li>
+  </ol>
+
+  <h2 class="sub-title">Web Portal First-Start Checklist</h2>
+  <ol class="steps">
+    <li><div class="step-body"><div class="step-title">Set environment variables</div><div class="step-desc">API_BASE_URL = your backend URL. BFF_KEY = shared secret. NEXTAUTH_SECRET or equivalent session secret if used.</div></div></li>
+    <li><div class="step-body"><div class="step-title">Build and deploy</div><div class="step-desc"><code>npm run build</code> then <code>npm start</code> (or deploy to Vercel via git push).</div></div></li>
+    <li><div class="step-body"><div class="step-title">Test login</div><div class="step-desc">Log in with the admin account created above. Navigate to /admin — should show the live board.</div></div></li>
+  </ol>
+
+  <h2 class="sub-title">Production Security Checklist</h2>
+  <ul>
+    <li>✅ JWT_SECRET and JWT_REFRESH_SECRET are 32+ chars and do not contain "dev-only"</li>
+    <li>✅ BANK_DATA_KEY is set (required for bank details encryption)</li>
+    <li>✅ CORS_ORIGINS is set to only your web portal's domain(s)</li>
+    <li>✅ DB is not SQLite for multi-instance deployments (or use a shared SQLite volume)</li>
+    <li>✅ STORAGE_DRIVER=s3 with a private bucket (not public)</li>
+    <li>✅ RESEND_API_KEY and MAIL_FROM set for payslip emails</li>
+    <li>✅ ENFORCE_DAY_OFF=true (default in production)</li>
+    <li>✅ HTTPS everywhere — backend behind nginx/ALB with TLS</li>
+    <li>✅ Trust proxy set (app.set('trust proxy', 1)) — already done for IP accuracy behind load balancers</li>
+    <li>✅ Consider requiring admin 2FA (settings.require_admin_2fa = true)</li>
+  </ul>
+</div>
+
+<!-- ══════ SECTION 30: CI/CD ══════ -->
+<div class="page-section" id="s30">
+  <div class="section-num">30</div>
+  <h1 class="section-title">GitHub Actions CI/CD</h1>
+
+  <table class="data-table">
+    <thead><tr><th>Workflow File</th><th>Trigger</th><th>What it builds</th></tr></thead>
+    <tbody>
+      <tr><td>build-agent.yml</td><td>Push to main / release tag</td><td>Desktop agent installers for Windows (NSIS), macOS (DMG), Linux (AppImage/DEB). Uploads to GitHub Releases.</td></tr>
+      <tr><td>build-android.yml</td><td>Push to main / release tag</td><td>Android APK/AAB (once source is implemented).</td></tr>
+      <tr><td>scheduled-jobs.yml</td><td>Cron schedule</td><td>Triggers backend maintenance jobs (purge, payroll) via authenticated HTTP call to the deployed API — useful when the backend host does not support persistent processes/cron.</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="sub-title">Desktop Agent Build Pipeline</h2>
+  <div class="flow-box">
+GitHub Actions: build-agent.yml
+│
+├─ Matrix: [windows-latest, macos-latest, ubuntu-latest]
+│
+├─ npm ci → install dependencies
+│
+├─ npm run build / electron-builder
+│   Windows → NSIS installer (.exe)
+│   macOS   → DMG (.dmg) + ZIP
+│   Linux   → AppImage + DEB
+│
+├─ Code sign (if certificates are configured in secrets)
+│
+└─ Upload artifacts to GitHub Release
+   Employees download from /download page which links to the GitHub Release asset
+  </div>
+
+  <div class="callout info">
+    <strong>Auto-update:</strong> The desktop agent uses electron-updater to check for and install new versions automatically. It polls the GitHub Releases API for new versions and downloads/installs in the background.
+  </div>
+</div>
+
+<!-- ══════ CLOSING NOTES ══════ -->
+<div class="page-section" style="background: #f7fafc;">
+  <h1 class="section-title" style="color: #0f3460; border-color: #0f3460;">Quick Reference Summary</h1>
+
+  <div class="card-grid">
+    <div class="card">
+      <h4>Backend Ports &amp; Paths</h4>
+      <p>Default port: <strong>4000</strong><br>
+      Health: <code>GET /health</code><br>
+      All APIs: <code>/api/*</code><br>
+      Config (agent): <code>GET /api/config</code></p>
+    </div>
+    <div class="card">
+      <h4>Web Portal</h4>
+      <p>Default port: <strong>3000</strong><br>
+      BFF proxy: <code>/bff/api/*</code><br>
+      Cookies: kd_access, kd_refresh, kd_expiry<br>
+      PWA: manifest.json + service worker</p>
+    </div>
+    <div class="card">
+      <h4>Shift Defaults</h4>
+      <p>Target: <strong>9 hours</strong><br>
+      Break allowance: <strong>1 hour</strong><br>
+      Idle threshold: <strong>10 minutes</strong><br>
+      Auto-close: <strong>16 hours</strong></p>
+    </div>
+    <div class="card">
+      <h4>Capture Defaults</h4>
+      <p>Screenshots: <strong>5–10 min random interval</strong><br>
+      Audio: <strong>5 min sample / 8 min gap</strong><br>
+      Max upload: <strong>5 MB per file</strong><br>
+      Retention: <strong>31 days</strong></p>
+    </div>
+    <div class="card">
+      <h4>Token Lifetimes</h4>
+      <p>Access token: <strong>30 minutes</strong><br>
+      Refresh token: <strong>14 days</strong><br>
+      Grace window: <strong>120 seconds</strong><br>
+      Agent code: <strong>~5 minutes (single-use)</strong></p>
+    </div>
+    <div class="card">
+      <h4>Leave Types</h4>
+      <p><span class="pill pill-blue">sick</span> <span class="pill pill-orange">bereavement</span> <span class="pill pill-gray">personal</span> <span class="pill pill-red">emergency</span> <span class="pill pill-green">vacation</span><br>
+      Half-day: AM / PM support<br>
+      Paid by default: <strong>vacation</strong><br>
+      Proof required: sick, bereavement, emergency</p>
+    </div>
+  </div>
+
+  <div style="text-align:center; margin-top:40px; padding: 30px; background: linear-gradient(135deg, #1a1a2e, #0f3460); border-radius: 12px; color: #fff;">
+    <div style="font-size: 28px; margin-bottom: 10px;">👁</div>
+    <div style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">WorkInvigilator</div>
+    <div style="color: #a0aec0; font-size: 13px;">Disclosed Workplace Monitoring &amp; HR Management Platform</div>
+    <div style="color: #718096; font-size: 11px; margin-top: 16px;">kd-tracker monorepo · Backend + Web Portal + Desktop Agent + Android Agent</div>
+    <div style="color: #718096; font-size: 11px; margin-top: 4px;">Documentation generated: November 2026</div>
+  </div>
+</div>
+
+</body>
+</html>

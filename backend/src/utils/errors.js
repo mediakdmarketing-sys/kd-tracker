@@ -36,6 +36,12 @@ const accountDeactivated = (message = 'Account is deactivated') =>
  */
 const passwordChangeRequired = () =>
   new ApiError(403, 'PASSWORD_CHANGE_REQUIRED', 'You must choose a new password before you continue.');
+/**
+ * HR requires two-step sign-in for admins and this admin has not set it up. Its own code so the
+ * portal can send them to the Security page instead of showing a generic "forbidden".
+ */
+const twoFactorSetupRequired = () =>
+  new ApiError(403, 'TWO_FACTOR_SETUP_REQUIRED', 'Set up two-step sign-in (Security) before you continue.');
 const notFound = (message = 'Not found') => new ApiError(404, 'NOT_FOUND', message);
 /**
  * A day nobody works (Sunday or a company holiday). Its own code, so a client can say "today is a
@@ -54,6 +60,7 @@ module.exports = {
   forbidden,
   accountDeactivated,
   passwordChangeRequired,
+  twoFactorSetupRequired,
   notFound,
   dayOff,
   conflict,

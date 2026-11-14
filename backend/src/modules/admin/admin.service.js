@@ -427,6 +427,7 @@ async function updateEmployee(id, input) {
       .where({ employee_id: id })
       .whereNull('revoked_at')
       .update({ revoked_at: t.now(), revoked_reason: 'admin' });
+    await require('../auth/sessions.service').revokeAll(id, { reason: 'admin' });
   }
 
   // Construct the response from known state rather than doing a post-update re-read. A password
@@ -671,6 +672,7 @@ async function assignLeader({ department, employeeId, assignedBy }) {
       .where({ employee_id: employeeId })
       .whereNull('revoked_at')
       .update({ revoked_at: t.now(), revoked_reason: 'admin' });
+    await require('../auth/sessions.service').revokeAll(employeeId, { reason: 'admin' });
   }
 
   try {

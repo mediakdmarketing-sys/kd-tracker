@@ -49,7 +49,7 @@ export async function call(path, { method = 'GET', body } = {}) {
   // instead, consistent with what a fresh page load already does (lib/api.js).
   // The sign-in call itself is exempt: there is no session to end, and a 401 there means
   // "wrong password" — redirecting would reload the page and swallow the error message.
-  const isLoginCall = path === '/login';
+  const isLoginCall = path === '/login' || path === '/login/verify';
   if (!isLoginCall && (res.status === 401 || (isJson && payload?.error?.code === 'ACCOUNT_DEACTIVATED'))) {
     window.location.href = '/login';
     // Never resolves: the navigation above is about to tear this page down anyway, and
@@ -59,6 +59,12 @@ export async function call(path, { method = 'GET', body } = {}) {
 
   if (isJson && payload?.error?.code === 'PASSWORD_CHANGE_REQUIRED') {
     window.location.href = '/change-password';
+    return new Promise(() => {});
+  }
+
+  // HR requires two-step sign-in for admins and this admin has not set it up.
+  if (isJson && payload?.error?.code === 'TWO_FACTOR_SETUP_REQUIRED') {
+    window.location.href = '/security?required=1';
     return new Promise(() => {});
   }
 

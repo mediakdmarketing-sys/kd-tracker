@@ -10,6 +10,9 @@ const { toBool } = require('../../utils/http');
 const logger = require('../../utils/logger');
 const passwordPolicy = require('../../utils/passwordPolicy');
 const { unauthorized, forbidden, notFound, badRequest } = require('../../utils/errors');
+const settings = require('../../services/settings');
+const sessions = require('./sessions.service');
+const twoFactor = require('./twoFactor.service');
 
 /** The disclosure shown before the first punch-in (story A-4). Versioned so a change re-prompts. */
 const CONSENT_VERSION = '1.0';
@@ -47,9 +50,11 @@ const CONSENT_DISCLOSURE = {
     'Attendance verification and payroll calculation for remote work. It is not used for individual performance ranking.',
 };
 
-function signAccessToken(employee) {
+function signAccessToken(employee, sessionId = null) {
   return jwt.sign(
-    { sub: employee.id, role: employee.role, type: 'access' },
+    // `sid` is the session this token belongs to: the server checks it on every request, so ending
+    // the session ends the token too.
+    { sub: employee.id, role: employee.role, type: 'access', ...(sessionId ? { sid: sessionId } : {}) },
     config.auth.jwtSecret,
     { expiresIn: config.auth.expiresIn, algorithm: 'HS256' }
   );
@@ -68,11 +73,12 @@ function parseDuration(spec) {
   return Number(match[1]) * mult;
 }
 
-async function issueRefreshToken(employeeId, client) {
+async function issueRefreshToken(employeeId, client, sessionId = null) {
   const token = randomToken();
   await db()('refresh_tokens').insert({
     id: uuid(),
     employee_id: employeeId,
+    session_id: sessionId,
     token_hash: sha256(token),
     client: client || null,
     expires_at: now() + parseDuration(config.auth.refreshExpiresIn),
@@ -99,6 +105,10 @@ function publicEmployee(row) {
     // choose their own before anything else.
     mustChangePassword: toBool(row.must_change_password),
     blurScreenshots: toBool(row.blur_screenshots),
+    twoFactorEnabled: Boolean(row.totp_enabled_at),
+    // HR requires two-step sign-in for admins and this admin has not set it up yet: the portal sends
+    // them to Security first, and the server refuses everything else until they have.
+    twoFactorSetupRequired: row.role === 'admin' && settings.get().security.requireAdmin2fa && !row.totp_enabled_at,
     consent: {
       monitoring: toBool(row.consent_monitoring),
       audio: toBool(row.consent_audio),
@@ -110,7 +120,31 @@ function publicEmployee(row) {
   };
 }
 
-async function login({ email, password, client }) {
+/** The session, its tokens, the history entry and (for an unfamiliar device) the alert. */
+async function completeSignIn(row, { client, info, secondFactor }) {
+  const sessionId = await sessions.createSession({ employeeId: row.id, client, info, secondFactor });
+  const event = await sessions.recordLogin({ employee: row, result: 'success', client, info, secondFactor, sessionId });
+  if (event.newDevice) await sessions.announceNewDevice(row, { device: event.device, info, client });
+
+  return {
+    accessToken: signAccessToken(row, sessionId),
+    refreshToken: await issueRefreshToken(row.id, client, sessionId),
+    expiresIn: config.auth.expiresIn,
+    employee: publicEmployee(row),
+  };
+}
+
+const CHALLENGE_TTL = '5m';
+
+/** Proof that the password step was passed, good for five minutes, only for the code step. */
+function signChallenge(row, client) {
+  return jwt.sign({ sub: row.id, type: '2fa', client: client || 'web' }, config.auth.jwtSecret, {
+    expiresIn: CHALLENGE_TTL,
+    algorithm: 'HS256',
+  });
+}
+
+async function login({ email, password, client, info }) {
   const row = await db()('employees').whereRaw('LOWER(email) = ?', [email.toLowerCase()]).first();
 
   // Same message and comparable timing whether the email is unknown or the password is wrong,
@@ -121,23 +155,58 @@ async function login({ email, password, client }) {
   }
 
   const ok = await bcrypt.compare(password, row.password_hash);
-  if (!ok) throw unauthorized('Invalid email or password');
-  if (row.status !== 'active') throw forbidden('Account is deactivated. Contact HR.');
+  if (!ok) {
+    await sessions.recordLogin({ employee: row, result: 'bad_password', client, info });
+    throw unauthorized('Invalid email or password');
+  }
+  if (row.status !== 'active') {
+    await sessions.recordLogin({ employee: row, result: 'deactivated', client, info });
+    throw forbidden('Account is deactivated. Contact HR.');
+  }
 
-  return {
-    accessToken: signAccessToken(row),
-    refreshToken: await issueRefreshToken(row.id, client),
-    expiresIn: config.auth.expiresIn,
-    employee: publicEmployee(row),
-  };
+  if (twoFactor.isOn(row)) {
+    // Only the web portal can ask for a code. Other apps sign in through it (the desktop agent's
+    // connect link), so a stolen password alone does not open a session from them either.
+    if (client && client !== 'web') {
+      throw forbidden('This account uses two-step sign-in. Sign in on the web portal, then connect the app from there.');
+    }
+    return { twoFactorRequired: true, challengeToken: signChallenge(row, client), expiresInSeconds: 300 };
+  }
+
+  return completeSignIn(row, { client, info, secondFactor: false });
 }
 
-async function refresh({ refreshToken }) {
+/** The code step of a two-step sign-in. */
+async function verifyTwoFactor({ challengeToken, code, recoveryCode, info }) {
+  let payload;
+  try {
+    payload = jwt.verify(challengeToken, config.auth.jwtSecret, { algorithms: ['HS256'] });
+  } catch {
+    throw unauthorized('This sign-in took too long. Enter your password again.');
+  }
+  if (payload.type !== '2fa') throw unauthorized('This sign-in took too long. Enter your password again.');
+
+  const row = await db()('employees').where({ id: payload.sub }).first();
+  if (!row || row.status !== 'active' || !twoFactor.isOn(row)) {
+    throw unauthorized('This sign-in took too long. Enter your password again.');
+  }
+
+  await twoFactor.checkSecondFactor(row, { code, recoveryCode }, { info, client: payload.client });
+  return completeSignIn(row, { client: payload.client, info, secondFactor: true });
+}
+
+async function refresh({ refreshToken, info }) {
   const hash = sha256(refreshToken);
   const stored = await db()('refresh_tokens').where({ token_hash: hash }).first();
 
   if (!stored) throw unauthorized('Invalid refresh token');
   if (Number(stored.expires_at) < now()) throw unauthorized('Refresh token expired');
+
+  // A session that was ended (signed out from another device, or by HR) takes its tokens with it,
+  // even one that was only just rotated and would still be inside the grace window.
+  if (stored.session_id && (await sessions.isLive(stored.session_id)) === false) {
+    throw unauthorized('This session was ended. Please sign in again.');
+  }
 
   if (stored.revoked_at) {
     // Sprint 6.5 (ADR-0004). Rotation has a race: if the server rotates and the response is
@@ -189,9 +258,17 @@ async function refresh({ refreshToken }) {
       ...(stored.revoked_at ? {} : { revoked_at: now(), revoked_reason: 'rotated' }),
     });
 
+  // Tokens from before sessions existed get one now, so they can be seen and ended like the rest.
+  let sessionId = stored.session_id;
+  if (!sessionId) {
+    sessionId = await sessions.createSession({ employeeId: employee.id, client: stored.client, info });
+  } else {
+    await sessions.touch(sessionId, info);
+  }
+
   return {
-    accessToken: signAccessToken(employee),
-    refreshToken: await issueRefreshToken(employee.id, stored.client),
+    accessToken: signAccessToken(employee, sessionId),
+    refreshToken: await issueRefreshToken(employee.id, stored.client, sessionId),
     expiresIn: config.auth.expiresIn,
     employee: publicEmployee(employee),
   };
@@ -202,12 +279,14 @@ async function logout({ refreshToken }) {
   const hash = sha256(refreshToken);
   // Who is signing out, but only for a session that is still live: a token that was already
   // signed out, expired or rotated away must not be able to start anything.
-  const live = await db()('refresh_tokens').where({ token_hash: hash }).whereNull('revoked_at').first('employee_id');
+  const live = await db()('refresh_tokens').where({ token_hash: hash }).whereNull('revoked_at').first('employee_id', 'session_id');
   // Reason 'logout', not 'rotated': signing out must take effect immediately, with no grace.
   const revoked = await db()('refresh_tokens')
     .where({ token_hash: hash })
     .whereNull('revoked_at')
     .update({ revoked_at: now(), revoked_reason: 'logout' });
+  // The token first, then its session: ending the session also ends the session's other tokens.
+  if (revoked && live?.session_id) await sessions.revoke(live.employee_id, live.session_id, 'logout');
   return { revoked, employeeId: revoked && live ? live.employee_id : null };
 }
 
@@ -216,6 +295,7 @@ async function logoutEverywhere(employeeId) {
     .where({ employee_id: employeeId })
     .whereNull('revoked_at')
     .update({ revoked_at: now(), revoked_reason: 'logout' });
+  await sessions.revokeAll(employeeId, { reason: 'logout' });
   return { revoked };
 }
 
@@ -312,7 +392,7 @@ async function createAgentCode(employeeId) {
   return { code, expiresInSeconds: AGENT_CODE_TTL_MS / 1000 };
 }
 
-async function exchangeAgentCode({ code }) {
+async function exchangeAgentCode({ code, info }) {
   const nowMs = now();
   const hash = sha256(code);
 
@@ -332,15 +412,20 @@ async function exchangeAgentCode({ code }) {
   if (!row) throw unauthorized('This connect link has expired. Sign in on the web portal again.');
   if (row.status !== 'active') throw forbidden('Account is deactivated. Contact HR.');
 
+  // The agent is a session of its own, so it shows in Security and can be ended there. It is not a
+  // sign-in from a new device (it is the same computer, already signed in on the portal), so no
+  // history entry or alert is made for it.
+  const sessionId = await sessions.createSession({ employeeId: row.id, client: 'desktop', info });
   return {
-    accessToken: signAccessToken(row),
-    refreshToken: await issueRefreshToken(row.id, 'desktop'),
+    accessToken: signAccessToken(row, sessionId),
+    refreshToken: await issueRefreshToken(row.id, 'desktop', sessionId),
     expiresIn: config.auth.expiresIn,
     employee: publicEmployee(row),
   };
 }
 
 module.exports = {
+  verifyTwoFactor,
   login,
   createAgentCode,
   exchangeAgentCode,
