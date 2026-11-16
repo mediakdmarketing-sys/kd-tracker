@@ -74,7 +74,9 @@ export default function LiveTimesheet({ initial, query, timezone }) {
   return (
     // The printout is the table alone (see "Print: the Timesheet" in globals.css): no menu, filters,
     // tiles or buttons, on a landscape page with the column names repeated on every sheet.
-    <div className="print-timesheet" style={{ display: 'grid', gap: 'var(--stack-gap, 16px)' }}>
+    // One column that may shrink (minmax(0, 1fr)): a plain grid column is as wide as its widest content,
+    // and the wide table then pushed the page past the screen's right edge.
+    <div className="print-timesheet" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', minWidth: 0, gap: 'var(--stack-gap, 16px)' }}>
       <div className="grid grid-stats no-print">
         <div className="stat">
           <div className="label">People</div>
