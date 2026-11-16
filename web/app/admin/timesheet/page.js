@@ -49,7 +49,7 @@ export default async function TimesheetPage({ searchParams }) {
   const names = (departments || []).map((d) => (typeof d === 'string' ? d : d.name)).filter(Boolean);
   return (
     <>
-      <div className="page-head">
+      <div className="page-head no-print">
         <div>
           <h1>Timesheet</h1>
           <p>
@@ -60,7 +60,7 @@ export default async function TimesheetPage({ searchParams }) {
       </div>
 
       <div className="stack">
-        <div className="card card-pad">
+        <div className="card card-pad no-print">
           <Suspense fallback={null}>
             <RangeFilter
               fields={[
@@ -78,12 +78,12 @@ export default async function TimesheetPage({ searchParams }) {
           </Suspense>
         </div>
 
-        {problem && <div className="notice notice-warn" role="alert">{problem}</div>}
+        {problem && <div className="notice notice-warn no-print" role="alert">{problem}</div>}
 
         {sheet && <LiveTimesheet initial={sheet} query={filters.toString()} timezone={tz} />}
 
         {sheet && shotsAllowed && (
-          <div className="card card-pad">
+          <div className="card card-pad no-print">
             <Link href={`/admin/screenshots?${filters}`}>
               Open screenshots for this date range →
             </Link>

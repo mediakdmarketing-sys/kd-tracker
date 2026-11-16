@@ -62,9 +62,19 @@ export default function LiveTimesheet({ initial, query, timezone }) {
   // The export URL mirrors the same filters the timesheet is showing.
   const exportUrl = `/bff/api/admin/timesheet/export?${query}`;
 
+  // What the printout says it is: the date or range, and any department or person filter.
+  const filter = new URLSearchParams(query);
+  const printedFor = [
+    multiDay ? `${dateLabel(data.from)} to ${dateLabel(data.to)}` : dateLabel(data.from),
+    filter.get('department') && `Department: ${filter.get('department')}`,
+    filter.get('employeeId') && rows[0] ? `Employee: ${rows[0].name}` : filter.get('employee') && `Employee: ${filter.get('employee')}`,
+  ].filter(Boolean).join(' · ');
+
   return (
-    <>
-      <div className="grid grid-stats">
+    // The printout is the table alone (see "Print: the Timesheet" in globals.css): no menu, filters,
+    // tiles or buttons, on a landscape page with the column names repeated on every sheet.
+    <div className="print-timesheet" style={{ display: 'grid', gap: 'var(--stack-gap, 16px)' }}>
+      <div className="grid grid-stats no-print">
         <div className="stat">
           <div className="label">People</div>
           <div className="value">{summary.people}</div>
@@ -105,13 +115,16 @@ export default function LiveTimesheet({ initial, query, timezone }) {
         <div className="card-head">
           <div>
             <h2>Timesheet</h2>
-            <span className="faint" style={{ fontSize: 12 }}>
+            <div className="print-only" style={{ fontSize: 12 }}>
+              {printedFor} · New York time · printed {new Intl.DateTimeFormat('en-GB', { timeZone: timezone, day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date())}
+            </div>
+            <span className="faint no-print" style={{ fontSize: 12 }}>
               Live · updated {lag < 5 ? 'just now' : `${lag}s ago`}, refreshes every minute
               {error ? ' · last refresh failed, showing previous figures' : ''}
             </span>
           </div>
           {/* Export + Print actions */}
-          <div className="inline" style={{ gap: 8 }}>
+          <div className="inline no-print" style={{ gap: 8 }}>
             <a
               href={exportUrl}
               download={`timesheet_${data.from}_to_${data.to || data.from}.csv`}
@@ -148,7 +161,7 @@ export default function LiveTimesheet({ initial, query, timezone }) {
                   <th>Idle</th>
                   <th>Mic muted</th>
                   <th>Screenshots</th>
-                  <th />
+                  <th>Flags</th>
                 </tr>
               </thead>
               <tbody>
@@ -207,6 +220,6 @@ export default function LiveTimesheet({ initial, query, timezone }) {
           </div>
         )}
       </div>
-    </>
+    </div>
   );
 }

@@ -1245,6 +1245,86 @@ button.cal-day:hover {
   }
 }
 
+/* Shown on paper only */
+.print-only {
+  display: none;
+}
+
+/* Print: the Timesheet. Only the table is printed: no menu, top bar, filters, tiles or buttons
+   (they carry .no-print), on its own landscape page with its own margin, because a table this wide
+   does not fit a portrait sheet. */
+.print-timesheet {
+  page: timesheet;
+}
+@page timesheet {
+  size: A4 landscape;
+  margin: 0;
+}
+@media print {
+  .print-only {
+    display: block !important;
+    color: #444;
+  }
+  .print-timesheet {
+    padding: 10mm 12mm !important;
+    display: block !important;
+    background: #fff !important;
+    color: #000 !important;
+  }
+  .print-timesheet .card {
+    border: none !important;
+    box-shadow: none !important;
+    background: #fff !important;
+  }
+  .print-timesheet .card-head {
+    padding: 0 0 6px !important;
+    border: 0 !important;
+  }
+  /* The table box must not scroll on paper: print every row, with plain (not sticky) cells. */
+  .print-timesheet .table-wrap {
+    max-height: none !important;
+    overflow: visible !important;
+    background: none !important;
+  }
+  .print-timesheet .table-wrap thead th,
+  .print-timesheet .table-wrap td:first-child,
+  .print-timesheet .table-wrap th:first-child {
+    position: static !important;
+    box-shadow: none !important;
+    background: #fff !important;
+    color: #000 !important;
+  }
+  .print-timesheet table {
+    font-size: 10.5px !important;
+    width: 100% !important;
+  }
+  .print-timesheet th {
+    border-bottom: 1.5px solid #000 !important;
+    color: #000 !important;
+  }
+  .print-timesheet td {
+    border-bottom: 1px solid #ccc !important;
+    background: #fff !important;
+    color: #000 !important;
+  }
+  .print-timesheet thead {
+    display: table-header-group; /* the column names again on every sheet */
+  }
+  .print-timesheet tr {
+    break-inside: avoid;
+  }
+  .print-timesheet a {
+    color: inherit !important;
+    text-decoration: none !important;
+  }
+  /* Keep the colour of the state and flag pills so a printed sheet reads like the screen. */
+  .print-timesheet .ts-state,
+  .print-timesheet .pill {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
 /* The same clock on the few pages that have no sidebar shell (consent, change password). */
 .clock-corner {
   position: fixed;
