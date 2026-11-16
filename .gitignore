@@ -1,6 +1,4 @@
 node_modules/
-.env
-.env.*
 !.env.example
 *.log
 
@@ -30,7 +28,6 @@ coverage/
 # Editors / OS
 .DS_Store
 Thumbs.db
-.vscode/
 .idea/
 
 # Android build output
@@ -39,3 +36,4 @@ local.properties
 *.apk
 # ...except the one the portal serves for download
 !web/public/downloads/*.apk
+config.bat

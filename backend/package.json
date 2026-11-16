@@ -8,8 +8,8 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "node --watch --watch-path=src src/server.js",
-    "start": "node src/server.js",
+    "dev": "node init && node --watch --watch-path=src src/server.js",
+    "start": "node init && node src/server.js",
     "db:migrate": "node src/db/cli.js migrate",
     "db:rollback": "node src/db/cli.js rollback",
     "db:seed": "node src/db/cli.js seed",

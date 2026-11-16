@@ -36,7 +36,9 @@ function rangeOf({ from, to }, maxDays) {
 }
 
 /** Adds the department and name filters to a query that has the employees table as `e`. */
-function filterPeople(query, { department, search, employeeId }) {
+function filterPeople(query, { department, search, employeeId, memberIds = null }) {
+  // A leader sees only the people they manage: the caller passes their ids (an empty list = nobody).
+  if (memberIds) query.whereIn('e.id', memberIds);
   if (department) query.andWhere('e.department', department);
   // A person picked from the list is matched exactly; typed text matches part of a name. The pick
   // wins, so two people called Ravi are never mixed up.
@@ -51,13 +53,13 @@ const secs = (ms) => Math.max(0, Math.round(ms / 1000));
  * @returns {Promise<{ from, to, generatedAt, summary, rows }>}
  *   rows: one per person per day. state: working | on_break | finished | not_started | on_leave
  */
-async function timesheet({ from, to, department, search, employeeId }) {
+async function timesheet({ from, to, department, search, employeeId, memberIds = null }) {
   const range = rangeOf({ from, to }, MAX_TIMESHEET_DAYS);
   const nowMs = t.now();
 
   const shifts = await filterPeople(
     db()('attendance as a').join('employees as e', 'e.id', 'a.employee_id').whereBetween('a.date', [range.from, range.to]),
-    { department, search, employeeId }
+    { department, search, employeeId, memberIds }
   )
     .orderBy([{ column: 'e.name' }, { column: 'a.date' }, { column: 'a.punch_in' }])
     .select('a.*', 'e.name as person_name', 'e.department as person_department');
@@ -174,7 +176,7 @@ async function timesheet({ from, to, department, search, employeeId }) {
   if (range.from === range.to) {
     const seen = new Set(rows.map((r) => r.employeeId));
     const absent = (
-      await filterPeople(db()('employees as e').where('e.status', 'active'), { department, search, employeeId })
+      await filterPeople(db()('employees as e').where('e.status', 'active'), { department, search, employeeId, memberIds })
         .orderBy('e.name')
         .select('e.id', 'e.name', 'e.department')
     ).filter((p) => !seen.has(p.id));
