@@ -197,6 +197,7 @@ const LEADER_GROUPS = [
     links: [
       { href: '/leader', label: 'My team', icon: Icon.team },
       { href: '/leader/members', label: 'Live board', icon: Icon.board },
+      { href: '/leader/timesheet', label: 'Timesheet', icon: Icon.history },
       { href: '/leader/leave', label: 'Leave requests', icon: Icon.leave },
       
     ],

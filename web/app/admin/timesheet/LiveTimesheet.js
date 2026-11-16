@@ -17,10 +17,15 @@ const STATE_COLOR_OVERRIDE = { on_leave: '#e11d48' };
  * running shifts up second by second, so a person who is working shows their hours growing and a
  * person on a break shows the break growing.
  *
- * @param {{ initial: object, query: string, timezone: string }} props
+ * @param {{ initial: object, query: string, timezone: string, scope?: 'admin'|'leader' }} props
  *   query: the filters as a query string (from, to, department, employee), without paging
+ *   scope: 'leader' is a team leader's view of their own people: it asks the leader route, links to the
+ *   leader's member pages, and has no agent column, screenshot counts, mic-log links or CSV export
+ *   (those are HR's).
  */
-export default function LiveTimesheet({ initial, query, timezone }) {
+export default function LiveTimesheet({ initial, query, timezone, scope = 'admin' }) {
+  const hr = scope === 'admin';
+  const apiPath = hr ? '/api/admin/timesheet' : '/api/leader/timesheet';
   const [data, setData] = useState(initial);
   const [fetchedAt, setFetchedAt] = useState(() => Date.now());
   const [now, setNow] = useState(() => Date.now());
@@ -40,7 +45,7 @@ export default function LiveTimesheet({ initial, query, timezone }) {
     let stopped = false;
     async function refresh() {
       try {
-        const next = await call(`/api/admin/timesheet?${query}`);
+        const next = await call(`${apiPath}?${query}`);
         if (stopped) return;
         setData(next);
         setFetchedAt(Date.now());
@@ -54,7 +59,7 @@ export default function LiveTimesheet({ initial, query, timezone }) {
       stopped = true;
       clearInterval(id);
     };
-  }, [query]);
+  }, [query, apiPath]);
 
   const lag = Math.max(0, Math.round((now - fetchedAt) / 1000));
   const multiDay = data.from !== data.to;
@@ -135,14 +140,16 @@ export default function LiveTimesheet({ initial, query, timezone }) {
           </div>
           {/* Export + Print actions */}
           <div className="inline no-print" style={{ gap: 8 }}>
-            <a
-              href={exportUrl}
-              download={`timesheet_${data.from}_to_${data.to || data.from}.csv`}
-              className="btn"
-              title="Download this timesheet as a CSV file"
-            >
-              ↓ Export CSV
-            </a>
+            {hr && (
+              <a
+                href={exportUrl}
+                download={`timesheet_${data.from}_to_${data.to || data.from}.csv`}
+                className="btn"
+                title="Download this timesheet as a CSV file"
+              >
+                ↓ Export CSV
+              </a>
+            )}
             <button
               type="button"
               className="btn"
@@ -164,14 +171,14 @@ export default function LiveTimesheet({ initial, query, timezone }) {
                   <th>Employee</th>
                   <th>Department</th>
                   <th>Now</th>
-                  <th>Agent</th>
+                  {hr && <th>Agent</th>}
                   <th>In</th>
                   <th>Out</th>
                   <th>Worked</th>
                   <th>Break</th>
                   <th>Idle</th>
                   <th>Mic muted</th>
-                  <th>Screenshots</th>
+                  {hr && <th>Screenshots</th>}
                   <th>Flags</th>
                 </tr>
               </thead>
@@ -184,16 +191,18 @@ export default function LiveTimesheet({ initial, query, timezone }) {
                     <tr key={`${r.employeeId}|${r.date}`}>
                       {multiDay && <td className="num">{dateLabel(r.date)}</td>}
                       <td>
-                        <Link href={`/admin/employees/${r.employeeId}?date=${r.date}`}>{r.name}</Link>
+                        <Link href={hr ? `/admin/employees/${r.employeeId}?date=${r.date}` : `/leader/members/${r.employeeId}?date=${r.date}`}>{r.name}</Link>
                       </td>
                       <td className="muted">{r.department || '—'}</td>
                       <td>
                         <span className="ts-state" style={{ '--c': STATE_COLOR_OVERRIDE[r.state] || s.color }}>{STATE_LABEL[r.state] || r.state}</span>
                       </td>
-                      <td>
-                        {/* Today only: whether this person's agent is connected says nothing about a past day. */}
-                        <AgentBadge agent={r.agent ? { state: r.agent } : null} onShift={r.state === 'working' || r.state === 'on_break'} />
-                      </td>
+                      {hr && (
+                        <td>
+                          {/* Today only: whether this person's agent is connected says nothing about a past day. */}
+                          <AgentBadge agent={r.agent ? { state: r.agent } : null} onShift={r.state === 'working' || r.state === 'on_break'} />
+                        </td>
+                      )}
                       <td className="num">{r.punchIn ? time(r.punchIn, timezone) : '—'}</td>
                       <td className="num">
                         {r.punchOut ? time(r.punchOut, timezone) : r.punchIn ? <span className="faint">now</span> : '—'}
@@ -204,7 +213,7 @@ export default function LiveTimesheet({ initial, query, timezone }) {
                       <td>
                         {r.micMutedTimes > 0 ? (
                           <Link
-                            href={`/admin/mic-log?from=${r.date}&to=${r.date}`}
+                            href={hr ? `/admin/mic-log?from=${r.date}&to=${r.date}` : `/leader/members/${r.employeeId}?date=${r.date}`}
                             className="inline"
                             style={{ gap: 6, flexWrap: 'nowrap', textDecoration: 'none' }}
                             title={`Muted ${r.micMutedTimes} ${r.micMutedTimes === 1 ? 'time' : 'times'}${r.micMutedSeconds ? `, ${duration(r.micMutedSeconds)} in all` : ''}. Open the Mic log for the times.`}
@@ -217,9 +226,11 @@ export default function LiveTimesheet({ initial, query, timezone }) {
                           <span className="faint">{r.punchIn ? '0' : '—'}</span>
                         )}
                       </td>
-                      <td className="num">
-                        {r.screenshots > 0 ? <a href={`#shots-${r.employeeId}`}>{r.screenshots}</a> : <span className="faint">0</span>}
-                      </td>
+                      {hr && (
+                        <td className="num">
+                          {r.screenshots > 0 ? <a href={`#shots-${r.employeeId}`}>{r.screenshots}</a> : <span className="faint">0</span>}
+                        </td>
+                      )}
                       <td>
                         <span className="inline" style={{ gap: 4, flexWrap: 'wrap' }}>
                           {r.overBreak && <span className="pill pill-flag">Over break</span>}
