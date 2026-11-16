@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { call } from '@/lib/client';
 import { dateLabel, duration, time } from '@/lib/format';
 import { BY_KEY } from '../dashboard/states';
+import AgentBadge from '@/components/AgentBadge';
 
 const POLL_MS = 60 * 1000;
 
@@ -109,6 +110,13 @@ export default function LiveTimesheet({ initial, query, timezone }) {
           <div className="value" style={{ color: summary.flagged ? '#e11d48' : undefined }}>{summary.flagged}</div>
           <div className="sub">over break or to check</div>
         </div>
+        {data.rows.some((r) => r.agent) && (
+          <div className="stat">
+            <div className="label">Agent not connected</div>
+            <div className="value" style={{ color: summary.agentOffline ? '#e11d48' : undefined }}>{summary.agentOffline || 0}</div>
+            <div className="sub">on a shift, nothing captured</div>
+          </div>
+        )}
       </div>
 
       <div className="card">
@@ -154,6 +162,7 @@ export default function LiveTimesheet({ initial, query, timezone }) {
                   <th>Employee</th>
                   <th>Department</th>
                   <th>Now</th>
+                  <th>Agent</th>
                   <th>In</th>
                   <th>Out</th>
                   <th>Worked</th>
@@ -178,6 +187,10 @@ export default function LiveTimesheet({ initial, query, timezone }) {
                       <td className="muted">{r.department || '—'}</td>
                       <td>
                         <span className="ts-state" style={{ '--c': STATE_COLOR_OVERRIDE[r.state] || s.color }}>{STATE_LABEL[r.state] || r.state}</span>
+                      </td>
+                      <td>
+                        {/* Today only: whether this person's agent is connected says nothing about a past day. */}
+                        <AgentBadge agent={r.agent ? { state: r.agent } : null} onShift={r.state === 'working' || r.state === 'on_break'} />
                       </td>
                       <td className="num">{r.punchIn ? time(r.punchIn, timezone) : '—'}</td>
                       <td className="num">

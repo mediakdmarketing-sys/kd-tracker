@@ -9,6 +9,7 @@ import EmployeeActions from './EmployeeActions';
 import LeaderActions from './LeaderActions';
 import BankDetailsCard from './BankDetailsCard';
 import EmployeeSecurityCard from './EmployeeSecurityCard';
+import AgentBadge from '@/components/AgentBadge';
 import { duration, time, timeSec, dateLabel, todayIn, workedSecondsOf, isOpenShift } from '@/lib/format';
 import { averageActivity } from '@/lib/activity';
 
@@ -115,7 +116,13 @@ export default async function EmployeeDetailPage({ params, searchParams }) {
           <p>
             {employee.email}
             {employee.department ? ` · ${employee.department}` : ''}
-            {employee.birthday ? ` · Birthday ${BIRTHDAY.format(new Date(`${employee.birthday}T00:00:00Z`))}` : ''}{' '}
+            {employee.birthday ? ` · Birthday ${BIRTHDAY.format(new Date(`${employee.birthday}T00:00:00Z`))}` : ''}
+            {employee.status === 'active' && (
+              <>
+                {' · Agent: '}
+                <AgentBadge agent={employee.agent} />
+              </>
+            )}{' '}
             <Link href="/admin/employees" className="btn" style={{ marginLeft: 8 }}>
               ← All employees
             </Link>

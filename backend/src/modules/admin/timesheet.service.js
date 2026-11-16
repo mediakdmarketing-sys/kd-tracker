@@ -18,6 +18,7 @@ const leaveService = require('../leave/leave.service');
 const attendanceService = require('../attendance/attendance.service');
 const { shapeScreenshot } = require('../capture/capture.service');
 const { micLog, MAX_GAP_MS } = require('../capture/micLog');
+const sessionsService = require('../auth/sessions.service');
 
 const MAX_TIMESHEET_DAYS = 31;
 const MAX_SCREENSHOT_DAYS = 7;
@@ -141,8 +142,13 @@ async function timesheet({ from, to, department, search, employeeId }) {
     micBy.set(key, cur);
   }
 
+  // Is each person's agent connected right now? Only meaningful for today's rows, shown for those.
+  const agents = await sessionsService.agentStatus(ids);
+  const today = t.localDate();
+
   const rows = [...byDay.values()].map((d) => ({
     employeeId: d.employeeId,
+    agent: d.date === today ? agents.get(d.employeeId).state : null,
     name: d.name,
     department: d.department,
     date: d.date,
@@ -173,9 +179,11 @@ async function timesheet({ from, to, department, search, employeeId }) {
         .select('e.id', 'e.name', 'e.department')
     ).filter((p) => !seen.has(p.id));
     const onLeave = await leaveService.approvedLeaveByEmployeeForDates(absent.map((p) => ({ employeeId: p.id, date: range.from })));
+    const absentAgents = range.from === today ? await sessionsService.agentStatus(absent.map((p) => p.id)) : null;
     for (const p of absent) {
       rows.push({
         employeeId: p.id,
+        agent: absentAgents ? absentAgents.get(p.id).state : null,
         name: p.name,
         department: p.department || null,
         date: range.from,
@@ -216,6 +224,8 @@ async function timesheet({ from, to, department, search, employeeId }) {
       micMutedTimes: rows.reduce((sum, r) => sum + r.micMutedTimes, 0),
       micMutedPeople: new Set(rows.filter((r) => r.micMutedTimes > 0).map((r) => r.employeeId)).size,
       micMutedNow: rows.filter((r) => r.micMutedNow).length,
+      // Working or on a break today, but the agent is not connected: nothing is being captured.
+      agentOffline: rows.filter((r) => (r.state === 'working' || r.state === 'on_break') && r.agent !== null && r.agent !== 'online').length,
     },
     rows,
   };

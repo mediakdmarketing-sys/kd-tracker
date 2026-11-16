@@ -6,6 +6,7 @@ import Pager from '@/components/Pager';
 import NewEmployeeForm from './NewEmployeeForm';
 import EmployeeCsvActions from './EmployeeCsvActions';
 import { dateLabel } from '@/lib/format';
+import AgentBadge from '@/components/AgentBadge';
 
 export const metadata = { title: 'Employees · WorkInvigilator' };
 
@@ -69,13 +70,14 @@ export default async function EmployeesPage({ searchParams }) {
                   <th>Department</th>
                   <th>Role</th>
                   <th>Consent</th>
+                  <th>Agent</th>
                   <th>Status</th>
                 </tr>
               </thead>
               <tbody>
                 {result.data.length === 0 ? (
                   <tr>
-                    <td colSpan={6}>
+                    <td colSpan={7}>
                       <div className="empty">No employees match.</div>
                     </td>
                   </tr>
@@ -119,6 +121,9 @@ export default async function EmployeesPage({ searchParams }) {
                             {dateLabel(employee.consent.givenAt.slice(0, 10))}
                           </div>
                         ) : null}
+                      </td>
+                      <td>
+                        {employee.status === 'active' ? <AgentBadge agent={employee.agent} /> : <span className="faint">—</span>}
                       </td>
                       <td>
                         <span className={`pill ${employee.status === 'active' ? 'pill-working' : 'pill-flag'}`}>
