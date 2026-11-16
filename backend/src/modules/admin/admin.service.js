@@ -10,6 +10,7 @@ const t = require('../../utils/time');
 const { toBool, toIso } = require('../../utils/http');
 const { conflict, notFound, badRequest } = require('../../utils/errors');
 const { publicEmployee } = require('../auth/auth.service');
+const sessionsService = require('../auth/sessions.service');
 const { generateTemporaryPassword } = require('../../utils/password');
 const birthdays = require('../../services/birthdays');
 const passwordPolicy = require('../../utils/passwordPolicy');
@@ -65,6 +66,7 @@ async function dashboard({ date } = {}) {
     .select('employee_id')
     .max({ last_seen: 'timestamp' });
   const lastSeenBy = Object.fromEntries(lastActivity.map((r) => [r.employee_id, Number(r.last_seen)]));
+  const agents = await sessionsService.agentStatus(employeeIds);
 
   // Group attendance by employee once, so each employee row below is O(1) not O(n).
   const attendanceByEmployee = attendance.reduce((acc, a) => {
@@ -130,6 +132,8 @@ async function dashboard({ date } = {}) {
         state === 'working' &&
         (!lastSeen || nowMs - lastSeen > settings.get().shift.idleThresholdSeconds * 1000),
       needsReview: toBool(current?.needs_review || shifts[0]?.needs_review),
+      // Is this person's desktop or phone agent connected? (online, quiet or none)
+      agent: agents.get(emp.id),
     };
   });
 
@@ -141,6 +145,10 @@ async function dashboard({ date } = {}) {
     notStarted: rows.filter((r) => r.state === 'not_started').length,
     onLeave: rows.filter((r) => r.state === 'on_leave').length,
     flagged: rows.filter((r) => r.needsReview || r.overBreak).length,
+    // On a shift (working or on a break) but the agent is not talking to the server: nothing is being
+    // captured for them. The number HR most wants to know.
+    agentOffline: rows.filter((r) => (r.state === 'working' || r.state === 'on_break') && r.agent.state !== 'online').length,
+    agentsOnline: rows.filter((r) => r.agent.state === 'online').length,
   };
 
   return { generatedAt: toIso(nowMs), summary, employees: rows };
@@ -273,13 +281,15 @@ async function listEmployees({ department, status, search, limit, offset }) {
 
   const [{ count }] = await base.clone().count({ count: '*' });
   const rows = await base.clone().orderBy('name').limit(limit).offset(offset);
-  return { rows: rows.map(publicEmployee), total: Number(count) };
+  const agents = await sessionsService.agentStatus(rows.map((r) => r.id));
+  return { rows: rows.map((r) => ({ ...publicEmployee(r), agent: agents.get(r.id) })), total: Number(count) };
 }
 
 async function getEmployee(id) {
   const row = await db()('employees').where({ id }).first();
   if (!row) throw notFound('Employee not found');
-  return publicEmployee(row);
+  const agents = await sessionsService.agentStatus([id]);
+  return { ...publicEmployee(row), agent: agents.get(id) };
 }
 
 async function createEmployee(input) {

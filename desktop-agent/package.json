@@ -7,15 +7,15 @@
   "author": "KD Marketing",
   "main": "src/main/index.js",
   "scripts": {
-    "start": "electron .",
-    "dev": "electron . --dev",
+    "start": "node init && electron .",
+    "dev": "node init && electron . --dev",
     "test": "vitest run",
     "test:watch": "vitest",
     "icon": "node build/generate-icon.js",
-    "build": "electron-builder",
-    "build:win": "electron-builder --win",
-    "build:mac": "electron-builder --mac",
-    "build:linux": "electron-builder --linux"
+    "build": "node init && electron-builder",
+    "build:win": "node init && electron-builder --win",
+    "build:mac": "node init && electron-builder --mac",
+    "build:linux": "node init && electron-builder --linux"
   },
   "dependencies": {
     "active-win": "^8.2.1",

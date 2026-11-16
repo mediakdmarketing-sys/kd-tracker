@@ -312,6 +312,7 @@ const SECTIONS = [
     roles: ADMIN,
     body: [
       'Live board shows everyone working, on a break or out right now.',
+      'Agent column (Live board, Timesheet for today, Employees, and each employee’s page): Connected means the desktop or phone app asked the server within the last 3 minutes. Not responding means it is signed in but silent for longer (closed, the computer asleep, or no internet). Not connected means no agent is signed in for that person. When someone is on a shift and the agent is not Connected, nothing is being captured: the pill turns red, the tile “Agent not connected” counts them, and the Live board has a filter for them. A person who is not working showing “Not connected” is normal.',
       'Productivity scores people for a period: 60+ is Good, 50–59 Average, below 50 Review. Treat it as a conversation starter, not a verdict.',
       'Reports: pick a date range and optionally a department, then Export CSV.',
       'Payroll: choose the month, Generate to work out each person’s full days, half days, other hours and pay from closed shifts and their pay rates, then print or email payslips and Export CSV. Generating again for the same month is safe, it updates rather than duplicates. Review flagged and auto-closed shifts first. See "For admins: pay rates, bonuses and payslips".',

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { call } from '@/lib/client';
 import { duration, time, STATE_LABEL, STATE_CLASS } from '@/lib/format';
 import useSSE from '@/lib/useSSE';
+import AgentBadge from './AgentBadge';
 
 const FILTERS = [
   { key: 'all', label: 'Everyone' },
@@ -14,6 +15,7 @@ const FILTERS = [
   { key: 'not_started', label: 'Not started' },
   { key: 'on_leave', label: 'On leave' },
   { key: 'flagged', label: 'Needs review' },
+  { key: 'agent_offline', label: 'Agent not connected' },
 ];
 
 // Fallback poll interval when SSE is not available or has not sent an event recently.
@@ -105,6 +107,8 @@ export default function LiveBoard({ initial, timezone, shiftTargetSeconds }) {
   const rows = data.employees.filter((row) => {
     if (filter === 'all') return true;
     if (filter === 'flagged') return row.needsReview || row.overBreak;
+    // On a shift with no agent talking to the server: nothing is being captured for them.
+    if (filter === 'agent_offline') return (row.state === 'working' || row.state === 'on_break') && row.agent?.state !== 'online';
     return row.state === filter;
   });
 
@@ -123,6 +127,12 @@ export default function LiveBoard({ initial, timezone, shiftTargetSeconds }) {
         <Stat label="Not started" value={data.summary.notStarted} />
         <Stat label="On leave" value={data.summary.onLeave || 0} tone="var(--danger)" />
         <Stat label="Needs review" value={data.summary.flagged} tone="var(--danger)" />
+        <Stat
+          label="Agent not connected"
+          value={data.summary.agentOffline || 0}
+          tone={data.summary.agentOffline ? 'var(--danger)' : undefined}
+          sub="on a shift, nothing captured"
+        />
       </div>
 
       <div className="card">
@@ -167,13 +177,14 @@ export default function LiveBoard({ initial, timezone, shiftTargetSeconds }) {
                 <th>In</th>
                 <th>Worked</th>
                 <th>Break</th>
+                <th>Agent</th>
                 <th>Last activity</th>
               </tr>
             </thead>
             <tbody>
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={7}>
+                  <td colSpan={8}>
                     <div className="empty">Nobody in this view.</div>
                   </td>
                 </tr>
@@ -215,6 +226,9 @@ export default function LiveBoard({ initial, timezone, shiftTargetSeconds }) {
                         {duration(row.breakSeconds)}
                       </span>
                     </td>
+                    <td>
+                      <AgentBadge agent={row.agent} onShift={row.state === 'working' || row.state === 'on_break'} />
+                    </td>
                     <td className="num muted">
                       {row.lastActivityAt ? time(row.lastActivityAt, timezone) : '—'}
                     </td>
@@ -229,13 +243,14 @@ export default function LiveBoard({ initial, timezone, shiftTargetSeconds }) {
   );
 }
 
-function Stat({ label, value, tone }) {
+function Stat({ label, value, tone, sub }) {
   return (
     <div className="stat">
       <div className="label">{label}</div>
       <div className="value" style={tone ? { color: tone } : undefined}>
         {value}
       </div>
+      {sub ? <div className="sub">{sub}</div> : null}
     </div>
   );
 }

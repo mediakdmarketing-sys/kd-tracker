@@ -47,11 +47,61 @@ async function touch(sessionId, info) {
     .update({ last_seen_at: t.now(), ...(info?.ip ? { ip: info.ip } : {}) });
 }
 
-/** true = live, false = ended, null = no such session (a token from before sessions existed). */
+// A session in use is noted as active at most this often, so "last seen" is true to about a minute
+// without a database write on every request.
+const TOUCH_EVERY_MS = 60 * 1000;
+
+/**
+ * true = live, false = ended, null = no such session (a token from before sessions existed).
+ * Also records that the session is in use: every authenticated request passes through here, so for
+ * the desktop agent (which asks for its status every minute and uploads as it goes) "last seen" is
+ * how HR can tell the agent is connected.
+ */
 async function isLive(sessionId) {
-  const row = await db()('sessions').where({ id: sessionId }).first('revoked_at');
+  const row = await db()('sessions').where({ id: sessionId }).first('revoked_at', 'last_seen_at');
   if (!row) return null;
-  return !row.revoked_at;
+  if (row.revoked_at) return false;
+  const now = t.now();
+  if (now - Number(row.last_seen_at) > TOUCH_EVERY_MS) {
+    await db()('sessions').where({ id: sessionId }).whereNull('revoked_at').update({ last_seen_at: now });
+  }
+  return true;
+}
+
+const AGENT_CLIENTS = ['desktop', 'chromeos', 'android'];
+// The agent asks for its status every minute; three minutes of silence means it is not running or
+// has no connection.
+const AGENT_ONLINE_MS = 3 * 60 * 1000;
+
+/**
+ * Is each person's agent (desktop or phone app) connected? From the agent's own session:
+ *   online  asked the server inside the last 3 minutes
+ *   quiet   signed in but silent longer than that: closed, asleep or offline
+ *   none    no agent signed in (never connected, signed out, or ended)
+ * @param {string[]} employeeIds
+ * @returns {Promise<Map<string, {state: 'online'|'quiet'|'none', lastSeenAt: string|null, device: string|null, client: string|null}>>}
+ */
+async function agentStatus(employeeIds) {
+  const result = new Map(employeeIds.map((id) => [id, { state: 'none', lastSeenAt: null, device: null, client: null }]));
+  if (!employeeIds.length) return result;
+  const now = t.now();
+  const rows = await db()('sessions')
+    .whereIn('employee_id', employeeIds)
+    .whereIn('client', AGENT_CLIENTS)
+    .whereNull('revoked_at')
+    .andWhere('last_seen_at', '>', now - IDLE_LIMIT_MS)
+    .orderBy('last_seen_at', 'desc')
+    .select('employee_id', 'client', 'device_label', 'last_seen_at');
+  for (const r of rows) {
+    if (result.get(r.employee_id).state !== 'none') continue; // the newest session wins
+    result.set(r.employee_id, {
+      state: now - Number(r.last_seen_at) <= AGENT_ONLINE_MS ? 'online' : 'quiet',
+      lastSeenAt: toIso(r.last_seen_at),
+      device: r.device_label || null,
+      client: r.client,
+    });
+  }
+  return result;
 }
 
 async function revoke(employeeId, sessionId, reason = 'signed_out_other') {
@@ -199,6 +249,7 @@ module.exports = {
   createSession,
   touch,
   isLive,
+  agentStatus,
   revoke,
   revokeAll,
   listSessions,
