@@ -12,6 +12,7 @@ const { micLog } = require('../capture/micLog');
 const attendanceService = require('../attendance/attendance.service');
 const projectService = require('../projects/project.service');
 const leaveService = require('../leave/leave.service');
+const timesheetService = require('../admin/timesheet.service');
 const audit = require('../../services/audit');
 
 const router = express.Router();
@@ -48,6 +49,47 @@ router.get(
   loadLeaderDepts(),
   asyncHandler(async (req, res) => {
     res.json(await service.memberDashboard(req.user, req.leaderDepts));
+  })
+);
+
+// ---------------------------------------------------------------------------
+// GET /api/leader/timesheet
+// The live timesheet for the people this leader manages (an admin gets everyone).
+// Same figures as HR's timesheet, minus what is HR's alone: whether each person's agent is
+// connected, and the screenshot counts (screenshots have their own audited route).
+// ---------------------------------------------------------------------------
+router.get(
+  '/timesheet',
+  loadLeaderDepts(),
+  validate(
+    z.object({
+      from: DATE.optional(),
+      to: DATE.optional(),
+      department: z.string().trim().max(120).optional(),
+      employee: z.string().trim().max(120).optional(),
+      employeeId: z.string().uuid().optional(),
+    }),
+    'query'
+  ),
+  asyncHandler(async (req, res) => {
+    const query = q(req);
+    // The people this leader may see; a department filter outside their own simply matches nobody.
+    const memberIds = await service.resolveMemberIds(req.leaderDepts, req.user.id);
+    const sheet = await timesheetService.timesheet({
+      from: query.from,
+      to: query.to,
+      department: query.department,
+      search: query.employee,
+      employeeId: query.employeeId,
+      memberIds,
+    });
+    const { agentOffline, ...summary } = sheet.summary;
+    res.set('Cache-Control', 'no-store');
+    res.json({
+      ...sheet,
+      summary,
+      rows: sheet.rows.map(({ agent, screenshots, ...row }) => row),
+    });
   })
 );
 

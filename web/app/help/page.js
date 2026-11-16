@@ -199,7 +199,7 @@ const SECTIONS = [
     title: 'For leaders: your team',
     roles: LEADERS,
     body: [
-      'My team lists the departments you lead and how many members are working now. Live board shows who is working, on a break or out.',
+      'My team lists the departments you lead and how many members are working now. Live board shows who is working, on a break or out. Timesheet shows your team’s hours for the day or days you pick (up to 31 days): state, time in and out, worked, break, idle, how many times a mic was muted, and flags. Filter by date, by a person of your team (search the list) or by one of your departments. Print / PDF prints the table alone. Only people in the departments you lead appear, never yourself, and screenshots stay on each member’s own page where opening them is recorded.',
       'Click a member to see their attendance, screenshots, audio samples, and activity counts for a date or date range.',
       'Leave requests → Pending, Approved, Rejected or All. Open a request, check the dates, reason and proof, then Approve or Reject.',
       'Birthdays: you get a notification the day before and on the day for people in the departments you lead, so you can wish them. HR sets the birthdays.',
