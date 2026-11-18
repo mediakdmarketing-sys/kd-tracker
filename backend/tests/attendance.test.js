@@ -164,7 +164,7 @@ describe('breaks and worked time', () => {
 // Sprint 6.5 / ADR-0004. An agent that was offline when the employee pressed the button
 // replays the event with the time it actually happened.
 describe('queued punch events', () => {
-  it('honours a punch-in backdated inside the 4-hour window', async () => {
+  it('honours a punch-in backdated inside the 4-hour window, and flags it for a look', async () => {
     const token = await login(await createEmployee());
     const at = new Date(Date.now() - 2 * HOUR).toISOString();
 
@@ -173,9 +173,37 @@ describe('queued punch events', () => {
     expect(res.status).toBe(201);
     expect(res.body.punchIn).toBe(at);
     expect(res.body.source).toBe('queued');
-    expect(res.body.needsReview).toBe(false);
+    expect(res.body.needsReview).toBe(true); // well after the fact: HR is asked to check
+    expect(res.body.reviewReason).toMatch(/after it was said to have happened/i);
     // The gap between claim and arrival is recorded, so HR can see it was replayed late.
     expect(res.body.punchInReceivedAt).toBeTruthy();
+  });
+
+  it('does not flag a queued punch that is only a few minutes late', async () => {
+    const token = await login(await createEmployee());
+    const at = new Date(Date.now() - 3 * 60 * 1000).toISOString();
+    const res = await as(token).post('/api/attendance/punch-in').send({ at });
+    expect(res.status).toBe(201);
+    expect(res.body.needsReview).toBe(false);
+  });
+
+  it('flags a shift whose break end was backdated, and keeps the flag through punch-out', async () => {
+    const employee = await createEmployee();
+    const token = await login(employee);
+    const user = toUser(employee);
+    await attendanceService.punchIn({ employee: user, at: t.now() - 3 * HOUR });
+    await attendanceService.startBreak({ employee: user, at: t.now() - 2 * HOUR });
+
+    // "I was back from lunch an hour ago": the break is shortened, and HR is told.
+    const back = await as(token).post('/api/attendance/break-end').send({ at: new Date(Date.now() - HOUR).toISOString() });
+    expect(back.status).toBe(200);
+    const row = await db()('attendance').first();
+    expect(row.needs_review).toBeTruthy();
+    expect(row.review_reason).toMatch(/after it was said to have happened/i);
+
+    const out = await as(token).post('/api/attendance/punch-out').send({});
+    expect(out.body.needsReview).toBe(true);
+    expect(out.body.reviewReason).toMatch(/after it was said to have happened/i);
   });
 
   it('caps a punch-in backdated beyond the window and flags it for HR', async () => {

@@ -183,7 +183,7 @@ flowchart LR
   X -- yes --> D[Dropped]
 ```
 
-- **Punches** keep the time they happened. The server accepts a queued punch time up to `MAX_BACKDATE_HOURS` (4) back; older ones are recorded at server time and **flagged** for HR. Times in the future (beyond a small clock skew) are refused.
+- **Punches** keep the time they happened. The server accepts a queued punch time up to `MAX_BACKDATE_HOURS` (4) back; older ones are recorded at server time and **flagged** for HR. A queued punch or break time more than `REVIEW_BACKDATE_MINUTES` (10) late but inside the limit is kept and the shift is flagged "to check" too (this is how a shortened break shows up). The capture watch also flags an agent that is connected but delivers no activity samples for `AGENT_NO_DATA_MINUTES` (10), and near-identical busy keyboard/mouse readings for `PATTERN_MINUTES` (30) (a jiggler or macro). All flags only: hours and pay do not change. Times in the future (beyond a small clock skew) are refused.
 - **Captures** can be uploaded up to `MAX_CAPTURE_AGE_DAYS` (7) late. Uploads are idempotent (a capture id), so a retry never doubles a picture.
 - Nothing is removed from the outbox because of a bad connection; only a server answer that retrying cannot change (already punched in, outside the window) removes an item.
 - The tray icon turns red and shows the backlog while there is one. The popup shows how many items wait and the oldest age.

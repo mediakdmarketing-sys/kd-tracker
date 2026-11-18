@@ -279,6 +279,14 @@ async function punchOut({ employee, at, requestedAt }) {
   return shape({ ...fresh, ...patch }, breaks);
 }
 
+/** Marks a shift "to check" and keeps every reason given for it (flag only: hours are untouched). */
+async function flagShift(shiftId, reason) {
+  const row = await db()('attendance').where({ id: shiftId }).first('review_reason');
+  const reasons = String(row?.review_reason || '').split(' · ').filter(Boolean);
+  if (!reasons.includes(reason)) reasons.push(reason);
+  await db()('attendance').where({ id: shiftId }).update({ needs_review: true, review_reason: reasons.join(' · ').slice(0, 255) });
+}
+
 async function startBreak({ employee, at, requestedAt, reason = null }) {
   const shift = await openShift(employee.id);
   if (!shift) throw conflict('You must be punched in to start a break.');
@@ -292,7 +300,7 @@ async function startBreak({ employee, at, requestedAt, reason = null }) {
         floorMs: Number(shift.punch_in),
         now: receivedAt,
       })
-    : { at: at ?? receivedAt };
+    : { at: at ?? receivedAt, reason: null };
 
   // A break pauses project time same as it pauses capture — nothing should be "running" on a
   // project while the employee is on a break.
@@ -313,6 +321,7 @@ async function startBreak({ employee, at, requestedAt, reason = null }) {
       .where({ id: shift.id })
       .update({ status: 'on_break', updated_at: receivedAt });
   });
+  if (resolved.reason) await flagShift(shift.id, resolved.reason);
 
   const breaks = await db()('breaks').where({ attendance_id: shift.id }).orderBy('break_start');
   return shape({ ...shift, status: 'on_break' }, breaks);
@@ -359,7 +368,7 @@ async function endBreak({ employee, at, requestedAt, silent = false }) {
         floorMs: Number(open.break_start),
         now: receivedAt,
       })
-    : { at: at ?? receivedAt };
+    : { at: at ?? receivedAt, reason: null };
 
   const duration = t.secondsBetween(Number(open.break_start), resolved.at);
 
@@ -385,6 +394,8 @@ async function endBreak({ employee, at, requestedAt, silent = false }) {
         updated_at: receivedAt,
       });
   });
+
+  if (resolved.reason) await flagShift(shift.id, resolved.reason);
 
   // Build the response from known state — the transaction above has all the values we need,
   // so a post-transaction re-read of both tables is unnecessary.

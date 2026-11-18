@@ -1217,6 +1217,7 @@ router.get(
       { key: 'shifts',     label: 'Shifts' },
       { key: 'overBreak',  label: 'Over Break' },
       { key: 'review',     label: 'Needs Review' },
+      { key: 'noCapture',  label: 'No capture (HH:MM:SS)' },
     ], sheet.rows.map((r) => ({
       date:       r.date,
       name:       r.name,
@@ -1231,6 +1232,7 @@ router.get(
       shifts:     r.shifts   || 1,
       overBreak:  r.overBreak  ? 'Yes' : 'No',
       review:     r.needsReview ? 'Yes' : 'No',
+      noCapture:  hhmmss(r.noCaptureSeconds || 0),
     })));
   })
 );

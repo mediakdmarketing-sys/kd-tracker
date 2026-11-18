@@ -117,6 +117,11 @@ export default function LiveTimesheet({ initial, query, timezone, scope = 'admin
           <div className="value" style={{ color: summary.flagged ? '#e11d48' : undefined }}>{summary.flagged}</div>
           <div className="sub">over break or to check</div>
         </div>
+        <div className="stat">
+          <div className="label">No capture</div>
+          <div className="value" style={{ color: summary.noCapturePeople ? '#e11d48' : undefined }}>{summary.noCapturePeople || 0}</div>
+          <div className="sub">{summary.noCapturePeople === 1 ? 'person' : 'people'} with agent silent time</div>
+        </div>
         {data.rows.some((r) => r.agent) && (
           <div className="stat">
             <div className="label">Agent not connected</div>
@@ -177,6 +182,7 @@ export default function LiveTimesheet({ initial, query, timezone, scope = 'admin
                   <th>Worked</th>
                   <th>Break</th>
                   <th>Idle</th>
+                  <th title="Time in the shift when the agent was not talking to the server, so nothing was captured">No capture</th>
                   <th>Mic muted</th>
                   {hr && <th>Screenshots</th>}
                   <th>Flags</th>
@@ -210,6 +216,18 @@ export default function LiveTimesheet({ initial, query, timezone, scope = 'admin
                       <td className="num">{r.punchIn ? duration(r.workedSeconds + live) : '—'}</td>
                       <td className="num">{r.punchIn ? duration(r.breakSeconds + onBreakNow) : '—'}</td>
                       <td className="num">{r.punchIn ? duration(r.idleSeconds) : '—'}</td>
+                      <td className="num">
+                        {r.noCaptureSeconds > 0 ? (
+                          <span
+                            className={`pill ${r.noCaptureSeconds >= 300 ? 'pill-flag' : 'pill-idle'}`}
+                            title="The agent was not talking to the server, so nothing was captured. It is a flag only: it does not change the hours."
+                          >
+                            {duration(r.noCaptureSeconds + (r.state === 'working' && r.agent && r.agent !== 'online' ? lag : 0))}
+                          </span>
+                        ) : (
+                          <span className="faint">{r.punchIn ? '0' : '—'}</span>
+                        )}
+                      </td>
                       <td>
                         {r.micMutedTimes > 0 ? (
                           <Link

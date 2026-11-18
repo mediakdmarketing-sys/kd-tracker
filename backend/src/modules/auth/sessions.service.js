@@ -74,6 +74,24 @@ const AGENT_CLIENTS = ['desktop', 'chromeos', 'android'];
 const AGENT_ONLINE_MS = 3 * 60 * 1000;
 
 /**
+ * When each person's agent last talked to the server, from any agent session, ended ones included
+ * (so an agent that was signed out mid-shift still tells when it went quiet). Missing = never.
+ * @returns {Promise<Map<string, number>>} employee id -> epoch ms
+ */
+async function lastAgentContact(employeeIds) {
+  const out = new Map();
+  if (!employeeIds.length) return out;
+  const rows = await db()('sessions')
+    .whereIn('employee_id', employeeIds)
+    .whereIn('client', AGENT_CLIENTS)
+    .groupBy('employee_id')
+    .select('employee_id')
+    .max({ last: 'last_seen_at' });
+  for (const r of rows) out.set(r.employee_id, Number(r.last));
+  return out;
+}
+
+/**
  * Is each person's agent (desktop or phone app) connected? From the agent's own session:
  *   online  asked the server inside the last 3 minutes
  *   quiet   signed in but silent longer than that: closed, asleep or offline
@@ -250,6 +268,7 @@ module.exports = {
   touch,
   isLive,
   agentStatus,
+  lastAgentContact,
   revoke,
   revokeAll,
   listSessions,

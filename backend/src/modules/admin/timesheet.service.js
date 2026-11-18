@@ -19,6 +19,7 @@ const attendanceService = require('../attendance/attendance.service');
 const { shapeScreenshot } = require('../capture/capture.service');
 const { micLog, MAX_GAP_MS } = require('../capture/micLog');
 const sessionsService = require('../auth/sessions.service');
+const captureWatch = require('../../services/captureWatch');
 
 const MAX_TIMESHEET_DAYS = 31;
 const MAX_SCREENSHOT_DAYS = 7;
@@ -71,6 +72,9 @@ async function timesheet({ from, to, department, search, employeeId, memberIds =
     : [];
   const runningStart = new Map(running.map((b) => [b.attendance_id, Number(b.break_start)]));
 
+  // Stretches in which the agent was not talking to the server (nothing captured), per shift.
+  const gapSeconds = await captureWatch.gapSecondsByShift(shifts.map((s) => s.id), nowMs);
+
   const byDay = new Map();
   for (const s of shifts) {
     const key = `${s.employee_id}|${s.date}`;
@@ -90,10 +94,12 @@ async function timesheet({ from, to, department, search, employeeId, memberIds =
         overBreak: false,
         needsReview: false,
         reviewReason: '',
+        noCaptureSeconds: 0,
       });
     }
     const day = byDay.get(key);
     day.shifts += 1;
+    day.noCaptureSeconds += gapSeconds.get(s.id) || 0;
     day.punchInMs = Math.min(day.punchInMs, Number(s.punch_in));
 
     const isOpen = s.status === 'open' || s.status === 'on_break';
@@ -165,6 +171,7 @@ async function timesheet({ from, to, department, search, employeeId, memberIds =
     overBreak: d.overBreak,
     needsReview: d.needsReview,
     reviewReason: d.reviewReason,
+    noCaptureSeconds: d.noCaptureSeconds,
     screenshots: shotsBy.get(`${d.employeeId}|${d.date}`) || 0,
     micMutedTimes: micBy.get(`${d.employeeId}|${d.date}`)?.times || 0,
     micMutedSeconds: micBy.get(`${d.employeeId}|${d.date}`)?.seconds || 0,
@@ -199,6 +206,7 @@ async function timesheet({ from, to, department, search, employeeId, memberIds =
         overBreak: false,
         needsReview: false,
         reviewReason: '',
+        noCaptureSeconds: 0,
         screenshots: 0,
         micMutedTimes: 0,
         micMutedSeconds: 0,
@@ -222,7 +230,9 @@ async function timesheet({ from, to, department, search, employeeId, memberIds =
       onLeave: count('on_leave'),
       workedSeconds: rows.reduce((sum, r) => sum + r.workedSeconds, 0),
       breakSeconds: rows.reduce((sum, r) => sum + r.breakSeconds, 0),
-      flagged: rows.filter((r) => r.needsReview || r.overBreak).length,
+      // A day with a break over the allowance, a shift to confirm, or at least five minutes of "no capture".
+      flagged: rows.filter((r) => r.needsReview || r.overBreak || r.noCaptureSeconds >= 300).length,
+      noCapturePeople: new Set(rows.filter((r) => r.noCaptureSeconds > 0).map((r) => r.employeeId)).size,
       micMutedTimes: rows.reduce((sum, r) => sum + r.micMutedTimes, 0),
       micMutedPeople: new Set(rows.filter((r) => r.micMutedTimes > 0).map((r) => r.employeeId)).size,
       micMutedNow: rows.filter((r) => r.micMutedNow).length,

@@ -88,6 +88,9 @@ const config = {
     // How far back a queued punch event may be dated. Beyond this it is not a network blip
     // and HR should look at it.
     maxBackdateHours: int('MAX_BACKDATE_HOURS', 4),
+    // A queued punch or break time older than this (but inside the limit above) is accepted and the
+    // shift is flagged "to check". Ordinary delays of a few minutes are not flagged.
+    reviewBackdateMinutes: int('REVIEW_BACKDATE_MINUTES', 10),
     // A capture older than this would be near the end of its retention life on arrival.
     maxCaptureAgeDays: int('MAX_CAPTURE_AGE_DAYS', 7),
   },
@@ -182,6 +185,31 @@ const config = {
     // once, so the repeats are harmless and cover a server that was asleep at the first run.
     birthdayCron: str('CRON_BIRTHDAYS', '5 8-20 * * *'),
     closeShiftsCron: str('CRON_CLOSE_SHIFTS', '10 * * * *'),
+    // Looks at everyone on a shift once a minute: agent silent, long idle.
+    watchCron: str('CRON_WATCH', '* * * * *'),
+  },
+
+  // The capture watch (services/captureWatch.js). It only flags and tells; it never changes pay.
+  watch: {
+    // An agent silent this long during a shift starts a "no capture" gap and alerts HR and the leader.
+    agentSilentMinutes: int('AGENT_SILENT_MINUTES', 5),
+    // Someone who punched in and has had no agent at all gets this long to start it before it counts.
+    noAgentGraceMinutes: int('NO_AGENT_GRACE_MINUTES', 10),
+    // Working, agent running, but no keyboard or mouse for this long: tell the leader and HR. 0 = off.
+    idleAlertMinutes: int('IDLE_ALERT_MINUTES', 30),
+    // A second alert about the same person's idling waits at least this long.
+    idleRepeatMinutes: int('IDLE_ALERT_REPEAT_MINUTES', 120),
+    // The agent is "connected" but has delivered no activity samples (the real agent sends one a
+    // minute) for this long: something other than the agent may be keeping the connection alive. 0 = off.
+    noDataMinutes: int('AGENT_NO_DATA_MINUTES', 10),
+    // Scripted activity: over the last `patternMinutes`, at least `patternMinSamples` samples that are
+    // all busy yet show only one or two distinct (keys, mouse) readings: a mouse jiggler or macro. 0 = off.
+    patternMinutes: int('PATTERN_MINUTES', 30),
+    patternMinSamples: int('PATTERN_MIN_SAMPLES', 20),
+    patternRepeatMinutes: int('PATTERN_ALERT_REPEAT_MINUTES', 240),
+    // After the feature's first deploy, agents that have not yet refreshed their login are left alone
+    // for this long (see services/captureWatch.js).
+    warmupMinutes: int('WATCH_WARMUP_MINUTES', isTest ? 0 : 45),
   },
 };
 

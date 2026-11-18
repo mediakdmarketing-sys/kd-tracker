@@ -9,6 +9,7 @@ const { closeStaleShifts } = require('./closeShifts.job');
 const payrollService = require('../modules/payroll/payroll.service');
 const payslipMail = require('../modules/payroll/payslipMail.service');
 const birthdays = require('../services/birthdays');
+const captureWatch = require('../services/captureWatch');
 const t = require('../utils/time');
 
 const tasks = [];
@@ -51,6 +52,13 @@ function start() {
     const result = await payrollService.generate({ month });
     return { ...result, affected: result.employeesProcessed };
   });
+
+  // The capture watch: agent silent, long idle. Every minute, and not through runJob for the same
+  // reason as the payslip worker below: a job-run row a minute would bury the real ones.
+  if (cron.validate(config.jobs.watchCron)) {
+    tasks.push(cron.schedule(config.jobs.watchCron, () => captureWatch.safeRun()));
+    logger.info('Scheduled job: capture-watch', { expression: config.jobs.watchCron });
+  }
 
   // Payslip emails waiting in the queue (a restart can interrupt a bulk send). Every minute, and
   // not through runJob: a job-run row a minute would only bury the real ones.

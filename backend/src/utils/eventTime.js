@@ -88,6 +88,20 @@ function resolvePunchTime({ requested, field = 'at', floorMs, now = t.now() }) {
     };
   }
 
+  // Inside the limit the claimed time is believed, but a time that is well in the past is the one
+  // way a client can shorten its own break or lengthen its own shift, so HR is told (flag only; the
+  // hours are not changed). A few minutes of lateness is ordinary and passes quietly.
+  const lateSeconds = Math.floor((now - ms) / 1000);
+  const reviewAfter = (config.offline.reviewBackdateMinutes ?? 10) * 60;
+  if (lateSeconds > reviewAfter) {
+    return {
+      at: ms,
+      backdated: true,
+      capped: false,
+      reason: `A queued ${field === 'at' ? 'punch or break' : field} event was recorded ${t.formatDuration(lateSeconds)} after it was said to have happened. Check that it is right.`,
+    };
+  }
+
   return { at: ms, backdated: true, capped: false, reason: null };
 }
 
