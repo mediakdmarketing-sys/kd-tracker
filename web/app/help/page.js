@@ -30,7 +30,7 @@ const SECTIONS = [
     body: [
       'New here? HR sends you a message with the web link, your username (your work email) and a temporary password. The first time you sign in you are asked to choose your own password. You can change it again any time with Change password at the bottom of the menu.',
       'Password rules: at least 8 characters (12 for HR / Admin accounts, which can see everyone’s data). It must not be a common password such as Password123 or Welcome2026, and must not contain your name or email. A few words you will remember work well, for example "blue-tea-morning-bus". Someone made an HR / Admin is asked to choose a new password at their next sign-in so it meets the longer rule.',
-      'Sign in with your work email and password. Forgot it? Ask HR to send you a new invitation from your employee page.',
+      'Sign in with your work email and password. Forgot it? Click “Forgot password?” on the sign-in page, enter your work email, and open the link we email you (it works once, for 30 minutes). If no email comes, check spam, or ask HR to send you a new invitation from your employee page.',
       'The first time, you read and accept the monitoring notice. You cannot punch in until the monitoring box is ticked. The audio box is optional.',
       'Use Sign out at the bottom of the menu on a shared computer.',
     ],

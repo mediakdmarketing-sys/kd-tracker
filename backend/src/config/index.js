@@ -66,6 +66,11 @@ const config = {
     // Shared secret the portal's server sends (X-BFF-Key) so the backend believes the visitor's
     // address and browser it passes along. Empty = not used: the request's own address is taken.
     bffKey: str('BFF_KEY', ''),
+    // Where the "forgot password" link in the email points: the portal's own address. Defaults to the
+    // first allowed web origin.
+    portalUrl: str('PORTAL_URL', '') || str('CORS_ORIGINS', 'http://localhost:3000').split(',')[0].trim(),
+    // How long a reset link works.
+    resetMinutes: int('PASSWORD_RESET_MINUTES', 30),
     // Wrong two-step codes allowed in the window before the account is held for a while.
     maxBadCodes: int('TWO_STEP_MAX_BAD_CODES', 5),
     badCodeWindowMinutes: int('TWO_STEP_LOCK_MINUTES', 15),

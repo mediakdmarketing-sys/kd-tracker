@@ -44,6 +44,36 @@ router.post(
   })
 );
 
+// "Forgot password": an emailed one-time link. The answer is the same for any email (see passwordReset.service).
+const passwordReset = require('./passwordReset.service');
+
+router.post(
+  '/forgot-password',
+  loginLimiter,
+  validate(z.object({ email: z.string().trim().toLowerCase().email('Enter your work email') })),
+  asyncHandler(async (req, res) => {
+    res.json(await passwordReset.request({ email: req.body.email, info: clientInfo(req) }));
+  })
+);
+
+router.post(
+  '/reset-password/check',
+  loginLimiter,
+  validate(z.object({ token: z.string().min(20).max(200) })),
+  asyncHandler(async (req, res) => {
+    res.json(await passwordReset.check(req.body.token));
+  })
+);
+
+router.post(
+  '/reset-password',
+  loginLimiter,
+  validate(z.object({ token: z.string().min(20).max(200), newPassword: z.string().min(8, 'The new password must be at least 8 characters').max(200) })),
+  asyncHandler(async (req, res) => {
+    res.json(await passwordReset.reset(req.body));
+  })
+);
+
 // The code step of a two-step sign-in. Limited like sign-in, and the account itself is held after a
 // few wrong codes (see twoFactor.service).
 router.post(
