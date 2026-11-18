@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { post } from '@/lib/client';
 import PasswordField from '@/components/PasswordField';
@@ -147,6 +148,9 @@ export default function LoginForm() {
           <button type="submit" className="btn btn-primary btn-lg" style={{ width: '100%' }} disabled={busy}>
             {busy ? 'Signing in…' : 'Sign in'}
           </button>
+          <div style={{ marginTop: 12, fontSize: 13, textAlign: 'center' }}>
+            <Link href="/forgot-password">Forgot password?</Link>
+          </div>
         </>
       )}
 

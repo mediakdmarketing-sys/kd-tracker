@@ -1,0 +1,27 @@
+import ThemeToggle from '@/components/ThemeToggle';
+import ForgotForm from './ForgotForm';
+
+export const metadata = { title: 'Forgot password · WorkInvigilator' };
+
+export default function ForgotPasswordPage() {
+  return (
+    <div className="login-wrap">
+      <div style={{ position: 'fixed', top: 12, right: 16, zIndex: 20 }}>
+        <ThemeToggle />
+      </div>
+      <div className="login-card card">
+        <div className="card-pad">
+          <div className="login-head">
+            <h1 style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/icons/icon-192.png" alt="" width={44} height={44} />
+              <span className="brand-word" style={{ fontSize: 27 }}>WorkInvigilator</span>
+            </h1>
+            <p>Forgot your password? We will email you a link to choose a new one.</p>
+          </div>
+          <ForgotForm />
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -41,6 +41,7 @@ async function truncate() {
     'attendance',
     'capture_gaps',
     'login_events',
+    'password_resets',
     'sessions',
     'refresh_tokens',
     'employees',

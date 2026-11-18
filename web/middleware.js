@@ -10,7 +10,7 @@ import {
   clientHeaders,
 } from '@/lib/session';
 
-const PUBLIC_PATHS = ['/login', '/bff/login'];
+const PUBLIC_PATHS = ['/login', '/bff/login', '/forgot-password', '/reset-password', '/bff/password'];
 
 /**
  * Token refresh happens here rather than in the pages.
