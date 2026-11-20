@@ -6,7 +6,7 @@ import { post } from '@/lib/client';
 import { NOTIFICATIONS_CHANGED } from '@/components/NotificationBadge';
 
 /** "5 min ago", "yesterday", or a date: how long ago something happened, without a clock. */
-function ago(iso, now = Date.now()) {
+export function ago(iso, now = Date.now()) {
   const seconds = Math.max(0, Math.round((now - new Date(iso).getTime()) / 1000));
   if (seconds < 60) return 'just now';
   const minutes = Math.round(seconds / 60);

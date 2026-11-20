@@ -5,6 +5,7 @@ import Link from 'next/link';
 import NavLink from './NavLink';
 import LogoutButton from './LogoutButton';
 import NotificationBadge from './NotificationBadge';
+import NotificationBell from './NotificationBell';
 import BackButton from './BackButton';
 import NewYorkClock from './NewYorkClock';
 import ThemeToggle from './ThemeToggle';
@@ -345,6 +346,7 @@ export default function AppShell({ user, children }) {
         {/* Stays at the top while the page scrolls, for every role. */}
         <div className="topbar">
           <NewYorkClock />
+          <NotificationBell />
         </div>
         <BackButton />
         {children}
