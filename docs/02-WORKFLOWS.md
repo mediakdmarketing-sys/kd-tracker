@@ -125,7 +125,7 @@ stateDiagram-v2
   Working --> OnBreak: Start break
   OnBreak --> Working: End break
   Working --> PunchedOut: Punch out
-  OnBreak --> PunchedOut: Punch out (break closed for you)
+  OnBreak --> Working: End break (required before punching out)
   Working --> OnBreak: Sign out of the portal<br/>(reason: signed_out)
   Working --> PunchedOut: Auto-close after 16 h<br/>(flagged for HR)
   OnBreak --> PunchedOut: Auto-close after 16 h
@@ -135,7 +135,7 @@ Rules
 - **Punch in** needs the monitoring notice, no other open shift, and a working day. Sundays and company holidays refuse (`DAY_OFF`). Punching in on the portal or the agent is the same thing; the other shows it within about 20 seconds.
 - **Break:** capture and the work clock pause. The allowance (60 minutes by default, set in Settings) is shown. Over it, the day is flagged and the agent reminds every 5 minutes.
 - **Signing out while punched in** puts the shift on a break (reason `signed_out`). The person must click **End break** after signing in. Punch out (not just sign out) when finished.
-- **Punch out:** closes a running break, adds project time, computes worked = gross minus breaks, adds idle seconds, flags over-break. A single shift can carry several flag reasons.
+- **Punch out:** refused (409) while a break is running — end the break first (the apps grey the button out). Then adds project time, computes worked = gross minus breaks, adds idle seconds, flags over-break. A single shift can carry several flag reasons.
 - **Auto-close:** a shift still open `SHIFT_AUTO_CLOSE_HOURS` after punch-in (16) is closed by a job at that mark, flagged "never punched out", for HR to confirm. The employee can then ask for a time correction.
 - **Projects:** if HR created projects, the person picks "Working on"; project time ends with the shift.
 - **Several shifts in a day** are allowed (power cut, restart); worked time is the sum, counted once.

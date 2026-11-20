@@ -217,6 +217,13 @@ async function punchOut({ employee, at, requestedAt }) {
   const shift = await openShift(employee.id);
   if (!shift) throw conflict('No open shift to punch out of.');
 
+  // The break must be ended first: it is the person's own statement of when they came back, and it
+  // stops "punch out from the break" being a way to end a shift with the break running on. (A shift
+  // left on a break overnight is still closed by the stale-shift sweeper, which does not come here.)
+  if (await runningBreak(shift.id)) {
+    throw conflict('End your break before you punch out.', { code: 'BREAK_RUNNING' });
+  }
+
   const receivedAt = t.now();
   const resolved = requestedAt
     ? resolvePunchTime({
@@ -227,10 +234,6 @@ async function punchOut({ employee, at, requestedAt }) {
         now: receivedAt,
       })
     : { at: at ?? receivedAt, capped: false, reason: null };
-
-  // An employee who forgets to end a break should not lose that time; close it for them.
-  const open = await runningBreak(shift.id);
-  if (open) await endBreak({ employee, at: resolved.at, silent: true });
 
   // Project time must not run past the shift it belongs to.
   await projectService.endRunningEntry(shift.id, resolved.at);

@@ -153,6 +153,9 @@ describe('signing out while punched in', () => {
     await signOut((await signIn(e)).refresh);
     await db()('breaks').where({ employee_id: e.id }).update({ break_start: t.now() - 60 * 60 * 1000 });
 
+    // The break has to be ended before punching out.
+    await expect(attendance.punchOut({ employee: person(e), at: t.now() })).rejects.toThrow(/end your break/i);
+    await attendance.endBreak({ employee: person(e), at: t.now() });
     const out = await attendance.punchOut({ employee: person(e), at: t.now() });
     // Five hours in, the last of them a break: about four worked.
     expect(out.totalBreakSeconds).toBeGreaterThanOrEqual(59 * 60);

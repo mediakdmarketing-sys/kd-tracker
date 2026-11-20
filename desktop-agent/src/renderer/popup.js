@@ -162,7 +162,7 @@ function signedInView() {
             <button data-punch="${onBreak ? 'breakEnd' : 'breakStart'}" ${busy ? 'disabled' : ''}>
               ${onBreak ? 'End break' : 'Start break'}
             </button>
-            <button class="danger" data-punch="punchOut" ${busy ? 'disabled' : ''}>Punch out</button>
+            <button class="danger" data-punch="punchOut" ${busy || onBreak ? 'disabled' : ''} ${onBreak ? 'title="End your break first"' : ''}>Punch out</button>
           `
       }
     </div>

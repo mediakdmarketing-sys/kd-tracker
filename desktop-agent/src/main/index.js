@@ -360,8 +360,8 @@ function refreshTray() {
       click: () => agent.punch(state.shiftState === 'on_break' ? 'breakEnd' : 'breakStart'),
     },
     {
-      label: 'Punch out',
-      enabled: state.signedIn && ['working', 'on_break'].includes(state.shiftState),
+      label: state.shiftState === 'on_break' ? 'Punch out (end break first)' : 'Punch out',
+      enabled: state.signedIn && state.shiftState === 'working',
       click: () => agent.punch('punchOut'),
     },
     { type: 'separator' },

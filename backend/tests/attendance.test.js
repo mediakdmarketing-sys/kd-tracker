@@ -135,17 +135,24 @@ describe('breaks and worked time', () => {
     expect(closed.totalBreakSeconds).toBe(900 + 1800);
   });
 
-  it('closes a forgotten break when the employee punches out', async () => {
+  it('refuses to punch out while a break is running, and allows it once the break is ended', async () => {
     const employee = await createEmployee();
-    const start = t.now() - 9 * HOUR;
+    const token = await login(employee);
     const user = toUser(employee);
 
-    await attendanceService.punchIn({ employee: user, at: start });
-    await attendanceService.startBreak({ employee: user, at: start + 8 * HOUR });
-    const closed = await attendanceService.punchOut({ employee: user, at: start + 9 * HOUR });
+    await attendanceService.punchIn({ employee: user, at: t.now() - 9 * HOUR });
+    await attendanceService.startBreak({ employee: user, at: t.now() - HOUR });
 
-    expect(closed.status).toBe('closed');
-    expect(closed.totalBreakSeconds).toBe(3600);
+    const refused = await as(token).post('/api/attendance/punch-out');
+    expect(refused.status).toBe(409);
+    expect(refused.body.error.message).toMatch(/end your break/i);
+    expect((await db()('attendance').first()).status).toBe('on_break'); // nothing changed
+
+    expect((await as(token).post('/api/attendance/break-end')).status).toBe(200);
+    const closed = await as(token).post('/api/attendance/punch-out');
+    expect(closed.status).toBe(200);
+    expect(closed.body.status).toBe('closed');
+    expect(closed.body.totalBreakSeconds).toBeGreaterThan(3500);
   });
 
   it('rejects a break when no shift is open', async () => {

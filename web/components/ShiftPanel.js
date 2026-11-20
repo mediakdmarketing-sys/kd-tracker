@@ -323,7 +323,8 @@ export default function ShiftPanel({ initial, timezone }) {
                   type="button"
                   className="btn btn-danger btn-lg"
                   onClick={() => act('punch-out', 'out')}
-                  disabled={busy !== null}
+                  disabled={busy !== null || onBreak}
+                  title={onBreak ? 'End your break first' : undefined}
                 >
                   {busy === 'out' ? 'Punching out…' : 'Punch out'}
                 </button>

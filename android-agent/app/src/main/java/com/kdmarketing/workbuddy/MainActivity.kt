@@ -316,10 +316,8 @@ class MainActivity : AppCompatActivity() {
                 }, weight())
             }
             "on_break" -> {
+                // Punch out is not offered while on a break: end the break first.
                 row.addView(secondary("End break") { act({ api.request("POST", "/api/attendance/break-end") }) }, weight())
-                row.addView(danger("Punch out") {
-                    act({ api.request("POST", "/api/attendance/punch-out") }, then = { CaptureService.stop(this) })
-                }, weight())
             }
             else -> {
                 row.addView(primary("Punch in") {

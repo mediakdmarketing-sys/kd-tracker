@@ -53,7 +53,7 @@ Audio consent can be given and revoked freely, and revocation takes effect on th
 | Method | Path | Auth | Notes |
 |---|---|---|---|
 | POST | `/api/attendance/punch-in` | any | 201. **403** if monitoring consent is missing, **409** if a shift is open |
-| POST | `/api/attendance/punch-out` | any | Computes worked seconds; closes a forgotten break |
+| POST | `/api/attendance/punch-out` | any | Computes worked seconds; 409 while a break is running (end it first) |
 | POST | `/api/attendance/break-start` | any | **409** if not punched in, or already on a break |
 | POST | `/api/attendance/break-end` | any | Recomputes `totalBreakSeconds` from the break rows |
 
