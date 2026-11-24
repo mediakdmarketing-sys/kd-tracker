@@ -9,6 +9,7 @@ import EmployeeActions from './EmployeeActions';
 import LeaderActions from './LeaderActions';
 import BankDetailsCard from './BankDetailsCard';
 import EmployeeSecurityCard from './EmployeeSecurityCard';
+import MonthlySummaryCard from './MonthlySummaryCard';
 import AgentBadge from '@/components/AgentBadge';
 import { duration, time, timeSec, dateLabel, todayIn, workedSecondsOf, isOpenShift } from '@/lib/format';
 import { averageActivity } from '@/lib/activity';
@@ -148,6 +149,8 @@ export default async function EmployeeDetailPage({ params, searchParams }) {
             />
           </Suspense>
         </div>
+
+        <MonthlySummaryCard employeeId={id} initialMonth={today.slice(0, 7)} />
 
         <div className="grid grid-stats">
           <div className="stat">

@@ -16,7 +16,9 @@ const { requireAdmin, requireAccountAdmin } = require('../../middleware/rbac');
 const { validate, q } = require('../../middleware/validate');
 const { asyncHandler, pagination, paged, sendWithRange, toBool } = require('../../utils/http');
 const { sendCsv } = require('../../utils/csv');
-const { badRequest, forbidden } = require('../../utils/errors');
+const { badRequest, forbidden, notFound } = require('../../utils/errors');
+const timeUtil = require('../../utils/time');
+const payService = require('../payroll/pay.service');
 const audit = require('../../services/audit');
 const notifications = require('../../services/notifications');
 const birthdays = require('../../services/birthdays');
@@ -676,6 +678,76 @@ router.get(
     await audit.record(req, { action: audit.ACTIONS.VIEWED_SECURITY, targetEmployeeId: id, targetType: 'employee', targetId: id });
     res.set('Cache-Control', 'no-store');
     res.json({ twoFactor: status, sessions: live, history });
+  })
+);
+
+// One person's month at a glance: how many days they worked and how many were full, half or short.
+// Worked out from their closed shifts, so it is there for any month, generated or not, and carries no
+// pay figures (those are payroll's, behind the account-admin door).
+router.get(
+  '/employees/:id/monthly',
+  validate(employeeIdParam, 'params'),
+  validate(
+    z.object({
+      month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'month must be YYYY-MM').optional(),
+      format: z.enum(['json', 'csv']).optional(),
+    }),
+    'query'
+  ),
+  asyncHandler(async (req, res) => {
+    const query = q(req);
+    const month = query.month || timeUtil.monthOf(timeUtil.localDate());
+    const emp = await db()('employees').where({ id: req.params.id }).first('id', 'name', 'email', 'department');
+    if (!emp) throw notFound('Employee not found');
+
+    const { start, end } = timeUtil.monthBounds(month);
+    const days = (await payService.payableDays({ start, end, employeeIds: [emp.id] })).get(emp.id) || [];
+    const limits = payService.currentLimits();
+    const kinds = days.map((d) => payService.dayKind(d.worked, limits));
+    const worked = days.reduce((sum, d) => sum + d.worked, 0);
+    const otherSeconds = days.filter((_, i) => kinds[i] === 'partial').reduce((sum, d) => sum + d.worked, 0);
+    const round2 = (n) => Math.round(n * 100) / 100;
+    const row = {
+      employeeId: emp.id,
+      name: emp.name,
+      email: emp.email,
+      department: emp.department || '',
+      month,
+      daysPresent: days.length,
+      totalHours: round2(worked / 3600),
+      fullDays: kinds.filter((k) => k === 'full').length,
+      halfDays: kinds.filter((k) => k === 'half').length,
+      otherDays: kinds.filter((k) => k === 'partial').length,
+      otherHours: round2(otherSeconds / 3600),
+    };
+
+    await audit.record(req, {
+      action: audit.ACTIONS.EXPORTED_REPORT,
+      targetEmployeeId: emp.id,
+      targetType: 'employee',
+      targetId: emp.id,
+      details: { kind: 'employee_monthly', month, format: query.format || 'json' },
+    });
+
+    if (query.format === 'csv') {
+      return sendCsv(
+        res,
+        `${emp.name.replace(/[^a-z0-9]+/gi, '_')}_${month}.csv`,
+        [
+          { key: 'name', label: 'Employee' },
+          { key: 'email', label: 'Email' },
+          { key: 'department', label: 'Department' },
+          { key: 'month', label: 'Month' },
+          { key: 'daysPresent', label: 'Days Present' },
+          { key: 'totalHours', label: 'Total Hours' },
+          { key: 'fullDays', label: 'Full Days' },
+          { key: 'halfDays', label: 'Half Days' },
+          { key: 'otherHours', label: 'Other Hours' },
+        ],
+        [row]
+      );
+    }
+    res.json(row);
   })
 );
 
