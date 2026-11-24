@@ -166,11 +166,12 @@ export default async function PayrollPage({ searchParams }) {
                       <th>Full</th>
                       <th>Half</th>
                       <th>Other hrs</th>
-                      <th>Leave / holiday</th>
                       <th>Base pay</th>
+                      <th>Leave / holiday</th>
                       <th>Bonus</th>
                       <th>Net pay</th>
                       <th>Idle</th>
+                      <th title="Worked time minus idle time">Active</th>
                       <th>Flagged</th>
                       <th>Synced</th>
                       <th>Emailed</th>
@@ -204,6 +205,7 @@ export default async function PayrollPage({ searchParams }) {
                         <td className="num">{row.bonusTotal ? money(row.bonusTotal) : <span className="faint">—</span>}</td>
                         <td className="num"><strong>{money(row.netPay)}</strong></td>
                         <td className="num muted">{row.idleFormatted}</td>
+                        <td className="num">{row.activeFormatted}</td>
                         <td className="num">
                           {row.daysFlagged ? (
                             <span className="pill pill-flag">{row.daysFlagged}</span>

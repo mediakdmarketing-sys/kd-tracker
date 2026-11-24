@@ -393,7 +393,8 @@ describe('the pay API is admin only', () => {
     expect(slip.body.basePay).toBe(52.4);
 
     const csv = await api.get(`/api/payroll/export?month=${MONTH}`);
-    expect(csv.text).toMatch(/Net Pay \(USD\)/);
+    expect(csv.text).not.toMatch(/Net Pay/); // pay figures are not in the export file
+    expect(csv.text).toMatch(/Full Days/);
   });
 
   it('answers a bad bulk upload with the failing rows', async () => {

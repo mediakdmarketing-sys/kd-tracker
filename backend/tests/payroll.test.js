@@ -178,7 +178,11 @@ describe('payroll export', () => {
     expect(res.status).toBe(200);
     expect(res.headers['content-type']).toMatch(/text\/csv/);
     expect(res.text).toContain('Divya Nair');
-    expect(res.text).toContain('Total Hours');
+    expect(res.text).toContain('Days Present');
+    // The summary columns are left out of the file on purpose.
+    for (const gone of ['Total Hours', 'Worked', 'Break', 'Idle', 'Flagged Days', 'Base Pay', 'Bonus', 'Net Pay', 'Days Without Rate', 'Synced']) {
+      expect(res.text.split('\n')[0]).not.toContain(gone);
+    }
 
     const logs = await db()('audit_logs').where({ action: 'exported_payroll' });
     expect(logs).toHaveLength(1);

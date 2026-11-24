@@ -203,6 +203,8 @@ function shape(row, bonusCents = 0) {
     workedFormatted: t.formatDuration(row.total_worked_seconds),
     breakFormatted: t.formatDuration(row.total_break_seconds),
     idleFormatted: t.formatDuration(row.total_idle_seconds),
+    // Worked time with the idle time taken out.
+    activeFormatted: t.formatDuration(Math.max(0, (Number(row.total_worked_seconds) || 0) - (Number(row.total_idle_seconds) || 0))),
     // True when idle seconds were subtracted from total_hours at generation time.
     idleDeducted: toBool(row.idle_deducted),
     daysPresent: row.days_present,

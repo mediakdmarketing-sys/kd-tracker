@@ -182,6 +182,7 @@ export default function LiveTimesheet({ initial, query, timezone, scope = 'admin
                   <th>Worked</th>
                   <th>Break</th>
                   <th>Idle</th>
+                  <th title="Worked time minus idle time">Active</th>
                   <th title="Time in the shift when the agent was not talking to the server, so nothing was captured">No capture</th>
                   <th>Mic muted</th>
                   {hr && <th>Screenshots</th>}
@@ -216,6 +217,7 @@ export default function LiveTimesheet({ initial, query, timezone, scope = 'admin
                       <td className="num">{r.punchIn ? duration(r.workedSeconds + live) : '—'}</td>
                       <td className="num">{r.punchIn ? duration(r.breakSeconds + onBreakNow) : '—'}</td>
                       <td className="num">{r.punchIn ? duration(r.idleSeconds) : '—'}</td>
+                      <td className="num">{r.punchIn ? duration(Math.max(0, r.workedSeconds + live - r.idleSeconds)) : '—'}</td>
                       <td className="num">
                         {r.noCaptureSeconds > 0 ? (
                           <span
