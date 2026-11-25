@@ -6,28 +6,28 @@
 // static host, such as a public Cloudflare R2 bucket. Nothing runs unless the app is packaged
 // and an update URL is configured, so `npm start` in development never touches it.
 //
-// An update downloads in the background and installs the next time the agent is idle: either
-// the employee is punched out, or the app is quit (autoInstallOnAppQuit). It never restarts
-// the app in the middle of a shift, which would drop a capture or interrupt a break.
+// A new version is OFFERED, not forced on the person: the main process shows an "Update" window with
+// what is new. Only when they press Update does the new build download, and then the installer runs
+// silently over the old one (the old copy is removed, the new one installed and started again). The
+// agent's sign-in and its queue of captures stay on disk, so work carries on where it stopped.
 
 const { app } = require('electron');
 const logger = require('../core/logger');
 const { isNewer, versionFromFeed } = require('../core/version');
 
-const CHECK_EVERY_MS = 4 * 60 * 60 * 1000;
-const RETRY_RESTART_MS = 5 * 60 * 1000;
+const CHECK_EVERY_MS = 60 * 60 * 1000;
 
 /**
  * @param {object} opts
  * @param {string} opts.url             base URL of the update feed; empty disables updating
- * @param {() => boolean} opts.isIdle   true when it is safe to restart (punched out)
- * @param {(status: object) => void} [opts.onStatus]  told about each step so the popup can show it:
- *        { phase: 'available' | 'downloading' | 'ready', version, percent? }
- * @returns {{ stop: () => void, install: () => boolean }}  install() restarts into the downloaded
- *        update when it is ready and the agent is idle; false when it did nothing
+ * @param {(status: object) => void} [opts.onStatus]  told about each step:
+ *        { phase: 'available' | 'downloading' | 'installing' | 'error' | 'manual', version, percent?, message? }
+ * @returns {{ stop: () => void, check: () => void, download: () => boolean }}
+ *        download() starts fetching the update the person agreed to; false when there is none to fetch.
  */
-function startUpdater({ url, isIdle, onStatus = () => {} }) {
-  if (!app.isPackaged || !url) return { stop: () => {}, install: () => false };
+function startUpdater({ url, onStatus = () => {} }) {
+  const none = { stop: () => {}, check: () => {}, download: () => false };
+  if (!app.isPackaged || !url) return none;
 
   // macOS only installs an update over an app that is signed with an Apple Developer ID, and this
   // one is not. So instead of downloading, just tell the employee a newer version exists and let
@@ -38,8 +38,8 @@ function startUpdater({ url, isIdle, onStatus = () => {} }) {
   const { autoUpdater } = require('electron-updater');
 
   autoUpdater.setFeedURL({ provider: 'generic', url });
-  autoUpdater.autoDownload = true;
-  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.autoDownload = false; // the person decides
+  autoUpdater.autoInstallOnAppQuit = false;
   autoUpdater.logger = {
     info: (m) => logger.info(String(m)),
     warn: (m) => logger.warn(String(m)),
@@ -47,54 +47,55 @@ function startUpdater({ url, isIdle, onStatus = () => {} }) {
     debug: () => {},
   };
 
-  let restartTimer = null;
+  let available = null;
+  let downloading = false;
 
   const check = () => {
+    if (downloading) return;
     autoUpdater.checkForUpdates().catch((err) => {
       // Offline or the host is down: try again at the next interval, never surface it.
       logger.warn('Update check failed', { message: err.message });
     });
   };
 
-  const restartWhenIdle = () => {
-    if (isIdle()) {
-      autoUpdater.quitAndInstall(true, true);
-      return;
-    }
-    restartTimer = setTimeout(restartWhenIdle, RETRY_RESTART_MS);
-  };
-
-  let ready = false;
-
   autoUpdater.on('update-available', (info) => {
     logger.info('Update available', { version: info.version });
+    available = info;
     onStatus({ phase: 'available', version: info.version });
   });
 
   autoUpdater.on('download-progress', (p) => {
-    onStatus({ phase: 'downloading', percent: Math.round(p.percent || 0) });
+    onStatus({ phase: 'downloading', version: available?.version, percent: Math.round(p.percent || 0) });
   });
 
   autoUpdater.on('update-downloaded', (info) => {
-    logger.info('Update downloaded', { version: info.version });
-    ready = true;
-    onStatus({ phase: 'ready', version: info.version });
-    clearTimeout(restartTimer);
-    restartWhenIdle();
+    logger.info('Update downloaded; installing', { version: info.version });
+    onStatus({ phase: 'installing', version: info.version });
+    // Silent, and start again afterwards. A short pause lets the window show "Installing".
+    setTimeout(() => autoUpdater.quitAndInstall(true, true), 1200);
+  });
+
+  autoUpdater.on('error', (err) => {
+    downloading = false;
+    logger.error('Update failed', { message: err?.message });
+    onStatus({ phase: 'error', version: available?.version, message: 'The update could not be downloaded. Check your internet and try again.' });
   });
 
   check();
   const timer = setInterval(check, CHECK_EVERY_MS);
 
   return {
-    stop: () => {
-      clearInterval(timer);
-      clearTimeout(restartTimer);
-    },
-    install: () => {
-      // Never mid-shift: a restart would drop a capture or cut a break short.
-      if (!ready || !isIdle()) return false;
-      autoUpdater.quitAndInstall(true, true);
+    stop: () => clearInterval(timer),
+    check,
+    download: () => {
+      if (!available || downloading) return false;
+      downloading = true;
+      onStatus({ phase: 'downloading', version: available.version, percent: 0 });
+      autoUpdater.downloadUpdate().catch((err) => {
+        downloading = false;
+        logger.error('Update download failed', { message: err.message });
+        onStatus({ phase: 'error', version: available.version, message: 'The update could not be downloaded. Check your internet and try again.' });
+      });
       return true;
     },
   };
@@ -118,7 +119,7 @@ function startNotifyOnly({ url, onStatus }) {
 
   check();
   const timer = setInterval(check, CHECK_EVERY_MS);
-  return { stop: () => clearInterval(timer), install: () => false };
+  return { stop: () => clearInterval(timer), check, download: () => false };
 }
 
 module.exports = { startUpdater };

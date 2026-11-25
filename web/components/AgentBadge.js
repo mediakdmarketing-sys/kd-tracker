@@ -23,18 +23,24 @@ function ago(iso) {
 export default function AgentBadge({ agent, onShift = false }) {
   if (!agent) return <span className="faint">—</span>;
   const seen = ago(agent.lastSeenAt);
-  const title =
+  const versionNote = agent.version
+    ? ` Version ${agent.version}${agent.update === 'outdated' ? ' (an older version: the update is not installed)' : ''}.`
+    : '';
+  const title = versionNote && agent.state !== 'none' ? `${baseTitle(agent, seen)}${versionNote}` : baseTitle(agent, seen);
+  return (
+    <span className={`pill ${onShift && agent.state !== 'online' ? 'pill-flag' : CLASS[agent.state]}`} title={title}>
+      {LABEL[agent.state]}
+      {agent.state === 'quiet' && seen ? ` · ${seen}` : ''}
+    </span>
+  );
+}
+
+function baseTitle(agent, seen) {
+  return (
     agent.state === 'none'
       ? 'No desktop or phone app is signed in for this person.'
       : agent.state === 'online'
       ? `${CLIENT[agent.client] || 'The agent'}${agent.device ? ` on ${agent.device}` : ''} is talking to the server.`
-      : `${CLIENT[agent.client] || 'The agent'}${agent.device ? ` on ${agent.device}` : ''} is signed in but silent${seen ? `: last heard from ${seen}` : ''}. It may be closed, asleep or offline.`;
-  // A person who is working with no agent connected is the case worth noticing.
-  const warn = onShift && agent.state !== 'online';
-  return (
-    <span className={`pill ${warn ? 'pill-flag' : CLASS[agent.state]}`} title={title}>
-      {LABEL[agent.state]}
-      {agent.state === 'quiet' && seen ? ` · ${seen}` : ''}
-    </span>
+      : `${CLIENT[agent.client] || 'The agent'}${agent.device ? ` on ${agent.device}` : ''} is signed in but silent${seen ? `: last heard from ${seen}` : ''}. It may be closed, asleep or offline.`
   );
 }

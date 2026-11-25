@@ -177,6 +177,18 @@ describe('scripted activity', () => {
     expect(await watch.run()).toMatchObject({ patternAlerts: 0 });
   });
 
+  it('catches near-identical high values even when slightly randomised (CV < 15%)', async () => {
+    const { hr, eve } = await setup();
+    await shift(eve, 60);
+    await agentSeen(eve, 0);
+    // Attacker adds small random noise to avoid exact-duplicate check, but values stay always high.
+    for (let i = 0; i < 25; i += 1) {
+      await sample(eve, i, 460 + (i % 5) * 4, 90 + (i % 3) * 2); // CV ≈ 1%, always >500
+    }
+    expect(await watch.run()).toMatchObject({ patternAlerts: 1 });
+    expect(await inbox(hr, 'scripted_activity')).toHaveLength(1);
+  });
+
   it('leaves real, varied work alone, and quiet stretches', async () => {
     const { eve } = await setup();
     const bob = await createEmployee({ name: 'Bob', department: 'Sales' });

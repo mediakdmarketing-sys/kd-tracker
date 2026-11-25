@@ -78,7 +78,7 @@ async function authenticate(req, res, next) {
       // here, not left to the token's expiry, so it takes effect on the very next request. After the
       // deactivation check, so a deactivated account still gets ACCOUNT_DEACTIVATED, which the desktop
       // agent tells apart from an ordinary sign-out.
-      if (payload.sid && (await sessions.isLive(payload.sid)) === false) {
+      if (payload.sid && (await sessions.isLive(payload.sid, { agentVersion: req.get('x-agent-version') })) === false) {
         throw unauthorized('This session was ended. Please sign in again.');
       }
 

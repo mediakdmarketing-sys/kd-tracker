@@ -93,6 +93,17 @@ router.get(
   })
 );
 
+// GET /api/leader/agent-updates — who in my team has installed the newest desktop agent
+router.get(
+  '/agent-updates',
+  loadLeaderDepts(),
+  asyncHandler(async (req, res) => {
+    const memberIds = await service.resolveMemberIds(req.leaderDepts, req.user.id);
+    res.set('Cache-Control', 'no-store');
+    res.json(await require('../admin/agentUpdates.service').agentUpdates({ memberIds }));
+  })
+);
+
 // GET /api/leader/members/:id — basic member info accessible by leaders
 router.get(
   '/members/:employeeId/info',

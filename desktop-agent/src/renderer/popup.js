@@ -21,6 +21,18 @@ function updateBanner() {
         <div class="row" style="margin-top:8px"><button class="primary" id="open-download">Download</button></div>
       </div>`;
   }
+  if (update.phase === 'available' || update.phase === 'error') {
+    return `
+      <div class="card" id="update-banner">
+        <strong>New version${version} available</strong>
+        <div class="muted" style="margin-top:4px">${update.phase === 'error' ? escape(update.message || 'The update failed.') : 'See what is new and update.'}</div>
+        <div class="row" style="margin-top:8px"><button class="primary" id="install-update">Update</button></div>
+      </div>`;
+  }
+  if (update.phase === 'installing') {
+    return `<div class="card" id="update-banner"><strong>Installing${version}…</strong>
+      <div class="muted" style="margin-top:4px">WorkInvigilator restarts by itself.</div></div>`;
+  }
   if (update.phase === 'ready') {
     // The agent restarts to install, which would cut a capture short: only offer it when idle.
     const idle = !state?.signedIn || state.shiftState === 'punched_out';

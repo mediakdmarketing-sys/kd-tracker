@@ -21,6 +21,7 @@ const audio = require('./audio');
 const { iconFor } = require('./trayIcon');
 const notifications = require('./notifications');
 const { startUpdater } = require('./updater');
+const updateWindow = require('./updateWindow');
 const linux = require('./linux');
 const { startFileLog } = require('./fileLog');
 const { createZoomWatcher } = require('./zoomCamera');
@@ -39,9 +40,12 @@ let agent = null;
 let outbox = null;
 let timers = [];
 let stopUpdater = () => {};
-let installUpdate = () => false;
+let startUpdateDownload = () => false;
 // What the popup shows about a new version: null, or { phase, version, percent }.
 let updateStatus = null;
+// After "Later" the window stays away this long (a required update ignores it).
+const LATER_MS = 4 * 60 * 60 * 1000;
+let laterUntil = 0;
 
 // Let the web portal sign this agent in: after an employee signs in on the portal it opens a
 // workbuddy://connect?code=... link, and the OS hands it to us. In development the app is
@@ -149,7 +153,7 @@ async function start() {
     decrypt: (buffer) => safeStorage.decryptString(buffer),
   });
 
-  const api = new ApiClient({ baseUrl: settings.apiBaseUrl, tokenStore });
+  const api = new ApiClient({ baseUrl: settings.apiBaseUrl, tokenStore, agentVersion: app.getVersion() });
   // `agent` is assigned below, but this callback only runs later (after uploader.start()),
   // by which point it is set — closures capture the variable, not its value at this line.
   const uploader = new Uploader({
@@ -219,19 +223,29 @@ async function start() {
   linux.enableAutostart();
   linux.noteWaylandLimits(settings);
 
-  // New builds arrive on their own. A restart is only allowed while the employee is punched out
-  // (or the app is quit), never mid-shift. A no-op in development or with no update URL set.
+  // New builds are offered in an "Update" window; pressing Update downloads it and the installer
+  // replaces the old copy. A no-op in development or with no update URL set.
   const updater = startUpdater({
     url: process.env.KD_UPDATE_URL || BUNDLED.updateUrl,
-    isIdle: () => agent.state.shiftState === 'punched_out',
     onStatus: (status) => {
       // Progress ticks carry no version; keep the one from "available".
       updateStatus = { ...updateStatus, ...status };
       popup?.webContents.send('agent:update', updateStatus);
+      onUpdateStatus(status).catch((err) => logger.warn('Update window failed', { message: err.message }));
     },
   });
   stopUpdater = updater.stop;
-  installUpdate = updater.install;
+  startUpdateDownload = updater.download;
+  updateWindow.registerHandlers({
+    onStart: () => {
+      if (updateStatus?.phase === 'manual') {
+        shell.openExternal(`${agentPortalUrl()}/download`);
+        return true;
+      }
+      return startUpdateDownload();
+    },
+    onLater: () => { laterUntil = Date.now() + LATER_MS; },
+  });
 
   audio.registerHandlers();
   activity.start();
@@ -437,6 +451,43 @@ function showPopup() {
   popup.on('closed', () => { popup = null; });
 }
 
+/**
+ * A step of the update, from the updater. A new version found: fetch what is new in it from the server
+ * (HR writes it when publishing the release) and open the Update window, unless the person chose Later
+ * a little while ago. Progress and errors go to the window if it is open.
+ */
+async function onUpdateStatus(status) {
+  if (status.phase === 'available' || status.phase === 'manual') {
+    let release = null;
+    if (agent?.state.signedIn) {
+      try {
+        release = (await agent.syncConfig())?.agentRelease ?? null;
+      } catch {
+        // No connection: the window still opens, with generic notes.
+      }
+    }
+    // Notes and the "required" flag belong to the release for exactly this version.
+    const match = release && release.version === status.version ? release : null;
+    const mandatory = Boolean(match?.mandatory);
+    if (!mandatory && Date.now() < laterUntil) return;
+    if (updateWindow.isOpen()) return;
+    updateWindow.show({
+      phase: 'available',
+      manual: status.phase === 'manual',
+      version: status.version,
+      currentVersion: app.getVersion(),
+      notes: match?.notes?.length ? match.notes : ['Fixes and improvements.'],
+      mandatory,
+      percent: 0,
+      message: null,
+      working: ['working', 'on_break'].includes(agent?.state.shiftState),
+    });
+    return;
+  }
+  // downloading | installing | error
+  updateWindow.push(status);
+}
+
 function registerIpc() {
   ipcMain.handle('agent:getState', () => agent.state);
   ipcMain.handle('agent:signIn', (_e, { email, password }) => agent.signIn(email, password));
@@ -444,7 +495,13 @@ function registerIpc() {
   ipcMain.handle('agent:punch', (_e, action) => agent.punch(action));
   ipcMain.handle('agent:sync', () => agent.syncStatus());
   ipcMain.handle('agent:getUpdate', () => updateStatus);
-  ipcMain.handle('agent:installUpdate', () => installUpdate());
+  // The popup's banner opens the Update window (it may have been dismissed with Later).
+  ipcMain.handle('agent:installUpdate', () => {
+    if (!updateStatus?.version) return false;
+    laterUntil = 0;
+    onUpdateStatus({ phase: updateStatus.phase === 'manual' ? 'manual' : 'available', version: updateStatus.version }).catch(() => {});
+    return true;
+  });
   // macOS: the new .dmg is fetched from the portal's Download page.
   ipcMain.handle('agent:openDownload', () => shell.openExternal(`${agentPortalUrl()}/download`));
 }

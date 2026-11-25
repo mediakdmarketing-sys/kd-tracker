@@ -72,6 +72,8 @@ const ACTIONS = {
   ENDED_SESSIONS: 'ended_sessions',
   VIEWED_SECURITY: 'viewed_security',
   CHANGED_TWO_FACTOR_RULE: 'changed_two_factor_rule',
+  PUBLISHED_AGENT_RELEASE: 'published_agent_release',
+  REPEATED_SCREENSHOT_DETECTED: 'repeated_screenshot_detected',
 };
 
 module.exports = { record, ACTIONS };

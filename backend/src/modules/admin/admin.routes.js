@@ -18,6 +18,8 @@ const { asyncHandler, pagination, paged, sendWithRange, toBool } = require('../.
 const { sendCsv } = require('../../utils/csv');
 const { badRequest, forbidden, notFound } = require('../../utils/errors');
 const timeUtil = require('../../utils/time');
+const agentRelease = require('../../services/agentRelease');
+const agentUpdatesService = require('./agentUpdates.service');
 const payService = require('../payroll/pay.service');
 const audit = require('../../services/audit');
 const notifications = require('../../services/notifications');
@@ -678,6 +680,40 @@ router.get(
     await audit.record(req, { action: audit.ACTIONS.VIEWED_SECURITY, targetEmployeeId: id, targetType: 'employee', targetId: id });
     res.set('Cache-Control', 'no-store');
     res.json({ twoFactor: status, sessions: live, history });
+  })
+);
+
+// --- Agent updates ----------------------------------------------------------------------
+// HR publishes a release (a version and what is new); every desktop agent finds it, shows an Update
+// window, and installs it. This page shows who is on the newest version and who is not.
+
+router.get(
+  '/agent-updates',
+  asyncHandler(async (req, res) => {
+    const [data, history] = await Promise.all([agentUpdatesService.agentUpdates(), agentRelease.history(10)]);
+    res.set('Cache-Control', 'no-store');
+    res.json({ ...data, history });
+  })
+);
+
+router.post(
+  '/agent-releases',
+  validate(
+    z.object({
+      version: z.string().trim().min(1).max(20),
+      notes: z.array(z.string().trim().max(200)).max(12),
+      mandatory: z.boolean().optional(),
+    })
+  ),
+  asyncHandler(async (req, res) => {
+    const release = await agentRelease.publish({ ...req.body, publishedBy: req.user.id });
+    await audit.record(req, {
+      action: audit.ACTIONS.PUBLISHED_AGENT_RELEASE,
+      targetType: 'agent_release',
+      targetId: release.id,
+      details: { version: release.version, mandatory: release.mandatory },
+    });
+    res.status(201).json(release);
   })
 );
 

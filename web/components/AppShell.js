@@ -185,6 +185,7 @@ const ADMIN_GROUPS = [
       { href: '/admin/leave', label: 'Leave requests', icon: Icon.leave },
       { href: '/admin/corrections', label: 'Time corrections', icon: Icon.history },
       { href: '/admin/mic-log', label: 'Mic log', icon: Icon.mic },
+      { href: '/admin/agent-updates', label: 'Agent updates', icon: Icon.settings },
       { href: '/admin/audit', label: 'Audit log', icon: Icon.reports },
       { href: '/admin/settings', label: 'Settings', icon: Icon.settings },
 
@@ -200,7 +201,8 @@ const LEADER_GROUPS = [
       { href: '/leader/members', label: 'Live board', icon: Icon.board },
       { href: '/leader/timesheet', label: 'Timesheet', icon: Icon.history },
       { href: '/leader/leave', label: 'Leave requests', icon: Icon.leave },
-      
+      { href: '/leader/agent-updates', label: 'Agent updates', icon: Icon.settings },
+
     ],
   },
 ];

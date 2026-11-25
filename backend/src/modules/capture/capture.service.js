@@ -1,5 +1,6 @@
 'use strict';
 
+const crypto = require('crypto');
 const config = require('../../config');
 const settings = require('../../services/settings');
 const { db, isUniqueViolation } = require('../../db');
@@ -122,6 +123,40 @@ async function uploadScreenshot({
   const shift = await requireCapturableShift(employee, at);
   const buffer = decodeBase64(imageBase64, { field: 'imageBase64' });
 
+  const imageHash = crypto.createHash('sha256').update(buffer).digest('hex');
+
+  // Repeated identical screenshots within the same shift indicate a pre-recorded or static image
+  // being replayed. Store always (a genuine capture may happen to look the same), but notify HR
+  // when the same hash appears enough times in one shift.
+  const HASH_REPEAT_THRESHOLD = config.capture.repeatedScreenshotThreshold ?? 3;
+  const hashCount = await db()('screenshots')
+    .where({ employee_id: employee.id, attendance_id: shift.id, image_hash: imageHash })
+    .count({ n: '*' })
+    .first()
+    .then((r) => Number(r.n));
+
+  if (hashCount >= HASH_REPEAT_THRESHOLD - 1) {
+    // Fire and forget — do not block the upload response.
+    setImmediate(async () => {
+      try {
+        const isNew = hashCount === HASH_REPEAT_THRESHOLD - 1;
+        if (isNew || hashCount % 10 === 0) {
+          const { admins, leaders } = await notifications.reviewerAudience(employee, [employee.id]);
+          const msg = {
+            type: 'repeated_screenshot',
+            title: `Identical screenshots: ${employee.name}`,
+            body: `${employee.name}'s last ${hashCount + 1} screenshots are pixel-identical. This may be a pre-recorded image being replayed instead of a live capture.`,
+            refId: shift.id,
+          };
+          await notifications.notify(admins, { ...msg, link: `/admin/employees/${employee.id}` });
+          await notifications.notify(leaders, { ...msg, link: `/leader/members/${employee.id}` });
+        }
+      } catch (err) {
+        logger.error('Repeated screenshot alert failed', { message: err.message });
+      }
+    });
+  }
+
   const id = uuid();
   const date = t.localDate(at);
   // The storage key uses a server-generated id, not the client's `captureId` — a client
@@ -147,6 +182,7 @@ async function uploadScreenshot({
     display_count: displayCount,
     display_label: displayLabel ? String(displayLabel).slice(0, 120) : null,
     image_url: key,
+    image_hash: imageHash,
     captured_at: at,
     date,
     size_bytes: buffer.length,
@@ -416,6 +452,38 @@ async function logActivity({ employee, entries }) {
         created_at: nowMs,
       };
     });
+
+  // If a large batch of entries share almost identical timestamps (within 5 seconds of each other),
+  // it looks like a script sending replayed/fake entries rather than a genuine offline queue drain
+  // (which would have entries spread minutes apart). Flag the shift for review.
+  if (rows.length >= 10) {
+    const timestamps = rows.map((r) => r.timestamp).sort();
+    const span = timestamps[timestamps.length - 1] - timestamps[0];
+    if (span <= 5000) {
+      // All entries within a 5-second window — this is not a real queue drain.
+      setImmediate(async () => {
+        try {
+          if (shift) {
+            const needsReview = await db()('attendance').where({ id: shift.id }).first('needs_review');
+            if (!needsReview?.needs_review) {
+              await db()('attendance').where({ id: shift.id }).update({ needs_review: true, review_reason: 'Burst of activity logs with identical timestamps — possible fake/replayed data' });
+              const { admins, leaders } = await notifications.reviewerAudience(employee, [employee.id]);
+              const msg = {
+                type: 'scripted_activity',
+                title: `Suspicious activity burst: ${employee.name}`,
+                body: `${employee.name} uploaded ${rows.length} activity entries all timestamped within ${Math.ceil(span / 1000)}s of each other. Real offline queues spread entries over minutes.`,
+                refId: shift.id,
+              };
+              await notifications.notify(admins, { ...msg, link: `/admin/employees/${employee.id}` });
+              await notifications.notify(leaders, { ...msg, link: `/leader/members/${employee.id}` });
+            }
+          }
+        } catch (err) {
+          logger.error('Activity burst alert failed', { message: err.message });
+        }
+      });
+    }
+  }
 
   let accepted = rows.length;
 

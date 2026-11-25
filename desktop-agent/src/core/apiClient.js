@@ -15,8 +15,10 @@ class ApiClient {
    * @param {Function} [opts.fetchImpl]
    * @param {number}   [opts.timeoutMs]
    */
-  constructor({ baseUrl, tokenStore, fetchImpl = globalThis.fetch, timeoutMs = 30000 }) {
+  constructor({ baseUrl, tokenStore, fetchImpl = globalThis.fetch, timeoutMs = 30000, agentVersion = null }) {
     this.baseUrl = String(baseUrl).replace(/\/$/, '');
+    // Sent on every request so HR and team leaders can see who has installed the newest agent.
+    this.agentVersion = agentVersion;
     this.tokens = tokenStore;
     this.fetch = fetchImpl;
     this.timeoutMs = timeoutMs;
@@ -143,6 +145,7 @@ class ApiClient {
   async #send(path, { method = 'GET', body, auth = true } = {}) {
     const headers = {};
     if (body) headers['Content-Type'] = 'application/json';
+    if (this.agentVersion) headers['X-Agent-Version'] = this.agentVersion;
 
     if (auth) {
       const { accessToken } = this.tokens.load() || {};

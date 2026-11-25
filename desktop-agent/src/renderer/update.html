@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>WorkInvigilator update</title>
+    <style>
+      :root { color-scheme: light; }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; background: transparent; overflow: hidden;
+        font: 13px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; user-select: none; }
+      body { display: grid; place-items: center; padding: 14px; }
+
+      .card { position: relative; width: 340px; background: #fff; border-radius: 22px; overflow: hidden;
+        box-shadow: 0 18px 50px rgba(58, 46, 130, 0.35); }
+
+      /* Yellow header with soft clouds and a rocket. */
+      .top { position: relative; height: 130px; background: linear-gradient(#ffd84d, #ffc83a); }
+      .top::before, .top::after { content: ''; position: absolute; border-radius: 50%; background: rgba(255, 255, 255, 0.28); }
+      .top::before { width: 150px; height: 150px; left: -40px; bottom: -80px; }
+      .top::after { width: 190px; height: 190px; right: -50px; bottom: -110px; }
+      .wave { position: absolute; left: 0; right: 0; bottom: -1px; }
+      .rocket { position: absolute; left: 50%; top: 18px; transform: translateX(-50%); animation: float 2.6s ease-in-out infinite; z-index: 2; }
+      @keyframes float { 50% { transform: translateX(-50%) translateY(-6px); } }
+      @media (prefers-reduced-motion: reduce) { .rocket { animation: none; } }
+
+      .body { padding: 14px 24px 26px; }
+      .head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+      .head h1 { margin: 0; font-size: 12px; letter-spacing: 0.04em; color: #2b2d42; font-weight: 800; }
+      .ver { color: #e5484d; font-weight: 800; font-size: 13px; }
+      ol { margin: 0 0 6px; padding: 0; list-style: none; counter-reset: n; max-height: 150px; overflow-y: auto; }
+      li { counter-increment: n; color: #8a8fa3; line-height: 1.55; padding-left: 20px; position: relative; margin-bottom: 2px; }
+      li::before { content: counter(n) '.'; position: absolute; left: 0; color: #545872; font-weight: 700; }
+      .sub { color: #a1a5b8; font-size: 11.5px; margin: 8px 0 0; }
+
+      .actions { margin-top: 18px; text-align: center; }
+      .btn { width: 190px; padding: 12px 0; border: 0; border-radius: 999px; color: #fff; font-weight: 700; font-size: 15px; font-family: inherit; cursor: pointer;
+        background: linear-gradient(#ff6b6b, #f04a53); box-shadow: 0 10px 22px rgba(240, 74, 83, 0.4); transition: transform 0.12s, box-shadow 0.12s; }
+      .btn:hover { transform: translateY(-1px); box-shadow: 0 12px 26px rgba(240, 74, 83, 0.46); }
+      .btn:active { transform: translateY(1px); }
+      .btn:disabled { opacity: 0.6; cursor: default; transform: none; }
+      .later { display: block; margin: 12px auto 0; background: none; border: 0; color: #9a9eb3; font-size: 12.5px; font-family: inherit; cursor: pointer; }
+      .later:hover { color: #545872; }
+
+      .bar { height: 8px; border-radius: 999px; background: #eceef6; overflow: hidden; margin: 6px 12px 0; }
+      .bar > i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #ff9a5a, #f04a53); transition: width 0.25s; }
+      .msg { color: #545872; font-size: 12.5px; margin-top: 10px; min-height: 18px; }
+      .msg.err { color: #c0392b; }
+      .hidden { display: none; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="top">
+        <svg class="rocket" width="46" height="64" viewBox="0 0 46 64" aria-hidden="true">
+          <path d="M23 2c8 8 11 20 9 36H14C12 22 15 10 23 2z" fill="#fff"/>
+          <circle cx="23" cy="22" r="5.2" fill="#7c6df2"/><circle cx="23" cy="22" r="2.6" fill="#cfd0ff"/>
+          <path d="M14 30c-5 4-7 10-6 16l8-6zM32 30c5 4 7 10 6 16l-8-6z" fill="#7c6df2"/>
+          <path d="M18 40h10l-5 20z" fill="#ff8a3d"/><path d="M20.5 42h5l-2.5 12z" fill="#ffd84d"/>
+        </svg>
+        <svg class="wave" viewBox="0 0 340 40" preserveAspectRatio="none" height="34" width="100%" aria-hidden="true">
+          <path d="M0 22c40-22 70-22 110-6s70 16 110-2 80-10 120 6v20H0z" fill="#fff"/>
+        </svg>
+      </div>
+
+      <div class="body">
+        <div class="head"><h1>ABOUT UPDATE</h1><span class="ver" id="ver"></span></div>
+        <ol id="notes"></ol>
+        <p class="sub" id="sub"></p>
+
+        <div class="bar hidden" id="bar"><i id="fill"></i></div>
+        <div class="msg" id="msg"></div>
+
+        <div class="actions">
+          <button class="btn" id="go" type="button">Update</button>
+          <button class="later" id="later" type="button">Later</button>
+        </div>
+      </div>
+    </div>
+    <script src="update.js"></script>
+  </body>
+</html>

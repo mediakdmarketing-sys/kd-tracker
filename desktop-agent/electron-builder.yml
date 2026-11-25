@@ -40,6 +40,14 @@ protocols:
 # with distutils (gone in 3.12+), and fails on machines and CI runners that lack them.
 npmRebuild: false
 
+# Locks down the packaged binary itself (see build/afterPack.js): it hashes app.asar as it is
+# written and bakes that hash into the executable, so the app refuses to start if the asar on disk
+# does not match. This is what stops the "unpack app.asar, edit one file, repack it" trick — the
+# repacked file is a perfectly valid asar, but its hash is different. This version of
+# electron-builder (25.1.8) has no top-level config for it; it has to be done with @electron/fuses
+# in an afterPack script instead.
+afterPack: build/afterPack.js
+
 files:
   - src/**/*
   - package.json

@@ -16,6 +16,8 @@ const { toIso, toBool } = require('../../utils/http');
 const { describe } = require('../../utils/device');
 const notifications = require('../../services/notifications');
 const mailer = require('../../services/mailer');
+const agentRelease = require('../../services/agentRelease');
+const { isVersion } = require('../../utils/version');
 
 const IDLE_LIMIT_MS = 14 * t.DAY_MS; // a session untouched this long has lost its refresh tokens anyway
 
@@ -57,13 +59,18 @@ const TOUCH_EVERY_MS = 60 * 1000;
  * the desktop agent (which asks for its status every minute and uploads as it goes) "last seen" is
  * how HR can tell the agent is connected.
  */
-async function isLive(sessionId) {
-  const row = await db()('sessions').where({ id: sessionId }).first('revoked_at', 'last_seen_at');
+async function isLive(sessionId, { agentVersion = null } = {}) {
+  const row = await db()('sessions').where({ id: sessionId }).first('revoked_at', 'last_seen_at', 'agent_version');
   if (!row) return null;
   if (row.revoked_at) return false;
   const now = t.now();
-  if (now - Number(row.last_seen_at) > TOUCH_EVERY_MS) {
-    await db()('sessions').where({ id: sessionId }).whereNull('revoked_at').update({ last_seen_at: now });
+  // The desktop agent says which version it is on in a header; kept so HR can see who has updated.
+  const reported = isVersion(agentVersion) && agentVersion !== row.agent_version ? agentVersion : null;
+  if (reported || now - Number(row.last_seen_at) > TOUCH_EVERY_MS) {
+    await db()('sessions')
+      .where({ id: sessionId })
+      .whereNull('revoked_at')
+      .update({ ...(now - Number(row.last_seen_at) > TOUCH_EVERY_MS ? { last_seen_at: now } : {}), ...(reported ? { agent_version: reported } : {}) });
   }
   return true;
 }
@@ -100,16 +107,17 @@ async function lastAgentContact(employeeIds) {
  * @returns {Promise<Map<string, {state: 'online'|'quiet'|'none', lastSeenAt: string|null, device: string|null, client: string|null}>>}
  */
 async function agentStatus(employeeIds) {
-  const result = new Map(employeeIds.map((id) => [id, { state: 'none', lastSeenAt: null, device: null, client: null }]));
+  const result = new Map(employeeIds.map((id) => [id, { state: 'none', lastSeenAt: null, device: null, client: null, version: null, update: null }]));
   if (!employeeIds.length) return result;
   const now = t.now();
+  const release = await agentRelease.latest();
   const rows = await db()('sessions')
     .whereIn('employee_id', employeeIds)
     .whereIn('client', AGENT_CLIENTS)
     .whereNull('revoked_at')
     .andWhere('last_seen_at', '>', now - IDLE_LIMIT_MS)
     .orderBy('last_seen_at', 'desc')
-    .select('employee_id', 'client', 'device_label', 'last_seen_at');
+    .select('employee_id', 'client', 'device_label', 'last_seen_at', 'agent_version');
   for (const r of rows) {
     if (result.get(r.employee_id).state !== 'none') continue; // the newest session wins
     result.set(r.employee_id, {
@@ -117,6 +125,9 @@ async function agentStatus(employeeIds) {
       lastSeenAt: toIso(r.last_seen_at),
       device: r.device_label || null,
       client: r.client,
+      version: r.agent_version || null,
+      // Only the desktop agent is updated this way (the phone app has its own installer).
+      update: r.client === 'desktop' ? agentRelease.updateState(r.agent_version, release) : null,
     });
   }
   return result;

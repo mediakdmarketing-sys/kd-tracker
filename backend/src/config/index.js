@@ -138,6 +138,8 @@ const config = {
     audioSampleDurationSec: int('AUDIO_SAMPLE_DURATION_SEC', 300),
     audioSampleGapSec: int('AUDIO_SAMPLE_GAP_SEC', 480),
     maxUploadBytes: int('MAX_UPLOAD_BYTES', 5 * 1024 * 1024),
+    // Alert HR when this many pixel-identical screenshots appear in one shift.
+    repeatedScreenshotThreshold: int('REPEATED_SCREENSHOT_THRESHOLD', 3),
   },
 
   retention: {

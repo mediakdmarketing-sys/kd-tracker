@@ -40,6 +40,7 @@ async function truncate() {
     'breaks',
     'attendance',
     'capture_gaps',
+    'agent_releases',
     'login_events',
     'password_resets',
     'sessions',

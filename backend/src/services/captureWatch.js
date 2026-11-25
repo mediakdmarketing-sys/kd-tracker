@@ -218,15 +218,38 @@ async function run({ now = t.now() } = {}) {
 }
 
 /**
- * Many busy samples with at most two distinct (keys, mouse) readings between them.
+ * Many busy samples with near-identical (keys, mouse) readings — a mouse jiggler or macro.
+ *
+ * Two checks, either is enough:
+ *   1. At most 2 distinct exact readings across all samples (the original check).
+ *   2. All readings are "busy" (never quiet) AND the coefficient of variation of the combined
+ *      count is under 15% — values that are always high with low scatter are scripted even
+ *      when slightly randomised (attacker adds Math.random()*20 to bypass check 1).
+ *
  * @param {{ keystroke_count: number, mouse_count: number }[]} rows
  */
 function looksScripted(rows, minSamples) {
   if (rows.length < minSamples) return false;
   const busy = rows.filter((r) => Number(r.keystroke_count) + Number(r.mouse_count) > 0);
-  if (busy.length < rows.length * 0.8) return false; // plenty of quiet minutes: that is a person
+  if (busy.length < rows.length * 0.8) return false; // plenty of quiet minutes → real person
+
+  // Check 1: at most 2 distinct exact (keys, mouse) pairs.
   const distinct = new Set(rows.map((r) => `${r.keystroke_count}|${r.mouse_count}`));
-  return distinct.size <= 2;
+  if (distinct.size <= 2) return true;
+
+  // Check 2: near-identical values (low coefficient of variation).
+  // A CV below 15% across always-high samples is a strong scripted signal.
+  if (busy.length === rows.length) {
+    const vals = busy.map((r) => Number(r.keystroke_count) + Number(r.mouse_count));
+    const mean = vals.reduce((s, v) => s + v, 0) / vals.length;
+    if (mean > 20) {
+      const variance = vals.reduce((s, v) => s + (v - mean) ** 2, 0) / vals.length;
+      const cv = Math.sqrt(variance) / mean;
+      if (cv < 0.15) return true;
+    }
+  }
+
+  return false;
 }
 
 /** Seconds of "no capture" per attendance id, counting a gap that is still going up to `now`. */

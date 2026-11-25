@@ -92,9 +92,17 @@ function createApp() {
    * Capture settings the agent reads on start and on every status poll, so an admin change
    * in Settings (backend/src/services/settings.js) reaches running agents without a restart.
    */
-  app.get('/api/config', authenticate, (req, res) => {
+  app.get('/api/config', authenticate, async (req, res, next) => {
     const s = settings.get();
+    let release = null;
+    try {
+      release = await require('./services/agentRelease').latest();
+    } catch (err) {
+      return next(err);
+    }
     res.json({
+      // The newest desktop agent: the agent compares it with its own version and offers the update.
+      agentRelease: release && { version: release.version, notes: release.notes, mandatory: release.mandatory },
       screenshot: {
         minIntervalSeconds: s.capture.screenshotMinIntervalSec,
         maxIntervalSeconds: s.capture.screenshotMaxIntervalSec,

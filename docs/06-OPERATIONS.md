@@ -64,7 +64,7 @@ Settings marked "first-run defaults" are copied into the database the first time
 
 **Before deploying the backend**
 1. Take a database backup (Supabase point-in-time or a dump).
-2. Run migrations on production **before** the new code starts: `node src/db/cli.js migrate`. The batch for the latest work is `20261112` to `20261120` (birthdays, bank details, account admin, break reason, Zoom minutes, workday hours, time corrections, leave allowances, sessions and two-step). All are additive.
+2. Run migrations on production **before** the new code starts: `node src/db/cli.js migrate`. The batch for the latest work is `20261112` to `20261123` (birthdays, bank details, account admin, break reason, Zoom minutes, workday hours, time corrections, leave allowances, sessions and two-step, capture gaps, password resets, agent releases). All are additive.
 3. Set new variables: `BANK_DATA_KEY` (and store a copy somewhere safe), `BFF_KEY` on **both** Render and Vercel with the same value, optionally `TOTP_ENCRYPTION_KEY`, and the Resend variables if email should work.
 4. Deploy backend, then the web portal.
 
@@ -76,7 +76,13 @@ Settings marked "first-run defaults" are copied into the database the first time
 5. Rotate any secret that was ever pasted into a chat or log (for example the Supabase password and Render `DATABASE_URL`).
 
 **Agents**
-- Existing desktop agents keep working (link scheme and app id unchanged). A new build carries the new name, logo, Zoom rule and notifications: build with `npm run build:win` (or the GitHub workflows `build-agent.yml`, `build-android.yml`), upload the installer, `.blockmap` and `latest.yml` to R2 with `scripts/publish-update.js`. Agents with auto-update install it only while punched out.
+- Existing desktop agents keep working (link scheme and app id unchanged). A new build carries the new name, logo, Zoom rule and notifications: build with `npm run build:win` (or the GitHub workflows `build-agent.yml`, `build-android.yml`), upload the installer, `.blockmap` and `latest.yml` to R2 with `scripts/publish-update.js`. Agents do not install it on their own: they show an **Update window** (below).
+- **Releasing an agent version (step by step):**
+  1. Bump `version` in `desktop-agent/package.json`, build, and upload the installer, `.blockmap` and `latest.yml` to the update feed (R2). Do this first, so the Update button has something to download.
+  2. In the portal, **Agent updates** (HR): publish the same version number with one line per change. Tick *Required* to remove the "Later" button.
+  3. Within the hour each running agent finds the new build, fetches the notes and opens the Update window. Pressing **Update** downloads it and runs the installer silently over the old copy (the old one is removed, the new one installed and started again; sign-in and the offline queue are kept). **Later** hides the window for 4 hours; a *Required* update ignores it.
+  4. The same page (and **Agent updates** for team leaders, for their own people) shows who is *Up to date*, *Not updated*, *Unknown* (an older agent that does not report its version) or has *No agent*. The version comes from the `X-Agent-Version` header every agent request carries, stored on the session.
+  5. macOS builds are unsigned and cannot self-install: the window offers a Download button for the new .dmg. The Android app is not part of this (its own installer).
 - An account with two-step on cannot sign in directly in the agent or Android app: the person signs in on the portal and connects from there.
 
 ## 4. Monitoring and routine care
